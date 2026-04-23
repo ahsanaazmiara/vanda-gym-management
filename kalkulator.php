@@ -58,12 +58,12 @@
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
         .btn-submit {
-            width: 100%; background-color: var(--accent-gold); color: #000;
+            width: 100%; background-color: var(--primary-red); color: white;
             border: none; min-height: 48px; font-size: 1.1rem; font-weight: bold;
             border-radius: 4px; cursor: pointer; text-transform: uppercase; margin-top: 10px;
             transition: 0.3s;
         }
-        .btn-submit:hover { background-color: #d4b585; }
+        .btn-submit:hover { background-color: #a81a1a; }
 
         /* Hasil Kalkulator */
         .result-box {

@@ -95,7 +95,7 @@
 <body>
 
     <div class="status-container">
-        <a href="daftar.php" class="btn-back-square" title="Kembali">←</a>
+        <a href="index.php" class="btn-back-square" title="Kembali">←</a>
         
         <h2 style="color: var(--accent-gold);">Cek Status Verifikasi</h2>
         <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
