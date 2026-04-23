@@ -218,7 +218,7 @@
         <nav>
             <a href="#beranda">Beranda</a>
             <a href="#paket">Paket & Jadwal</a>
-            <a href="#kalkulator">Kalkulator Gizi</a>
+            <a href="kalkulator.php">Kalkulator Gizi</a>
             <a href="login.php" class="nav-login">Login</a>
             <button class="btn-daftar" onclick="window.location.href='daftar.php'">Daftar Member</button>
         </nav>
