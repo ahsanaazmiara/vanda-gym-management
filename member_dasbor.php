@@ -302,7 +302,7 @@
                     <div>
                         <strong>Perhatian:</strong> Masa aktif membership Anda telah <strong>KEDALUWARSA</strong>.
                     </div>
-                    <a href="#perpanjang" class="btn-primary" style="min-height: 35px; padding: 5px 15px; font-size: 0.9rem;">Perpanjang Sekarang</a>
+                    <a href="perpanjang.php" class="btn-primary" style="min-height: 35px; padding: 5px 15px; font-size: 0.9rem;">Perpanjang Sekarang</a>
                 </div>
 
                 <div class="grid-top">
@@ -364,7 +364,7 @@
                         <p>Hitung ulang kalori & protein harian.</p>
                     </a>
 
-                    <a href="#perpanjang" class="action-btn" style="border-color: var(--primary-red);" onclick="alert('Diarahkan ke form perpanjangan tagihan...')">
+                    <a href="perpanjang.php" class="action-btn" style="border-color: var(--primary-red);" onclick="alert('Diarahkan ke form perpanjangan tagihan...')">
                         <div class="action-icon">💳</div>
                         <h3 style="color: var(--primary-red);">Perpanjang Member</h3>
                         <p>Bayar tagihan bulan berikutnya.</p>
@@ -390,7 +390,7 @@
                     <div>
                         <strong>Info:</strong> Masa aktif membership Anda tersisa <strong style="font-size:1.2rem;">7 Hari</strong> lagi.
                     </div>
-                    <a href="#perpanjang" class="btn-primary" style="min-height: 35px; padding: 5px 15px; font-size: 0.9rem;">Perpanjang Sekarang</a>
+                    <a href="perpanjang.php" class="btn-primary" style="min-height: 35px; padding: 5px 15px; font-size: 0.9rem;">Perpanjang Sekarang</a>
                 </div>
 
                 <div class="grid-top">
@@ -452,7 +452,7 @@
                         <p>Hitung ulang kalori & protein harian.</p>
                     </a>
 
-                    <a href="#perpanjang" class="action-btn" onclick="alert('Diarahkan ke form perpanjangan tagihan...')">
+                    <a href="perpanjang.php" class="action-btn" onclick="alert('Diarahkan ke form perpanjangan tagihan...')">
                         <div class="action-icon">💳</div>
                         <h3>Perpanjang Member</h3>
                         <p>Bayar tagihan bulan berikutnya.</p>
