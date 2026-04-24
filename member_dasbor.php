@@ -188,7 +188,7 @@
             <img src="assets/logo.png" alt="Vanda Gym Classic Logo">
         </div>
         <nav>
-            <a href="profil_member.php">Edit Profil</a>
+            <a href="profil_member.php">Profil</a>
             <a href="chatbot_member.php" id="navChatbot">Chatbot AI</a>
             <a href="kalkulator.php?source=dasbor">Kalkulator Gizi</a>
             <a href="galeri_member.php" id="navGaleri">Galeri Gym</a>
