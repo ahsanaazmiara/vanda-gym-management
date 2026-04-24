@@ -24,7 +24,7 @@
 
         .calc-container {
             background-color: #0a0a0a;
-            border: 1px solid #333; border-top: 4px solid var(--accent-gold);
+            border: 1px solid #333; border-top: 4px solid var(--primary-red);
             border-radius: 8px; padding: 30px; width: 100%; max-width: 650px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
@@ -38,7 +38,7 @@
             text-decoration: none; font-weight: bold; font-size: 1.2rem;
             transition: 0.3s;
         }
-        .btn-back-square:hover { background-color: var(--accent-gold); color: #000; }
+        .btn-back-square:hover { background-color: var(--primary-red); color: #000; }
 
         .form-header { text-align: center; margin-bottom: 25px; }
         .form-header h2 { color: var(--text-light); text-transform: uppercase; }
@@ -91,7 +91,7 @@
 
     <div class="calc-container">
         <div class="nav-top">
-            <a href="index.php" class="btn-back-square" title="Kembali">←</a>
+            <a href="index.php" id="btnBack" class="btn-back-square" title="Kembali">←</a>
         </div>
 
         <div class="form-header">
@@ -180,6 +180,17 @@
     </div>
 
     <script>
+        // Logika untuk tombol Kembali berdasarkan parameter URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const source = urlParams.get('source');
+        const backBtn = document.getElementById('btnBack');
+
+        if (source === 'dasbor') {
+            backBtn.href = 'member_dasbor.php';
+        } else {
+            backBtn.href = 'index.php';
+        }
+
         function hitungGizi(e) {
             e.preventDefault();
 

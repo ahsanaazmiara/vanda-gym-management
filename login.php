@@ -105,7 +105,6 @@
 
         <div class="form-header">
             <h2>Login Sistem</h2>
-            <p>Silakan masuk ke akun Vanda Gym Anda</p>
         </div>
 
         <div id="loginErrorBox"></div>

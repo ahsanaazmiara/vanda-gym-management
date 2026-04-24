@@ -39,7 +39,6 @@
         }
         nav a:hover { color: var(--accent-gold); }
         
-        .nav-login { color: var(--accent-gold); font-weight: bold; margin-right: 5px; }
 
         .btn-daftar { 
             border: 2px solid var(--accent-gold); padding: 0 20px; border-radius: 4px; 

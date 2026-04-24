@@ -74,12 +74,29 @@
             display: inline-block; padding: 5px 12px; border-radius: 20px;
             font-size: 0.85rem; font-weight: bold; margin-top: 10px;
         }
-        .status-pending { background: #856404; color: #fff; } /* Menunggu Verifikasi */
-        .status-cash { background: #004085; color: #fff; }    /* Bayar di Tempat */
-        .status-active { background: #155724; color: #fff; }  /* Aktif */
-        .status-rejected { background: #721c24; color: #fff; }/* Ditolak */
+        .status-pending { background: #856404; color: #fff; }
+        .status-active { background: #155724; color: #fff; }
+        .status-rejected { background: #721c24; color: #fff; }
 
-        /* ================= Tombol WA (Floating) ================= */
+        /* Detail Info Style */
+        .detail-info {
+            background-color: #1a1a1a; border: 1px dashed #333; border-radius: 4px;
+            padding: 15px; margin: 15px 0; font-size: 0.85rem; color: #ccc;
+        }
+        .detail-row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        .detail-row:last-child { margin-bottom: 0; padding-top: 8px; border-top: 1px solid #333; }
+        .detail-row span:last-child { font-weight: bold; color: var(--text-light); text-align: right; }
+
+        .btn-outline-gold {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: transparent; border: 1px solid var(--accent-gold);
+            color: var(--accent-gold); text-decoration: none; padding: 8px 15px;
+            border-radius: 4px; font-weight: bold; font-size: 0.85rem;
+            transition: 0.3s; margin-top: 10px; cursor: pointer; width: 100%;
+        }
+        .btn-outline-gold:hover { background: var(--accent-gold); color: #000; }
+
+        /* Tombol WA (Floating) */
         .wa-btn {
             position: fixed; bottom: 30px; left: 30px; 
             background-color: #25D366; color: white; 
@@ -90,6 +107,45 @@
         }
         .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
         .wa-btn svg { width: 35px; height: 35px; fill: currentColor; }
+
+        /* ================= MODAL & E-RECEIPT STYLE ================= */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none; justify-content: center; 
+            align-items: center; z-index: 2000; padding: 20px; overflow-y: auto;
+        }
+        .receipt-card {
+            background: #fff; color: #000; width: 100%; max-width: 350px;
+            padding: 25px 20px; border-radius: 8px; font-family: 'Courier New', Courier, monospace;
+            position: relative; box-shadow: 0 0 20px rgba(232, 201, 153, 0.2);
+        }
+        .close-modal {
+            position: absolute; top: -15px; right: -15px;
+            background: var(--primary-red); color: white; width: 30px; height: 30px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-weight: bold; font-family: sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+        .receipt-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 15px; margin-bottom: 15px; }
+        .receipt-header h3 { margin: 0; font-size: 1.2rem; font-family: sans-serif; font-weight: 900;}
+        .receipt-header p { margin: 5px 0 0; font-size: 0.75rem; color: #555;}
+        .receipt-body p { margin: 5px 0; font-size: 0.85rem; display: flex; justify-content: space-between; }
+        .receipt-footer { text-align: center; border-top: 2px dashed #000; padding-top: 15px; margin-top: 15px; }
+        
+        .btn-download {
+            background-color: #000; color: #fff; border: none; padding: 12px; width: 100%;
+            margin-top: 20px; font-weight: bold; border-radius: 4px; cursor: pointer;
+            font-family: sans-serif; transition: 0.3s;
+        }
+        .btn-download:hover { background-color: #333; }
+
+        /* ================= CSS KHUSUS CETAK (PRINT) ================= */
+        @media print {
+            body * { visibility: hidden; } /* Sembunyikan semua background web */
+            .modal-overlay { position: absolute; left: 0; top: 0; padding: 0; background: transparent; }
+            .receipt-card, .receipt-card * { visibility: visible; } /* Tampilkan hanya struk */
+            .receipt-card { box-shadow: none; max-width: 100%; padding: 0; }
+            .no-print, .close-modal { display: none !important; } /* Sembunyikan tombol saat dicetak */
+        }
     </style>
 </head>
 <body>
@@ -113,13 +169,35 @@
         <div id="hasilCek" class="result-box">
             <div style="border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
                 <span style="color: #888; font-size: 0.85rem;">Nama Pendaftar:</span>
-                <div id="resNama" style="font-weight: bold;">-</div>
+                <div id="resNama" style="font-weight: bold; color: var(--text-light);">-</div>
             </div>
             
             <span style="color: #888; font-size: 0.85rem;">Status Verifikasi:</span>
             <div id="resStatus"></div>
             
             <div id="resPesan" style="margin-top: 15px; font-size: 0.85rem; color: #ccc; line-height: 1.4;"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="receiptModal">
+        <div class="receipt-card">
+            <div class="close-modal no-print" onclick="tutupBukti()">X</div>
+            
+            <div class="receipt-header">
+                <h3>VANDA GYM CLASSIC</h3>
+                <p>E-RECEIPT REGISTRASI MEMBER</p>
+                <p>Palangka Raya, Kalimantan Tengah</p>
+            </div>
+            
+            <div class="receipt-body" id="receiptData">
+                </div>
+            
+            <div class="receipt-footer">
+                <h3 style="margin:0; font-family:sans-serif;">STATUS: LUNAS</h3>
+                <p style="font-size:0.7rem; color:#666; margin-top:5px;">Terima kasih. Simpan bukti ini sebagai referensi pendaftaran Anda.</p>
+            </div>
+
+            <button class="btn-download no-print" onclick="window.print()">📥 Simpan sebagai PDF</button>
         </div>
     </div>
 
@@ -140,6 +218,10 @@
                 input.classList.remove('invalid');
             }
         }
+
+        // Fungsi Buka & Tutup Bukti
+        function bukaBukti() { document.getElementById('receiptModal').style.display = 'flex'; }
+        function tutupBukti() { document.getElementById('receiptModal').style.display = 'none'; }
 
         function cariStatus() {
             const user = document.getElementById('cekUser').value.trim();
@@ -169,14 +251,40 @@
             // SIMULASI PROTOTIPE UNTUK MELIHAT PERBEDAAN
             // ==========================================
             
-            // 1. Kondisi Jika AKTIF
+            // 1. Kondisi Jika AKTIF (Ketik username yang mengandung kata "aktif")
             if (user.toLowerCase().includes('aktif')) {
+                
+                // --- Data Simulasi Database ---
+                const noTrx = "VGYM-" + Math.floor(Math.random() * 99999);
+                const tglBayar = "25 Apr 2026";
+                const namaPaket = "1 Bulan Gym";
+                const tglMulai = "25 Apr 2026";
+                const tglBerakhir = "25 Mei 2026";
+                const totalBiaya = "Rp 175.000";
+
+                // --- Render Data ke Struk ---
+                document.getElementById('receiptData').innerHTML = `
+                    <p><span>No. Trx</span> <span>${noTrx}</span></p>
+                    <p><span>Tgl Bayar</span> <span>${tglBayar}</span></p>
+                    <p><span>Username</span> <span>${user}</span></p>
+                    <hr style="border:1px dashed #000; margin:10px 0;">
+                    <p><span>Paket</span> <span>${namaPaket}</span></p>
+                    <p><span>Mulai</span> <span>${tglMulai}</span></p>
+                    <p><span>Berakhir</span> <span>${tglBerakhir}</span></p>
+                    <hr style="border:1px dashed #000; margin:10px 0;">
+                    <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${totalBiaya}</span></p>
+                `;
                 
                 resStatus.innerHTML = '<span class="status-badge status-active">Aktif Terverifikasi</span>';
                 resPesan.innerHTML = `
-                    <strong style="color: var(--accent-gold);">Pendaftaran Berhasil!</strong><br>
-                    Selamat, akun membership Anda sudah aktif. Anda sekarang memiliki akses penuh ke sistem Vanda Gym Classic.
+                    <div class="detail-info">
+                        <div class="detail-row"><span>Paket:</span><span>${namaPaket}</span></div>
+                        <div class="detail-row"><span>Mulai:</span><span>${tglMulai}</span></div>
+                        <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglBerakhir}</span></div>
+                    </div>
                     
+                    <button class="btn-outline-gold" onclick="bukaBukti()">🧾 Download E-Receipt</button>
+
                     <a href="login.php" style="display: flex; align-items: center; justify-content: center; background-color: var(--accent-gold); color: #000; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
                         🔑 Login ke Dasbor
                     </a>
@@ -186,13 +294,11 @@
             } else if (user.toLowerCase().includes('tolak') || user.toLowerCase().includes('gagal')) {
                 
                 resStatus.innerHTML = '<span class="status-badge status-rejected">Pendaftaran Ditolak</span>';
-                
-                // Pesan WA khusus untuk yang ditolak
                 const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pendaftaran member saya dengan username *${user}* berstatus ditolak. Boleh mohon info perbaikannya?`);
                 const linkWaTolak = `https://wa.me/6282148556601?text=${pesanWaTolak}`;
 
                 resPesan.innerHTML = `
-                    <strong style="color: #ff4d4d;">Verifikasi Gagal!</strong><br>
+                    <strong style="color: #ff4d4d; display:block; margin-top:10px;">Verifikasi Gagal!</strong>
                     Pendaftaran Anda tidak dapat diverifikasi (kemungkinan karena bukti bayar tidak valid, buram, atau nominal tidak sesuai).
                     
                     <a href="${linkWaTolak}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #8E1616; color: white; border: 1px solid #ff4d4d; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
@@ -205,14 +311,12 @@
 
             // 3. Kondisi DEFAULT (Menunggu)
             } else {
-                
                 resStatus.innerHTML = '<span class="status-badge status-pending">Menunggu Verifikasi</span>';
-                
                 const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pendaftaran member baru saya dengan username *${user}*. Apakah pembayarannya sudah diverifikasi? Terima kasih.`);
                 const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
 
                 resPesan.innerHTML = `
-                    <strong>Cara Cek Status:</strong><br>
+                    <strong style="display:block; margin-top:10px; color:var(--text-light);">Cara Cek Status:</strong>
                     Admin sedang memverifikasi data Anda. Jika sudah aktif, Anda bisa login menggunakan username yang didaftarkan.
                     
                     <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">

@@ -19,14 +19,14 @@
             background-color: var(--bg-dark); 
             color: var(--text-light); 
             display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; padding: 20px; /* Padding dikurangi agar pas di layar */
+            min-height: 100vh; padding: 20px;
         }
 
         .form-container {
             background-color: #0a0a0a;
             border: 1px solid #333; border-top: 4px solid var(--primary-red);
-            border-radius: 8px; padding: 20px 25px; /* Padding dalam diperkecil */
-            width: 100%; max-width: 600px; /* Sedikit dipersempit */
+            border-radius: 8px; padding: 20px 25px;
+            width: 100%; max-width: 600px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
 
@@ -41,14 +41,14 @@
         }
         .btn-back-square:hover { background-color: var(--primary-red); color: white; border-color: var(--primary-red); }
 
-        .form-header { text-align: center; margin-bottom: 15px; } /* Jarak diperkecil */
+        .form-header { text-align: center; margin-bottom: 15px; }
         .form-header h2 { color: var(--accent-gold); text-transform: uppercase; font-size: 1.4rem;}
 
-        .form-group { margin-bottom: 10px; position: relative; } /* Margin bawah dirapatkan */
+        .form-group { margin-bottom: 10px; position: relative; }
         .form-group label { display: block; margin-bottom: 5px; color: #ccc; font-weight: 600; font-size: 0.9rem;}
         
         .form-control {
-            width: 100%; padding: 8px 15px; min-height: 44px; /* Tinggi standar touch tetap 44px */
+            width: 100%; padding: 8px 15px; min-height: 44px;
             background-color: var(--input-bg); border: 1px solid #333;
             border-radius: 4px; color: white; font-size: 0.95rem;
         }
@@ -58,14 +58,13 @@
         input[type="date"] { color-scheme: dark; }
 
         .error-msg { color: #ff4d4d; font-size: 0.8rem; margin-top: 3px; display: none; }
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } /* Jarak kolom dirapatkan */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
         .section-divider { 
             border-bottom: 1px solid #222; margin: 15px 0 10px; 
             padding-bottom: 5px; color: var(--accent-gold); font-weight: bold; text-transform: uppercase; font-size: 0.8rem;
         }
 
-        /* Tampilan Box Tagihan Nominal */
         .nominal-box {
             background: #1a1a1a; padding: 10px 15px; border-radius: 4px;
             border-left: 3px solid var(--accent-gold); margin-top: 5px;
@@ -283,7 +282,6 @@
             }
         }
 
-        // Fungsi baru untuk memperbarui dan menampilkan Tagihan
         function updateNominal() {
             const paket = document.getElementById('regPaket');
             const boxNominal = document.getElementById('boxNominal');
@@ -291,7 +289,6 @@
             
             if (paket.value) {
                 boxNominal.style.display = 'flex';
-                // Format angka ke format Rupiah
                 textNominal.innerText = "Rp " + parseInt(paket.value).toLocaleString('id-ID');
             } else {
                 boxNominal.style.display = 'none';
@@ -305,8 +302,16 @@
 
         function validasiDanBukaDraf(e) {
             e.preventDefault();
+            
+            // Ambil Data
+            const namaLengkap = document.getElementById('regNama').value;
+            const noHp = document.getElementById('regHp').value;
+            const email = document.getElementById('regEmail').value;
             const user = document.getElementById('regUser').value;
             const pass = document.getElementById('regPass').value;
+            const tglMulai = document.getElementById('regTgl').value;
+            const metode = document.getElementById('regMetode').value;
+            
             const regex = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
 
             if (user.length < 6 || !regex.test(pass)) {
@@ -322,38 +327,64 @@
             const modal = document.getElementById('modalOverlay');
             const content = document.getElementById('modalContent');
             modal.style.display = 'flex';
+            
+            // Mengirim parameter metode dan user ke kirimFinal()
             content.innerHTML = `
                 <h3 style="color:var(--accent-gold); border-bottom:1px solid #333; padding-bottom:10px; text-align:center;">Konfirmasi Data</h3>
-                <div style="margin:15px 0;">
-                    <div class="draf-item"><span style="color:#888;">Nama:</span> <span>${document.getElementById('regNama').value}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Username:</span> <span>${user}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Paket:</span> <span>${namaPaket}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Metode:</span> <span>${document.getElementById('regMetode').value.toUpperCase()}</span></div>
+                <div style="margin:10px 0; font-size: 0.85rem;">
+                    <div class="draf-item"><span style="color:#888;">Nama:</span> <span style="text-align:right;">${namaLengkap}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Kontak:</span> <span style="text-align:right;">${noHp} <br> ${email}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Username:</span> <span style="text-align:right;">${user}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Paket Latihan:</span> <span style="text-align:right;">${namaPaket} <br> Mulai: ${tglMulai}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Metode:</span> <span style="text-align:right;">${metode.toUpperCase()}</span></div>
                     <div class="draf-item" style="border-top:1px dashed #333; margin-top:5px; padding-top:10px;">
-                        <span style="color:var(--text-light); font-weight:bold;">Total Tagihan:</span> 
-                        <span style="color:var(--accent-gold); font-weight:bold;">${hargaPaket}</span>
+                        <span style="color:var(--text-light); font-weight:bold; font-size:1rem;">Total Tagihan:</span> 
+                        <span style="color:var(--accent-gold); font-weight:bold; font-size:1rem;">${hargaPaket}</span>
                     </div>
                 </div>
-                <p style="font-size:0.8rem; color:#888; margin-bottom:15px; text-align:center;">Pastikan data benar sebelum mengirim.</p>
-                <button class="btn-submit" style="margin-top:0;" onclick="kirimFinal()">Kirim Pendaftaran</button>
-                <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:transparent; border:none; color:#888; width:100%; margin-top:10px; cursor:pointer; min-height:44px;">Edit Kembali</button>
+                <p style="font-size:0.75rem; color:#888; margin-bottom:10px; text-align:center;">Pastikan data Anda sudah benar.</p>
+                <button class="btn-submit" style="margin-top:0;" onclick="kirimFinal('${metode}', '${user}')">Kirim Pendaftaran</button>
+                <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:transparent; border:none; color:#888; width:100%; margin-top:5px; cursor:pointer; min-height:44px;">Edit Kembali</button>
             `;
         }
 
-        function kirimFinal() {
+        // Fungsi kirimFinal menerima metode bayar dan username
+        function kirimFinal(metode, user) {
             const content = document.getElementById('modalContent');
             content.innerHTML = `<div style="text-align:center;"><p>Mengirim data pendaftaran...</p></div>`;
 
             setTimeout(() => {
+                let pesanStatus = "";
+                let instruksi = "";
+                let tombolWa = "";
+
+                if (metode === 'tunai') {
+                    pesanStatus = `<strong style="color: #ffc107;">Menunggu Pembayaran</strong>`;
+                    instruksi = `Silakan datang ke resepsionis Vanda Gym untuk melakukan pembayaran tunai. Akun Anda akan diaktifkan setelah pembayaran diselesaikan di tempat.`;
+                } else {
+                    pesanStatus = `<strong style="color: #ffc107;">Sedang Diproses</strong>`;
+                    instruksi = `Admin sedang memverifikasi data Anda. Jika sudah aktif, Anda bisa login menggunakan username yang didaftarkan.`;
+                    
+                    // Membuat pesan dan link WhatsApp otomatis
+                    const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya baru saja melakukan pendaftaran member baru saya dengan username *${user}*. Tolong dicek ya. Terima kasih.`);
+                    const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
+                    
+                    tombolWa = `
+                    <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                        📞 Konfirmasi ke WhatsApp CS
+                    </a>`;
+                }
+
                 content.innerHTML = `
                     <h3 style="color:var(--accent-gold); text-align:center;">Pendaftaran Berhasil!</h3>
-                    <p style="margin:15px 0; text-align:center;">Status: <strong style="color: #ffc107;">Sedang Diproses</strong></p>
+                    <p style="margin:10px 0; text-align:center;">Status: ${pesanStatus}</p>
                     <div style="background:#000; padding:15px; border:1px solid #222; border-radius:4px; font-size:0.85rem; line-height:1.5;">
-                        <strong>Cara Cek Status:</strong><br>
-                        Admin akan memverifikasi data. Jika aktif, Anda bisa login dengan username. Coba cek status secara berkala atau hubungi CS.
+                        <strong>Langkah Selanjutnya:</strong><br>
+                        ${instruksi}
+                        ${tombolWa}
                     </div>
                     <button class="btn-submit" onclick="window.location.href='cek_status.php'">Cek Status Pendaftaran</button>
-                    <button onclick="window.location.href='index.php'" style="background:transparent; border:none; color:#888; width:100%; margin-top:10px; cursor:pointer; min-height:44px;">Kembali ke Beranda</button>
+                    <button onclick="window.location.href='index.php'" style="background:transparent; border:none; color:#888; width:100%; margin-top:5px; cursor:pointer; min-height:44px;">Kembali ke Beranda</button>
                 `;
             }, 1500);
         }
