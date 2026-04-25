@@ -244,10 +244,8 @@
             
             document.getElementById('labelQris').classList.toggle('active', isQris);
             document.getElementById('labelTunai').classList.toggle('active', !isQris);
-
             document.getElementById('detailQris').style.display = isQris ? 'block' : 'none';
             document.getElementById('detailTunai').style.display = isQris ? 'none' : 'block';
-
             document.getElementById('buktiTransfer').required = isQris;
         }
 
@@ -298,6 +296,18 @@
             const modal = document.getElementById('modalOverlay');
             const content = document.getElementById('modalContent');
             const form = document.getElementById('formPerpanjang');
+
+            // --- AMBIL DATA UNTUK DISIMPAN DI LOCALSTORAGE ---
+            const selectPaket = document.getElementById('paketPilih');
+            const namaPaket = selectPaket.options[selectPaket.selectedIndex].getAttribute('data-nama');
+            const hargaPaket = "Rp " + parseInt(selectPaket.value).toLocaleString('id-ID');
+            const tglMulai = document.getElementById('tglMulai').value;
+
+            // Simpan ke memori browser
+            localStorage.setItem('vanda_renew_paket', namaPaket);
+            localStorage.setItem('vanda_renew_harga', hargaPaket);
+            localStorage.setItem('vanda_renew_tglMulai', tglMulai);
+            // --------------------------------------------------
             
             content.innerHTML = `<div style="text-align:center;"><p style="font-weight:bold; color:var(--accent-gold);">Sedang menyimpan data perpanjangan...</p></div>`;
 
@@ -328,7 +338,6 @@
                     </a>`;
                 }
 
-                // REVISI: Mengubah href tombol cek status ke cek_status_perpanjang.php
                 const divSukses = document.createElement('div');
                 divSukses.innerHTML = `
                     <div style="background:#050505; padding:20px; border:1px solid #222; border-radius:8px; margin-top:20px;">

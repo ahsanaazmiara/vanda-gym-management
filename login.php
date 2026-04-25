@@ -59,7 +59,7 @@
 
         .error-msg { color: #ff4d4d; font-size: 0.75rem; margin-top: 5px; display: none; }
         
-        #loginErrorBox {
+        #loginErrorBox, #resetErrorBox {
             background: rgba(142, 22, 22, 0.1); padding: 12px; border-radius: 4px; 
             border: 1px dashed var(--primary-red); color: #ff4d4d; font-size: 0.85rem; 
             margin-bottom: 20px; display: none; text-align: center;
@@ -98,10 +98,16 @@
         .icon-lock { font-size: 3rem; margin-bottom: 10px; text-align: center; }
         .success-msg {
             display: none; background: rgba(40, 167, 69, 0.1); border: 1px dashed #28a745;
-            color: #28a745; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem; text-align: center;
+            color: #28a745; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem; text-align: center; line-height: 1.5;
         }
         .text-link { color: #888; font-size: 0.85rem; text-decoration: none; transition: 0.3s; cursor: pointer; }
         .text-link:hover { color: var(--accent-gold); }
+        
+        .btn-simulasi {
+            background: transparent; border: 1px solid var(--success-green); color: var(--success-green);
+            padding: 8px 15px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; margin-top: 10px; transition: 0.3s; font-weight: bold;
+        }
+        .btn-simulasi:hover { background: var(--success-green); color: #fff; }
     </style>
 </head>
 <body>
@@ -118,6 +124,7 @@
             </div>
 
             <div id="loginErrorBox"></div>
+            <div id="loginSuccessBox" class="success-msg" style="border-color: var(--accent-gold); color: var(--accent-gold); background: rgba(232, 201, 153, 0.1);"></div>
 
             <form id="formLogin" onsubmit="simulasiLogin(event)">
                 <div class="form-group">
@@ -133,13 +140,11 @@
                                placeholder="Angka & huruf" oninput="cekPassword(this, 'errorPass')" 
                                style="padding-right: 50px;">
                         
-                        <span id="togglePassword" onclick="toggleVisibility('logPass', 'eyeIcon')" 
+                        <span onclick="toggleVisibility('logPass', 'eyeIcon1')" 
                               style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); 
                                      cursor: pointer; min-height: 44px; min-width: 44px; 
                                      display: flex; align-items: center; justify-content: center; z-index: 10;">
-                            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" 
-                                 viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" 
-                                 stroke-linecap="round" stroke-linejoin="round">
+                            <svg id="eyeIcon1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                 <circle cx="12" cy="12" r="3"></circle>
                             </svg>
@@ -191,6 +196,52 @@
             </div>
         </div>
 
+        <div id="formBuatPasswordBaru" style="display: none; padding-top: 10px;">
+            <div class="icon-lock">🔑</div>
+            <div class="form-header">
+                <h2>Buat Password Baru</h2>
+                <p>Silakan buat password baru untuk akun Anda.</p>
+            </div>
+
+            <div id="resetErrorBox"></div>
+
+            <form id="formNewPass" onsubmit="simulasiBuatPasswordBaru(event)">
+                <div class="form-group">
+                    <label>Password Baru</label>
+                    <div style="position: relative;">
+                        <input type="password" id="newPass" class="form-control" required 
+                               placeholder="Minimal 6 Karakter (Angka & Huruf)" oninput="cekPassword(this, 'errorNewPass')" 
+                               style="padding-right: 50px;">
+                        <span onclick="toggleVisibility('newPass', 'eyeIcon2')" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; z-index: 10;">
+                            <svg id="eyeIcon2" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </span>
+                    </div>
+                    <div id="errorNewPass" class="error-msg">Gunakan kombinasi huruf & angka (min 6).</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Konfirmasi Password Baru</label>
+                    <div style="position: relative;">
+                        <input type="password" id="confirmPass" class="form-control" required 
+                               placeholder="Ketik ulang password baru" oninput="cekKonfirmasiPassword()" 
+                               style="padding-right: 50px;">
+                        <span onclick="toggleVisibility('confirmPass', 'eyeIcon3')" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; z-index: 10;">
+                            <svg id="eyeIcon3" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </span>
+                    </div>
+                    <div id="errorConfirmPass" class="error-msg">Password tidak cocok!</div>
+                </div>
+
+                <button type="submit" id="btnSimpanPass" class="btn-submit">Simpan Password</button>
+            </form>
+        </div>
+
     </div>
 
     <script>
@@ -199,23 +250,34 @@
 
             document.getElementById('formLoginUtama').style.display = mode === 'login' ? 'block' : 'none';
             document.getElementById('formLupaPassword').style.display = mode === 'lupa' ? 'block' : 'none';
+            document.getElementById('formBuatPasswordBaru').style.display = mode === 'buat_password' ? 'block' : 'none';
             
             if (mode === 'login') {
-                // Tombol back ke beranda
                 btnBack.href = "index.php";
                 btnBack.onclick = null;
                 btnBack.title = "Kembali ke Beranda";
-
+                
+                // Reset form lupa password
                 document.getElementById('formReset').style.display = 'block';
                 document.getElementById('pesanSuksesReset').style.display = 'none';
                 document.getElementById('btnReset').innerText = "Kirim Tautan Reset";
                 document.getElementById('btnReset').disabled = false;
                 document.getElementById('resetEmail').value = "";
-            } else {
-                // Tombol back ke halaman login
+            } else if (mode === 'lupa') {
                 btnBack.href = "javascript:void(0)";
                 btnBack.onclick = function(e) { e.preventDefault(); toggleMode('login'); };
                 btnBack.title = "Kembali ke Login";
+                document.getElementById('loginSuccessBox').style.display = 'none';
+            } else if (mode === 'buat_password') {
+                // Simulasi pengguna mengklik link dari email, back button kembali ke form login
+                btnBack.href = "javascript:void(0)";
+                btnBack.onclick = function(e) { e.preventDefault(); toggleMode('login'); };
+                btnBack.title = "Batal dan Kembali Login";
+                
+                // Bersihkan field
+                document.getElementById('newPass').value = "";
+                document.getElementById('confirmPass').value = "";
+                document.getElementById('resetErrorBox').style.display = 'none';
             }
         }
 
@@ -232,9 +294,65 @@
             setTimeout(() => {
                 form.style.display = 'none'; 
                 pesan.style.display = 'block'; 
-                pesan.innerHTML = `Tautan reset password telah dikirim ke <strong>${email}</strong>! Silakan periksa kotak masuk atau folder spam Anda.`;
+                pesan.innerHTML = `Tautan reset password telah dikirim ke <strong>${email}</strong>! Silakan periksa email Anda.<br><br>
+                <button type="button" class="btn-simulasi" onclick="toggleMode('buat_password')">[SIMULASI] Klik Link di Email</button>`;
             }, 1500);
         }
+
+        // --- Fungsi Validasi Password Baru ---
+        function cekKonfirmasiPassword() {
+            const pass1 = document.getElementById('newPass').value;
+            const pass2 = document.getElementById('confirmPass').value;
+            const error = document.getElementById('errorConfirmPass');
+            const input2 = document.getElementById('confirmPass');
+
+            if (pass2.length > 0 && pass1 !== pass2) {
+                error.style.display = 'block';
+                input2.classList.add('invalid');
+            } else {
+                error.style.display = 'none';
+                input2.classList.remove('invalid');
+            }
+        }
+
+        function simulasiBuatPasswordBaru(e) {
+            e.preventDefault();
+            const pass1 = document.getElementById('newPass').value;
+            const pass2 = document.getElementById('confirmPass').value;
+            const errorBox = document.getElementById('resetErrorBox');
+            const btn = document.getElementById('btnSimpanPass');
+
+            const regex = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
+            
+            errorBox.style.display = 'none';
+
+            if (pass1.length < 6 || !regex.test(pass1)) {
+                errorBox.innerHTML = "❌ Password baru harus mengandung huruf dan angka (minimal 6 karakter).";
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            if (pass1 !== pass2) {
+                errorBox.innerHTML = "❌ Konfirmasi password tidak cocok!";
+                errorBox.style.display = 'block';
+                return;
+            }
+
+            btn.innerText = "Menyimpan...";
+            btn.disabled = true;
+
+            setTimeout(() => {
+                // Berhasil ubah, kembali ke halaman login utama dengan pesan sukses
+                toggleMode('login');
+                const successBox = document.getElementById('loginSuccessBox');
+                successBox.innerHTML = "✅ Password berhasil diperbarui! Silakan login dengan password baru Anda.";
+                successBox.style.display = 'block';
+                
+                btn.innerText = "Simpan Password";
+                btn.disabled = false;
+            }, 1500);
+        }
+        // -------------------------------------
 
         function cekUsername(input) {
             const error = document.getElementById('errorUser');
@@ -269,6 +387,11 @@
                 error.style.display = 'none';
                 input.classList.remove('invalid');
             }
+            
+            // Trigger konfirmasi ulang jika field pertama diubah
+            if (errorId === 'errorNewPass' && document.getElementById('confirmPass').value.length > 0) {
+                cekKonfirmasiPassword();
+            }
         }
 
         function toggleVisibility(inputId, iconId) {
@@ -295,16 +418,16 @@
             const user = document.getElementById('logUser').value.trim();
             const pass = document.getElementById('logPass').value.trim();
             const errorBox = document.getElementById('loginErrorBox');
+            const successBox = document.getElementById('loginSuccessBox');
 
             errorBox.style.display = 'none';
+            successBox.style.display = 'none'; // Sembunyikan pesan reset berhasil jika ada
 
-            // Akses Khusus Admin
             if (user.toLowerCase() === 'admin' && pass.toLowerCase() === 'admin') {
                 prosesMasuk('admin_dasbor.php');
                 return;
             }
 
-            // Pengecekan Format Dasar (Validasi Input)
             const adaAngka = /\d/.test(pass);
             const adaHuruf = /[a-zA-Z]/.test(pass);
 
@@ -314,9 +437,7 @@
                 return;
             }
 
-            // SIMULASI LOGIN KE DATABASE
-            // Anggap saja data yang benar di database adalah: ahsana123 & password123
-            
+            // SIMULASI LOGIN
             if (user !== 'ahsana123') {
                 errorBox.innerHTML = "❌ Akun tidak ditemukan. Silakan cek kembali username Anda.";
                 errorBox.style.display = 'block';
@@ -329,12 +450,11 @@
                 return;
             }
 
-            // Jika semua benar, proses masuk ke dasbor
             prosesMasuk('member_dasbor.php');
         }
 
         function prosesMasuk(targetHalaman) {
-            const btn = document.querySelector('.btn-submit');
+            const btn = document.querySelector('#formLoginUtama .btn-submit');
             const originalText = btn.innerText;
             btn.innerText = "Memeriksa...";
             btn.style.opacity = "0.7";

@@ -43,7 +43,7 @@
         .btn-back-square:hover { background-color: var(--primary-red); color: white; border-color: var(--primary-red); }
 
         .form-group { margin: 25px 0; text-align: left; position: relative; }
-        .form-group label { display: block; margin-bottom: 8px; color: #ccc; }
+        .form-group label { display: block; margin-bottom: 8px; color: #ccc; font-weight: 600; font-size: 0.85rem;}
         
         .form-control {
             width: 100%; padding: 10px 15px; min-height: 44px;
@@ -140,11 +140,11 @@
 
         /* ================= CSS KHUSUS CETAK (PRINT) ================= */
         @media print {
-            body * { visibility: hidden; } /* Sembunyikan semua background web */
+            body * { visibility: hidden; } 
             .modal-overlay { position: absolute; left: 0; top: 0; padding: 0; background: transparent; }
-            .receipt-card, .receipt-card * { visibility: visible; } /* Tampilkan hanya struk */
+            .receipt-card, .receipt-card * { visibility: visible; } 
             .receipt-card { box-shadow: none; max-width: 100%; padding: 0; }
-            .no-print, .close-modal { display: none !important; } /* Sembunyikan tombol saat dicetak */
+            .no-print, .close-modal { display: none !important; } 
         }
     </style>
 </head>
@@ -153,7 +153,7 @@
     <div class="status-container">
         <a href="index.php" class="btn-back-square" title="Kembali">←</a>
         
-        <h2 style="color: var(--accent-gold);">Cek Status Verifikasi</h2>
+        <h2 style="color: var(--accent-gold); text-transform: uppercase; font-size: 1.4rem;">Cek Status Verifikasi</h2>
         <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
             Masukkan Username Anda untuk melihat status aktivasi membership.
         </p>
@@ -254,33 +254,48 @@
             // 1. Kondisi Jika AKTIF (Ketik username yang mengandung kata "aktif")
             if (user.toLowerCase().includes('aktif')) {
                 
-                // --- Data Simulasi Database ---
-                const noTrx = "VGYM-" + Math.floor(Math.random() * 99999);
-                const tglBayar = "25 Apr 2026";
-                const namaPaket = "1 Bulan Gym";
-                const tglMulai = "25 Apr 2026";
-                const tglBerakhir = "25 Mei 2026";
-                const totalBiaya = "Rp 175.000";
+                // === BACA DATA DARI LOCALSTORAGE (Hasil Input daftar.php) ===
+                const savedPaket = localStorage.getItem('vanda_daftar_paket') || "1 Bulan Gym";
+                const savedHarga = localStorage.getItem('vanda_daftar_harga') || "Rp 175.000";
+                const savedTglMulai = localStorage.getItem('vanda_daftar_tglMulai') || "2026-04-25";
+                
+                // Format Tanggal Mulai jadi teks cantik
+                const formatTglCetak = (tglString, tambahBulan = 0) => {
+                    let d = new Date(tglString);
+                    if (tambahBulan > 0) d.setMonth(d.getMonth() + tambahBulan);
+                    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                };
+
+                let tglMulaiFormat = formatTglCetak(savedTglMulai);
+                
+                // Otomatis tambah bulan kedaluwarsa sesuai paket
+                let durasiBulan = 1;
+                if (savedPaket.includes('2')) durasiBulan = 2;
+                if (savedPaket.includes('3')) durasiBulan = 3;
+                let tglAkhirFormat = formatTglCetak(savedTglMulai, durasiBulan);
+
+                const noTrx = "REG-" + Math.floor(Math.random() * 99999);
+                // ================================================================
 
                 // --- Render Data ke Struk ---
                 document.getElementById('receiptData').innerHTML = `
                     <p><span>No. Trx</span> <span>${noTrx}</span></p>
-                    <p><span>Tgl Bayar</span> <span>${tglBayar}</span></p>
+                    <p><span>Tgl Bayar</span> <span>${formatTglCetak(new Date())}</span></p>
                     <p><span>Username</span> <span>${user}</span></p>
                     <hr style="border:1px dashed #000; margin:10px 0;">
-                    <p><span>Paket</span> <span>${namaPaket}</span></p>
-                    <p><span>Mulai</span> <span>${tglMulai}</span></p>
-                    <p><span>Berakhir</span> <span>${tglBerakhir}</span></p>
+                    <p><span>Paket</span> <span>${savedPaket}</span></p>
+                    <p><span>Mulai Berlaku</span> <span>${tglMulaiFormat}</span></p>
+                    <p><span>Berakhir Pada</span> <span>${tglAkhirFormat}</span></p>
                     <hr style="border:1px dashed #000; margin:10px 0;">
-                    <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${totalBiaya}</span></p>
+                    <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${savedHarga}</span></p>
                 `;
                 
                 resStatus.innerHTML = '<span class="status-badge status-active">Aktif Terverifikasi</span>';
                 resPesan.innerHTML = `
                     <div class="detail-info">
-                        <div class="detail-row"><span>Paket:</span><span>${namaPaket}</span></div>
-                        <div class="detail-row"><span>Mulai:</span><span>${tglMulai}</span></div>
-                        <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglBerakhir}</span></div>
+                        <div class="detail-row"><span>Paket:</span><span>${savedPaket}</span></div>
+                        <div class="detail-row"><span>Mulai:</span><span>${tglMulaiFormat}</span></div>
+                        <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglAkhirFormat}</span></div>
                     </div>
                     
                     <button class="btn-outline-gold" onclick="bukaBukti()">🧾 Download E-Receipt</button>

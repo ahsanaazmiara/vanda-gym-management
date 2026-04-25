@@ -39,7 +39,6 @@
         }
         nav a:hover { color: var(--accent-gold); }
         
-
         .btn-daftar { 
             border: 2px solid var(--accent-gold); padding: 0 20px; border-radius: 4px; 
             color: var(--accent-gold); margin-left: 20px; background: transparent;
@@ -47,6 +46,39 @@
             cursor: pointer; transition: 0.3s;
         }
         .btn-daftar:hover { background-color: var(--accent-gold); color: var(--bg-dark); }
+
+        /* ================= BANNER PENGUMUMAN (DIPERBESAR) ================= */
+        .announcement-banner {
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+            color: var(--text-light);
+            padding: 16px 25px; /* Diperbesar */
+            text-align: center;
+            font-size: 1.1rem; /* Diperbesar */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px; /* Jarak diperbesar */
+            z-index: 99;
+        }
+        .announcement-badge {
+            background-color: var(--primary-red);
+            color: white;
+            padding: 5px 12px; /* Diperbesar */
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85rem; /* Diperbesar */
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(142, 22, 22, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(142, 22, 22, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(142, 22, 22, 0); }
+        }
+        .announcement-text { font-weight: 500; }
+        /* ====================================================== */
 
         .hero { 
             height: 85vh; 
@@ -164,6 +196,7 @@
 
         @media (max-width: 768px) {
             .footer-container { grid-template-columns: 1fr; text-align: center; }
+            .announcement-banner { flex-direction: column; text-align: center; } /* Responsif untuk banner */
         }
 
         .wa-btn {
@@ -222,6 +255,11 @@
             <button class="btn-daftar" onclick="window.location.href='daftar.php'">Daftar Member</button>
         </nav>
     </header>
+
+    <div class="announcement-banner" id="infoBanner">
+        <span class="announcement-badge">Info Terkini</span>
+        <span class="announcement-text">Gym TUTUP pada hari Jumat, 1 Mei 2026 karena libur nasional. Buka kembali hari Sabtu.</span>
+    </div>
 
     <section id="beranda" class="hero">
         <h1>Bentuk Karakter,<br>Bangun Kekuatan</h1>
@@ -320,12 +358,12 @@
             <div class="benefit-card">
                 <div class="benefit-icon">📱</div>
                 <h3>Kelola Akun & Masa Aktif</h3>
-                <p>Miliki dasbor pribadi untuk memantau status membership, terima notifikasi membership kedaluwarsa, dan perpanjang online dari sistem.</p>
+                <p>Miliki dasbor pribadi untuk memantau status membership, terima notifikasi kedaluwarsa, dan perpanjang online.</p>
             </div>
             <div class="benefit-card">
                 <div class="benefit-icon">🎥</div>
                 <h3>Video Tutorial Eksklusif</h3>
-                <p>Dapatkan akses ke galeri panduan gerakan gym yang benar.</p>
+                <p>Dapatkan akses ke galeri panduan gerakan gym yang benar agar latihan optimal dan aman.</p>
             </div>
         </div>
     </section>

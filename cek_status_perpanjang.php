@@ -151,7 +151,7 @@
 <body>
 
     <div class="status-container">
-        <a href="index.php" class="btn-back-square" title="Kembali">←</a>
+        <a href="member_dasbor.php" class="btn-back-square" title="Kembali ke Dasbor">←</a>
         
         <h2 style="color: var(--accent-gold); text-transform: uppercase; font-size: 1.4rem;">Status Perpanjangan</h2>
         <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
@@ -219,7 +219,6 @@
             }
         }
 
-        // Fungsi Buka & Tutup Modal Bukti E-Receipt
         function bukaBukti() { document.getElementById('receiptModal').style.display = 'flex'; }
         function tutupBukti() { document.getElementById('receiptModal').style.display = 'none'; }
 
@@ -254,38 +253,53 @@
             // 1. Kondisi Jika AKTIF (Ketik username yang mengandung kata "aktif")
             if (user.toLowerCase().includes('aktif')) {
                 
-                // Data Simulasi
-                const noTrx = "RENEW-" + Math.floor(Math.random() * 99999);
-                const tglBayar = "25 Apr 2026";
-                const namaPaket = "1 Bulan Gym";
-                const tglMulai = "25 Apr 2026";
-                const tglBerakhir = "25 Mei 2026";
-                const totalBiaya = "Rp 150.000"; // Harga member lama
+                // === BACA DATA DARI LOCALSTORAGE (Hasil Input perpanjang.php) ===
+                const savedPaket = localStorage.getItem('vanda_renew_paket') || "1 Bulan Gym";
+                const savedHarga = localStorage.getItem('vanda_renew_harga') || "Rp 175.000";
+                const savedTglMulai = localStorage.getItem('vanda_renew_tglMulai') || "2026-04-25";
+                
+                // Format Tanggal Mulai jadi teks cantik (Misal: 25 Apr 2026)
+                const formatTglCetak = (tglString, tambahBulan = 0) => {
+                    let d = new Date(tglString);
+                    if (tambahBulan > 0) d.setMonth(d.getMonth() + tambahBulan);
+                    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                };
 
-                // Render Data ke Struk E-Receipt
+                let tglMulaiFormat = formatTglCetak(savedTglMulai);
+                
+                // Otomatis tambah bulan kedaluwarsa sesuai paket
+                let durasiBulan = 1;
+                if (savedPaket.includes('2')) durasiBulan = 2;
+                if (savedPaket.includes('3')) durasiBulan = 3;
+                let tglAkhirFormat = formatTglCetak(savedTglMulai, durasiBulan);
+
+                const noTrx = "RENEW-" + Math.floor(Math.random() * 99999);
+                // ================================================================
+
+                // Render Data Dinamis ke Struk E-Receipt
                 document.getElementById('receiptData').innerHTML = `
                     <p><span>No. Trx</span> <span>${noTrx}</span></p>
-                    <p><span>Tgl Bayar</span> <span>${tglBayar}</span></p>
+                    <p><span>Tgl Bayar</span> <span>${formatTglCetak(new Date())}</span></p>
                     <p><span>Username</span> <span>${user}</span></p>
                     <hr style="border:1px dashed #000; margin:10px 0;">
-                    <p><span>Paket</span> <span>${namaPaket}</span></p>
-                    <p><span>Mulai Berlaku</span> <span>${tglMulai}</span></p>
-                    <p><span>Berakhir Pada</span> <span>${tglBerakhir}</span></p>
+                    <p><span>Paket</span> <span>${savedPaket}</span></p>
+                    <p><span>Mulai Berlaku</span> <span>${tglMulaiFormat}</span></p>
+                    <p><span>Berakhir Pada</span> <span>${tglAkhirFormat}</span></p>
                     <hr style="border:1px dashed #000; margin:10px 0;">
-                    <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${totalBiaya}</span></p>
+                    <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${savedHarga}</span></p>
                 `;
                 
                 resStatus.innerHTML = '<span class="status-badge status-active">Perpanjangan Aktif</span>';
                 resPesan.innerHTML = `
                     <div class="detail-info">
-                        <div class="detail-row"><span>Paket:</span><span>${namaPaket}</span></div>
-                        <div class="detail-row"><span>Mulai:</span><span>${tglMulai}</span></div>
-                        <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglBerakhir}</span></div>
+                        <div class="detail-row"><span>Paket:</span><span>${savedPaket}</span></div>
+                        <div class="detail-row"><span>Mulai:</span><span>${tglMulaiFormat}</span></div>
+                        <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglAkhirFormat}</span></div>
                     </div>
                     
                     <button class="btn-outline-gold" onclick="bukaBukti()">🧾 Download E-Receipt</button>
 
-                    <a href="login.php" style="display: flex; align-items: center; justify-content: center; background-color: var(--accent-gold); color: #000; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                    <a href="member_dasbor.php" style="display: flex; align-items: center; justify-content: center; background-color: var(--accent-gold); color: #000; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
                         🔑 Masuk ke Dasbor
                     </a>
                 `;
@@ -295,7 +309,6 @@
                 
                 resStatus.innerHTML = '<span class="status-badge status-rejected">Perpanjangan Ditolak</span>';
                 
-                // Pesan WA Khusus Penolakan
                 const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pengajuan perpanjangan member saya dengan username *${user}* berstatus ditolak. Boleh mohon info alasannya?`);
                 const linkWaTolak = `https://wa.me/6282148556601?text=${pesanWaTolak}`;
 
@@ -315,7 +328,6 @@
             } else {
                 resStatus.innerHTML = '<span class="status-badge status-pending">Menunggu Verifikasi</span>';
                 
-                // Pesan WA Khusus Konfirmasi
                 const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pembayaran perpanjangan member saya dengan username *${user}*. Apakah sudah diverifikasi? Terima kasih.`);
                 const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
 

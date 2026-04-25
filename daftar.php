@@ -251,12 +251,12 @@
                 <div style="text-align: center;">
                     <svg viewBox="0 0 24 24" width="40" height="40" fill="var(--accent-gold)" style="margin-bottom: 10px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91 2.95.73 4.18 1.9 4.18 3.91-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>
                     <p style="font-size: 0.8rem; color: #888; margin-top: 5px; background: #0a0a0a; padding: 10px; border-radius: 4px; border: 1px solid #333;">
-                        <strong>Silahkan datang ke resepsionis untuk melakukan pembayaran agar akun aktif.</strong>
+                        <strong>Silahkan kirim pendaftaran</strong> dan datang ke resepsionis untuk melakukan pembayaran agar akun aktif.
                     </p>
                 </div>
             </div>
 
-            <button type="submit" class="btn-submit">Cek Draf Pendaftaran</button>
+            <button type="submit" class="btn-submit">Kirim Pendaftaran</button>
 
             <div class="login-footer">
                 <div>
@@ -276,7 +276,6 @@
     </div>
 
     <script>
-        // Logika Validasi Sama
         function validasiAngka(input) {
             const error = document.getElementById('errorHp');
             if (/\D/g.test(input.value)) {
@@ -331,7 +330,6 @@
             }
         }
 
-        // Tampilan Tagihan
         function updateNominal() {
             const paket = document.getElementById('regPaket');
             const boxNominal = document.getElementById('boxNominal');
@@ -345,7 +343,6 @@
             }
         }
 
-        // Tampilan Metode Pembayaran (Mirip Perpanjang)
         function ubahMetode() {
             const isQris = document.querySelector('input[name="metodeBayar"]:checked').value === 'qris';
             
@@ -369,7 +366,6 @@
             }
         }
 
-        // Validasi Akhir dan Buka Modal Draf
         function validasiDanBukaDraf(e) {
             e.preventDefault();
             
@@ -379,7 +375,6 @@
             const user = document.getElementById('regUser').value;
             const pass = document.getElementById('regPass').value;
             const tglMulai = document.getElementById('regTgl').value;
-            // Ambil dari input radio bukan select dropdown
             const metode = document.querySelector('input[name="metodeBayar"]:checked').value;
             
             const regex = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
@@ -416,9 +411,20 @@
             `;
         }
 
-        // Simulasi Submit Ke Database
         function kirimFinal(metode, user) {
             const content = document.getElementById('modalContent');
+            
+            // --- AMBIL DATA UNTUK DISIMPAN DI LOCALSTORAGE ---
+            const selectPaket = document.getElementById('regPaket');
+            const namaPaket = selectPaket.options[selectPaket.selectedIndex].getAttribute('data-nama');
+            const hargaPaket = "Rp " + parseInt(selectPaket.value).toLocaleString('id-ID');
+            const tglMulai = document.getElementById('regTgl').value;
+
+            localStorage.setItem('vanda_daftar_paket', namaPaket);
+            localStorage.setItem('vanda_daftar_harga', hargaPaket);
+            localStorage.setItem('vanda_daftar_tglMulai', tglMulai);
+            // --------------------------------------------------
+
             content.innerHTML = `<div style="text-align:center;"><p style="font-weight:bold; color:var(--accent-gold);">Sedang menyimpan data pendaftaran...</p></div>`;
 
             setTimeout(() => {
