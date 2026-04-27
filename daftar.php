@@ -175,25 +175,19 @@
             </div>
 
             <div class="section-divider">2. Keamanan Akun</div>
-            <div class="grid-2">
-                <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="regUser" class="form-control" required placeholder="Minimal 6 karakter" oninput="cekUsername(this)">
-                    <div id="errorUser" class="error-msg">Minimal 6 karakter.</div>
+            <div class="form-group">
+                <label>Password Akun</label>
+                <div style="position: relative;">
+                    <input type="password" id="regPass" class="form-control" required placeholder="Kombinasi angka & huruf" oninput="cekPassword(this)" style="padding-right: 50px;">
+                    <span id="togglePassword" onclick="toggleVisibility()" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; z-index: 10;">
+                        <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </span>
                 </div>
-                <div class="form-group">
-                    <label>Password</label>
-                    <div style="position: relative;">
-                        <input type="password" id="regPass" class="form-control" required placeholder="Angka & huruf" oninput="cekPassword(this)" style="padding-right: 50px;">
-                        <span id="togglePassword" onclick="toggleVisibility()" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; z-index: 10;">
-                            <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                        </span>
-                    </div>
-                    <div id="errorPass" class="error-msg">Gunakan huruf & angka.</div>
-                </div>            
+                <div id="errorPass" class="error-msg">Gunakan minimal satu huruf dan satu angka.</div>
+                <p style="font-size: 0.8rem; color: #888; margin-top: 8px;">Gunakan email Anda sebagai identitas login nantinya.</p>
             </div>
 
             <div class="section-divider">3. Paket Latihan & Pembayaran</div>
@@ -288,17 +282,6 @@
             }
         }
 
-        function cekUsername(input) {
-            const error = document.getElementById('errorUser');
-            if (input.value.length < 6 && input.value.length > 0) {
-                error.style.display = 'block';
-                input.classList.add('invalid');
-            } else {
-                error.style.display = 'none';
-                input.classList.remove('invalid');
-            }
-        }
-
         function cekPassword(input) {
             const error = document.getElementById('errorPass');
             const regex = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
@@ -372,14 +355,13 @@
             const namaLengkap = document.getElementById('regNama').value;
             const noHp = document.getElementById('regHp').value;
             const email = document.getElementById('regEmail').value;
-            const user = document.getElementById('regUser').value;
             const pass = document.getElementById('regPass').value;
             const tglMulai = document.getElementById('regTgl').value;
             const metode = document.querySelector('input[name="metodeBayar"]:checked').value;
             
             const regex = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]+)$/;
 
-            if (user.length < 6 || !regex.test(pass)) {
+            if (!regex.test(pass)) {
                 alert("Harap perbaiki kesalahan (tulisan merah) pada formulir sebelum melanjutkan.");
                 return;
             }
@@ -396,8 +378,8 @@
                 <h3 style="color:var(--accent-gold); border-bottom:1px solid #333; padding-bottom:10px; text-align:center; font-size:1.3rem;">Konfirmasi Data</h3>
                 <div style="margin:15px 0; font-size: 0.9rem; color:#ccc;">
                     <div class="draf-item"><span style="color:#888;">Nama:</span> <span style="text-align:right;">${namaLengkap}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Kontak:</span> <span style="text-align:right;">${noHp} <br> ${email}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Username:</span> <span style="text-align:right; font-weight:bold; color:white;">${user}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Nomor WA:</span> <span style="text-align:right;">${noHp}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Login via:</span> <span style="text-align:right; font-weight:bold; color:white;">${email}</span></div>
                     <div class="draf-item"><span style="color:#888;">Paket Latihan:</span> <span style="text-align:right;">${namaPaket} <br> Mulai: ${tglMulai}</span></div>
                     <div class="draf-item"><span style="color:#888;">Metode:</span> <span style="text-align:right;">${metode.toUpperCase()}</span></div>
                     <div class="draf-item" style="border-top:1px dashed #333; margin-top:5px; padding-top:15px;">
@@ -406,12 +388,12 @@
                     </div>
                 </div>
                 <p style="font-size:0.8rem; color:#888; margin-bottom:15px; text-align:center;">Pastikan data pendaftaran Anda sudah benar.</p>
-                <button class="btn-submit" style="margin-top:0;" onclick="kirimFinal('${metode}', '${user}')">Kirim Pendaftaran</button>
+                <button class="btn-submit" style="margin-top:0;" onclick="kirimFinal('${metode}', '${email}')">Kirim Pendaftaran</button>
                 <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:transparent; border:1px solid #333; border-radius:4px; color:#888; width:100%; margin-top:10px; cursor:pointer; min-height:44px; transition:0.3s;" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'">Kembali Edit</button>
             `;
         }
 
-        function kirimFinal(metode, user) {
+        function kirimFinal(metode, email) {
             const content = document.getElementById('modalContent');
             
             // --- AMBIL DATA UNTUK DISIMPAN DI LOCALSTORAGE ---
@@ -437,9 +419,9 @@
                     instruksi = `Silakan datang ke resepsionis Vanda Gym untuk melakukan pembayaran tunai. Akun Anda akan diaktifkan setelah pembayaran diselesaikan.`;
                 } else {
                     pesanStatus = `<strong style="color: #ffc107;">Sedang Diproses</strong>`;
-                    instruksi = `Admin sedang memverifikasi bukti pembayaran Anda. Jika sudah aktif, Anda bisa login menggunakan username yang didaftarkan.`;
+                    instruksi = `Admin sedang memverifikasi bukti pembayaran Anda. Jika sudah aktif, Anda bisa login menggunakan email yang didaftarkan.`;
                     
-                    const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya baru saja melakukan pendaftaran member baru saya dengan username *${user}*. Tolong dicek ya. Terima kasih.`);
+                    const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya baru saja melakukan pendaftaran member baru dengan email *${email}*. Tolong dicek ya. Terima kasih.`);
                     const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
                     
                     tombolWa = `

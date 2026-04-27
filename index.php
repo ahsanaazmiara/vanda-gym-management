@@ -248,8 +248,9 @@
             <img src="assets/logo.png" alt="Vanda Gym Classic Logo">
         </div>
         <nav>
-            <a href="#beranda">Beranda</a>
-            <a href="#paket">Paket & Jadwal</a>
+            <a href="#paket">Paket Membership</a>
+            <a href="#jadwal">Jadwal</a>
+            <a href="#galeri">Galeri Gym</a>
             <a href="kalkulator.php">Kalkulator Gizi</a>
             <a href="login.php" class="nav-login">Login</a>
             <button class="btn-daftar" onclick="window.location.href='daftar.php'">Daftar Member</button>
@@ -351,17 +352,35 @@
         <h2 class="section-title">Keuntungan Daftar Member Online</h2>
         <div class="grid-3">
             <div class="benefit-card">
-                <div class="benefit-icon">🤖</div>
+                <div class="benefit-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                        <circle cx="12" cy="5" r="2"></circle>
+                        <path d="M12 7v4"></path>
+                        <line x1="8" y1="16" x2="8.01" y2="16"></line>
+                        <line x1="16" y1="16" x2="16.01" y2="16"></line>
+                    </svg>
+                </div>
                 <h3>Akses Chatbot AI Lanjutan</h3>
                 <p>Member mendapatkan AI khusus untuk info nutrisi dasar dan tips kebugaran harian.</p>
             </div>
             <div class="benefit-card">
-                <div class="benefit-icon">📱</div>
+                <div class="benefit-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                    </svg>
+                </div>
                 <h3>Kelola Akun & Masa Aktif</h3>
                 <p>Miliki dasbor pribadi untuk memantau status membership, terima notifikasi kedaluwarsa, dan perpanjang online.</p>
             </div>
             <div class="benefit-card">
-                <div class="benefit-icon">🎥</div>
+                <div class="benefit-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                    </svg>
+                </div>
                 <h3>Video Tutorial Eksklusif</h3>
                 <p>Dapatkan akses ke galeri panduan gerakan gym yang benar agar latihan optimal dan aman.</p>
             </div>
@@ -370,7 +389,7 @@
 
     <section id="galeri">
         <h2 class="section-title">Fasilitas Gym Kami</h2>
-        <p style="text-align: center; color: #888; margin-bottom: 30px;">Geser untuk melihat fasilitas alat beban dan kardio.</p>
+        <p style="text-align: center; color: #888; margin-bottom: 30px;">Geser untuk melihat beberapa fasilitas alat beban dan kardio.</p>
         
         <div class="gallery-slider">
             <img src="https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop" alt="Fasilitas Dumbbell" class="gallery-item">
@@ -379,6 +398,10 @@
             <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&auto=format&fit=crop" alt="Area Angkat Beban" class="gallery-item">
             <img src="https://images.unsplash.com/photo-1576678927484-cc907957088c?w=600&auto=format&fit=crop" alt="Rak Beban" class="gallery-item">
         </div>
+
+        <div style="text-align: center; margin-top: 50px;">
+            <a href="galeri_gym.php" class="btn-primary" style="padding: 12px 40px; font-size: 1rem;">Lihat Galeri & Tutorial Lengkap</a>
+        </div>
     </section>
 
     <footer>
@@ -386,10 +409,40 @@
             <div class="footer-info">
                 <h3>Vanda Gym Classic</h3>
                 <p>Membentuk Karakter, Membangun Kekuatan.</p>
-                <p style="margin-top: 20px;">📍 Jl. Kapten Pierre Tendean No.17, Palangka Raya</p>
-                <p>📞 CS / Pendaftaran: <a href="https://wa.me/6282148556601" target="_blank" class="cs-text">0821-4855-6601</a></p>
-                <p>📱 Info Kelas Senam: 0821-5992-5490</p>
-                <p style="margin-top: 15px;">📸 Instagram: <a href="https://instagram.com/vandagympky_classic" target="_blank">@vandagympky_classic</a></p>
+                
+                <div style="margin-top: 25px;">
+                    <p style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        Jl. Kapten Pierre Tendean No.17, Palangka Raya
+                    </p>
+                    
+                    <p style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                        <span>CS / Pendaftaran: 0821-4855-6601</span>
+                    </p>
+
+                    <p style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                        Info Kelas Senam: 0821-5992-5490
+                    </p>
+
+                    <p style="display: flex; align-items: center; gap: 12px; margin-top: 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                        </svg>
+                        <span>Instagram: <a href="https://instagram.com/vandagympky_classic" target="_blank">@vandagympky_classic</a></span>
+                    </p>
+                </div>
             </div>
             
             <div class="footer-map">

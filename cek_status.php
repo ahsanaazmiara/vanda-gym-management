@@ -155,20 +155,20 @@
         
         <h2 style="color: var(--accent-gold); text-transform: uppercase; font-size: 1.4rem;">Cek Status Verifikasi</h2>
         <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
-            Masukkan Username Anda untuk melihat status aktivasi membership.
+            Masukkan Email Anda untuk melihat status aktivasi membership.
         </p>
 
         <div class="form-group">
-            <label>Username Pendaftaran</label>
-            <input type="text" id="cekUser" class="form-control" placeholder="Minimal 6 karakter" oninput="cekUsername(this)">
-            <div id="errorUser" class="error-msg">Username minimal harus 6 karakter.</div>
+            <label>Email Pendaftaran</label>
+            <input type="email" id="cekEmail" class="form-control" placeholder="nama@email.com" oninput="cekFormatEmail(this)">
+            <div id="errorEmail" class="error-msg">Format email tidak valid.</div>
         </div>
 
         <button class="btn-search" onclick="cariStatus()">Cari Data</button>
 
         <div id="hasilCek" class="result-box">
             <div style="border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
-                <span style="color: #888; font-size: 0.85rem;">Nama Pendaftar:</span>
+                <span style="color: #888; font-size: 0.85rem;">Email Pendaftar:</span>
                 <div id="resNama" style="font-weight: bold; color: var(--text-light);">-</div>
             </div>
             
@@ -208,9 +208,10 @@
     </a>
 
     <script>
-        function cekUsername(input) {
-            const error = document.getElementById('errorUser');
-            if (input.value.length < 6 && input.value.length > 0) {
+        function cekFormatEmail(input) {
+            const error = document.getElementById('errorEmail');
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!regex.test(input.value) && input.value.length > 0) {
                 error.style.display = 'block';
                 input.classList.add('invalid');
             } else {
@@ -224,17 +225,18 @@
         function tutupBukti() { document.getElementById('receiptModal').style.display = 'none'; }
 
         function cariStatus() {
-            const user = document.getElementById('cekUser').value.trim();
+            const email = document.getElementById('cekEmail').value.trim();
             const resultBox = document.getElementById('hasilCek');
-            const inputElement = document.getElementById('cekUser');
-            const errorElement = document.getElementById('errorUser');
+            const inputElement = document.getElementById('cekEmail');
+            const errorElement = document.getElementById('errorEmail');
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             
-            if (!user) {
-                alert("Silakan masukkan username terlebih dahulu.");
+            if (!email) {
+                alert("Silakan masukkan email terlebih dahulu.");
                 return;
             }
 
-            if (user.length < 6) {
+            if (!regex.test(email)) {
                 errorElement.style.display = 'block';
                 inputElement.classList.add('invalid');
                 return;
@@ -245,14 +247,15 @@
             const resStatus = document.getElementById('resStatus');
             const resPesan = document.getElementById('resPesan');
 
-            resNama.innerText = user;
+            resNama.innerText = email;
 
             // ==========================================
             // SIMULASI PROTOTIPE UNTUK MELIHAT PERBEDAAN
+            // (Tes ketik email yang mengandung kata "aktif" / "tolak" / "gagal")
             // ==========================================
             
-            // 1. Kondisi Jika AKTIF (Ketik username yang mengandung kata "aktif")
-            if (user.toLowerCase().includes('aktif')) {
+            // 1. Kondisi Jika AKTIF
+            if (email.toLowerCase().includes('aktif')) {
                 
                 // === BACA DATA DARI LOCALSTORAGE (Hasil Input daftar.php) ===
                 const savedPaket = localStorage.getItem('vanda_daftar_paket') || "1 Bulan Gym";
@@ -281,7 +284,7 @@
                 document.getElementById('receiptData').innerHTML = `
                     <p><span>No. Trx</span> <span>${noTrx}</span></p>
                     <p><span>Tgl Bayar</span> <span>${formatTglCetak(new Date())}</span></p>
-                    <p><span>Username</span> <span>${user}</span></p>
+                    <p><span>Email</span> <span style="font-size:0.75rem;">${email}</span></p>
                     <hr style="border:1px dashed #000; margin:10px 0;">
                     <p><span>Paket</span> <span>${savedPaket}</span></p>
                     <p><span>Mulai Berlaku</span> <span>${tglMulaiFormat}</span></p>
@@ -306,10 +309,10 @@
                 `;
 
             // 2. Kondisi Jika DITOLAK
-            } else if (user.toLowerCase().includes('tolak') || user.toLowerCase().includes('gagal')) {
+            } else if (email.toLowerCase().includes('tolak') || email.toLowerCase().includes('gagal')) {
                 
                 resStatus.innerHTML = '<span class="status-badge status-rejected">Pendaftaran Ditolak</span>';
-                const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pendaftaran member saya dengan username *${user}* berstatus ditolak. Boleh mohon info perbaikannya?`);
+                const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pendaftaran member saya dengan email *${email}* berstatus ditolak. Boleh mohon info perbaikannya?`);
                 const linkWaTolak = `https://wa.me/6282148556601?text=${pesanWaTolak}`;
 
                 resPesan.innerHTML = `
@@ -327,12 +330,12 @@
             // 3. Kondisi DEFAULT (Menunggu)
             } else {
                 resStatus.innerHTML = '<span class="status-badge status-pending">Menunggu Verifikasi</span>';
-                const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pendaftaran member baru saya dengan username *${user}*. Apakah pembayarannya sudah diverifikasi? Terima kasih.`);
+                const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pendaftaran member baru saya dengan email *${email}*. Apakah pembayarannya sudah diverifikasi? Terima kasih.`);
                 const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
 
                 resPesan.innerHTML = `
                     <strong style="display:block; margin-top:10px; color:var(--text-light);">Cara Cek Status:</strong>
-                    Admin sedang memverifikasi data Anda. Jika sudah aktif, Anda bisa login menggunakan username yang didaftarkan.
+                    Admin sedang memverifikasi data Anda. Jika sudah aktif, Anda bisa login menggunakan email yang didaftarkan.
                     
                     <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
                         📞 Konfirmasi ke WhatsApp CS
