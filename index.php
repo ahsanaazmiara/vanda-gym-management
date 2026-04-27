@@ -461,17 +461,39 @@
         </svg>
     </a>
 
-    <button class="chatbot-btn" onclick="toggleChat()">🤖</button>
+    <button class="chatbot-btn" onclick="toggleChat()">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+            <line x1="8" y1="16" x2="8.01" y2="16"></line>
+            <line x1="16" y1="16" x2="16.01" y2="16"></line>
+        </svg>
+    </button>
     
     <div class="chatbot-window" id="chatWindow">
         <div class="chat-header">
-            <span>Info Bot Vanda Gym</span>
+            <span style="display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                    <circle cx="12" cy="5" r="2"></circle>
+                    <path d="M12 7v4"></path>
+                    <line x1="8" y1="16" x2="8.01" y2="16"></line>
+                    <line x1="16" y1="16" x2="16.01" y2="16"></line>
+                </svg>
+                Info Bot Vanda Gym
+            </span>
             <button class="close-chat" onclick="toggleChat()" title="Tutup Chat">×</button>
         </div>
         <div class="chat-body clearfix" id="chatBody">
-            <div class="chat-msg">Halo! Saya bot informasi. Silakan pilih topik yang ingin Anda tanyakan di bawah ini. 👇</div>
+            <div class="chat-msg">
+                Halo! Saya bot informasi. Silakan pilih topik yang ingin Anda tanyakan di bawah ini.
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: text-bottom; margin-left: 4px;">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <polyline points="19 12 12 19 5 12"></polyline>
+                </svg>
+            </div>
         </div>
-        
         <div class="chat-footer-menu">
             <div class="quick-replies">
                 <button class="btn-qr" onclick="kirimFaq('Bagaimana cara menghubungi CS?', 'Silakan hubungi WhatsApp CS Vanda Gym di nomor <br><strong><a href=\'https://wa.me/6282148556601\' target=\'_blank\' style=\'color:var(--accent-gold);\'>0821-4855-6601</a></strong><br>Atau klik tombol WhatsApp hijau di pojok kiri bawah layar.')">📞 Hubungi CS</button>

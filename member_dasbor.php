@@ -143,10 +143,10 @@
         .set-method {
             flex: 1; border: 1px solid #333; border-radius: 6px; padding: 12px 10px;
             text-align: center; cursor: pointer; transition: 0.3s; background: #151515;
-            position: relative; min-width: 140px;
+            position: relative; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         .set-method input { position: absolute; opacity: 0; cursor: pointer; }
-        .set-method span { font-weight: bold; color: #888; display: block; font-size: 0.85rem;}
+        .set-method span { font-weight: bold; color: #888; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;}
         
         .set-method.active { border-color: var(--accent-gold); background: rgba(232, 201, 153, 0.1); }
         .set-method.active span { color: var(--accent-gold); }
@@ -175,6 +175,7 @@
             background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;
         }
         .popup-box { background: #111; border: 2px solid var(--accent-gold); padding: 30px; border-radius: 8px; max-width: 400px; text-align: center; }
+        .popup-icon { display: flex; justify-content: center; color: var(--accent-gold); margin-bottom: 15px; }
 
         /* Grid Bawah: Menu Aksi Cepat */
         .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px;}
@@ -187,7 +188,8 @@
         .action-btn:hover { border-color: var(--accent-gold); transform: translateY(-5px); background: #1a1a1a;}
         .action-btn.locked { opacity: 0.5; border-color: #222; cursor: not-allowed; pointer-events: none;}
         .action-btn.locked h3 { color: #777; }
-        .action-icon { font-size: 2.5rem; margin-bottom: 15px; }
+        .action-icon { margin-bottom: 15px; color: var(--accent-gold); }
+        .action-btn.danger-border .action-icon { color: var(--primary-red); }
         .action-btn h3 { color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 5px; }
         .action-btn p { color: #888; font-size: 0.85rem; }
 
@@ -203,7 +205,7 @@
         .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
         .wa-btn svg { width: 35px; height: 35px; fill: currentColor; }
 
-        .chatbot-btn { position: fixed; bottom: 30px; right: 30px; background-color: var(--primary-red); color: white; border: none; border-radius: 50%; width: 60px; height: 60px; font-size: 28px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s; display: flex; justify-content: center; align-items: center; text-decoration: none; }
+        .chatbot-btn { position: fixed; bottom: 30px; right: 30px; background-color: var(--primary-red); color: white; border: none; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s; display: flex; justify-content: center; align-items: center; text-decoration: none; }
         .chatbot-btn:hover { transform: scale(1.1); }
         .chatbot-btn.locked { background-color: #333; color: #888; border: 2px solid #555; cursor: not-allowed; pointer-events: none; }
 
@@ -253,7 +255,8 @@
 
     <div id="popupSimulasi" class="popup-simulasi">
         <div class="popup-box">
-            <div id="popupIcon" style="font-size: 3rem; margin-bottom: 10px;">📧</div>
+            <div id="popupIcon" class="popup-icon">
+                </div>
             <h3 id="popupTitle" style="color: var(--accent-gold); margin-bottom: 10px;">Simulasi Email</h3>
             <p id="popupMsg" style="color: #ccc; font-size: 0.9rem; margin-bottom: 20px;">Pesan simulasi muncul di sini.</p>
             <button onclick="document.getElementById('popupSimulasi').style.display='none'" class="btn-primary">Tutup</button>
@@ -266,7 +269,9 @@
         </svg>
     </a>
 
-    <a href="chatbot_member.php" id="floatingChatbot" class="chatbot-btn" title="Tanya Chatbot AI Vanda">🤖</a>
+    <a href="chatbot_member.php" id="floatingChatbot" class="chatbot-btn" title="Tanya Chatbot AI Vanda">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+    </a>
 
     <script>
         // ================= PENGATURAN & SIMULASI NOTIFIKASI =================
@@ -310,12 +315,12 @@
                 const pesanWa = encodeURIComponent(`[Sistem Vanda Gym] Halo ${namaMember}, ini adalah pengingat otomatis. Masa aktif membership Anda tersisa 7 Hari lagi. Harap segera melakukan perpanjangan.`);
                 window.open(`https://wa.me/6282148556601?text=${pesanWa}`, '_blank');
             } else if (savedPref === 'email') {
-                document.getElementById('popupIcon').innerText = "📧";
+                document.getElementById('popupIcon').innerHTML = `<svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`;
                 document.getElementById('popupTitle').innerText = "Simulasi Inbox Email";
                 document.getElementById('popupMsg').innerHTML = `Sistem berhasil mengirimkan email tagihan otomatis ke alamat email Anda.`;
                 document.getElementById('popupSimulasi').style.display = 'flex';
             } else if (savedPref === 'dasbor') {
-                document.getElementById('popupIcon').innerText = "🔕";
+                document.getElementById('popupIcon').innerHTML = `<svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><path d="M18.63 13A17.89 17.89 0 0 1 18 8"></path><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"></path><path d="M18 8a6 6 0 0 0-9.33-5"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
                 document.getElementById('popupTitle').innerText = "Simulasi Mode Senyap";
                 document.getElementById('popupMsg').innerHTML = `Anda memilih "Hanya Dasbor". Sistem <strong>TIDAK</strong> akan mengirim pesan WA atau Email. Anda hanya akan melihat kotak peringatan merah di atas halaman ini saat login.`;
                 document.getElementById('popupSimulasi').style.display = 'flex';
@@ -324,12 +329,11 @@
 
         // ================= RENDER TAMPILAN DASHBOARD =================
         const urlParams = new URLSearchParams(window.location.search);
-        const statusMember = urlParams.get('status') || 'aktif';
+        const statusMember = urlParams.get('status') || 'kadaluarsa';
 
         const dashboardContainer = document.getElementById('mainDashboard');
         const floatingChatbot = document.getElementById('floatingChatbot');
         const navChatbot = document.getElementById('navChatbot');
-        const navGaleri = document.getElementById('navGaleri');
 
         const savedNotif = localStorage.getItem('vanda_notif_pref') || 'wa';
         const isWa = savedNotif === 'wa' ? 'checked' : '';
@@ -342,7 +346,11 @@
         const komponenNotifikasi = `
             <div class="dash-card" style="margin-bottom: 40px; border-top-color: #333;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <span style="font-size: 1.5rem;">🔔</span>
+                    <span style="color: var(--accent-gold);">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                    </span>
                     <h3 style="color: var(--text-light); font-size: 1.1rem;">Pengaturan Pengingat Masa Aktif</h3>
                 </div>
                 <p style="color: #888; font-size: 0.85rem; margin-bottom: 15px;">Pilih bagaimana Anda ingin menerima notifikasi tagihan membership dari Admin.</p>
@@ -351,15 +359,24 @@
                     <div class="setting-methods">
                         <label class="set-method ${activeWa}" title="Kirim notifikasi via WhatsApp">
                             <input type="radio" name="prefNotif" value="wa" ${isWa} onchange="ubahNotif(this)">
-                            <span>🟢 WhatsApp</span>
+                            <span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                                WhatsApp
+                            </span>
                         </label>
                         <label class="set-method ${activeEmail}" title="Kirim notifikasi via Email">
                             <input type="radio" name="prefNotif" value="email" ${isEmail} onchange="ubahNotif(this)">
-                            <span>📧 Email</span>
+                            <span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                Email
+                            </span>
                         </label>
                         <label class="set-method ${activeDasbor}" title="Jangan kirim pesan, hanya tampilkan alert merah di Dasbor web">
                             <input type="radio" name="prefNotif" value="dasbor" ${isDasbor} onchange="ubahNotif(this)">
-                            <span>🔕 Hanya Dasbor</span>
+                            <span>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><path d="M18.63 13A17.89 17.89 0 0 1 18 8"></path><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"></path><path d="M18 8a6 6 0 0 0-9.33-5"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                                Hanya Dasbor
+                            </span>
                         </label>
                     </div>
                     <div style="display: flex; align-items: center; flex-wrap: wrap;">
@@ -375,12 +392,6 @@
             navChatbot.onclick = function(e) {
                 e.preventDefault();
                 alert('Fitur Chatbot AI terkunci. Silakan perpanjang membership Anda.');
-            };
-
-            navGaleri.style.color = "#777";
-            navGaleri.onclick = function(e) {
-                e.preventDefault();
-                alert('Galeri Eksklusif terkunci. Silakan perpanjang membership Anda.');
             };
 
             floatingChatbot.classList.add('locked');
@@ -403,7 +414,7 @@
                     <div class="profile-header">
                         <div class="user-info">
                             <h2>Ahsana Azmiara</h2>
-                            <p>Username: ahsana123</p>
+                            <p>ahsana@email.com</p>
                         </div>
                         <div class="status-badge danger">KADALUWARSA</div>
                     </div>
@@ -434,27 +445,35 @@
 
                 <div class="action-grid">
                     <a href="kalkulator.php?source=dasbor" class="action-btn">
-                        <div class="action-icon">⚖️</div>
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="16" y1="18" x2="16.01" y2="18"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="8" y1="18" x2="8.01" y2="18"></line></svg>
+                        </div>
                         <h3>Kalkulator Gizi</h3>
                         <p>Hitung ulang kalori & protein harian.</p>
                     </a>
 
-                    <a href="perpanjang.php" class="action-btn" style="border-color: var(--primary-red);">
-                        <div class="action-icon">💳</div>
+                    <a href="perpanjang.php" class="action-btn danger-border" style="border-color: var(--primary-red);">
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                        </div>
                         <h3 style="color: var(--primary-red);">Perpanjang Member</h3>
                         <p>Bayar tagihan bulan berikutnya.</p>
                     </a>
 
                     <a href="#" class="action-btn locked" onclick="event.preventDefault(); alert('Fitur AI terkunci. Silakan perpanjang membership Anda terlebih dahulu.')">
-                        <div class="action-icon">🔒</div>
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                        </div>
                         <h3>Tanya Chatbot AI Vanda</h3>
                         <p>Fitur khusus member aktif.</p>
                     </a>
 
-                    <a href="#" class="action-btn locked" onclick="event.preventDefault(); alert('Galeri Eksklusif terkunci. Silakan perpanjang membership Anda terlebih dahulu.')">
-                        <div class="action-icon">🔒</div>
+                    <a href="galeri_member.php" class="action-btn">
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                        </div>
                         <h3>Video Latihan</h3>
-                        <p>Fitur khusus member aktif.</p>
+                        <p>Panduan gerakan alat gym.</p>
                     </a>
                 </div>
             `;
@@ -471,7 +490,7 @@
                     <div class="profile-header">
                         <div class="user-info">
                             <h2>Ahsana Azmiara</h2>
-                            <p>Username: ahsana123</p>
+                            <p>ahsana@email.com</p>
                         </div>
                         <div class="status-badge">AKTIF</div>
                     </div>
@@ -502,25 +521,33 @@
 
                 <div class="action-grid">
                     <a href="kalkulator.php?source=dasbor" class="action-btn">
-                        <div class="action-icon">⚖️</div>
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="16" y1="18" x2="16.01" y2="18"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="8" y1="18" x2="8.01" y2="18"></line></svg>
+                        </div>
                         <h3>Kalkulator Gizi</h3>
                         <p>Hitung ulang kalori & protein harian.</p>
                     </a>
 
                     <a href="perpanjang.php" class="action-btn">
-                        <div class="action-icon">💳</div>
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                        </div>
                         <h3>Perpanjang Member</h3>
                         <p>Bayar tagihan bulan berikutnya.</p>
                     </a>
 
                     <a href="chatbot_member.php" class="action-btn">
-                        <div class="action-icon">🤖</div>
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+                        </div>
                         <h3>Tanya Chatbot AI Vanda</h3>
                         <p>Cek kalori makanan via foto.</p>
                     </a>
 
                     <a href="galeri_member.php" class="action-btn">
-                        <div class="action-icon">🎥</div>
+                        <div class="action-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                        </div>
                         <h3>Video Latihan</h3>
                         <p>Panduan gerakan alat gym.</p>
                     </a>

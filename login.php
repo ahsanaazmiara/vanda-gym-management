@@ -128,9 +128,9 @@
 
             <form id="formLogin" onsubmit="simulasiLogin(event)">
                 <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="logUser" class="form-control" required placeholder="Minimal 6 karakter" oninput="cekUsername(this)">
-                    <div id="errorUser" class="error-msg">Minimal 6 karakter.</div>
+                    <label>Alamat Email</label>
+                    <input type="email" id="logEmail" class="form-control" required placeholder="nama@email.com" oninput="cekFormatEmail(this, 'errorEmail')">
+                    <div id="errorEmail" class="error-msg">Format email tidak valid.</div>
                 </div>
 
                 <div class="form-group">
@@ -185,7 +185,8 @@
             <form id="formReset" onsubmit="kirimLinkReset(event)">
                 <div class="form-group">
                     <label>Alamat Email Terdaftar</label>
-                    <input type="email" id="resetEmail" class="form-control" placeholder="Masukkan email Anda" required>
+                    <input type="email" id="resetEmail" class="form-control" placeholder="nama@email.com" required oninput="cekFormatEmail(this, 'errorResetEmail')">
+                    <div id="errorResetEmail" class="error-msg">Format email tidak valid.</div>
                 </div>
                 <button type="submit" id="btnReset" class="btn-submit">Kirim Tautan Reset</button>
             </form>
@@ -287,6 +288,11 @@
             const form = document.getElementById('formReset');
             const pesan = document.getElementById('pesanSuksesReset');
             const email = document.getElementById('resetEmail').value;
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!regex.test(email)) {
+                return; // Jangan kirim jika format salah
+            }
 
             btn.innerText = "Mengirim...";
             btn.disabled = true;
@@ -354,14 +360,18 @@
         }
         // -------------------------------------
 
-        function cekUsername(input) {
-            const error = document.getElementById('errorUser');
+        function cekFormatEmail(input, errorId) {
+            const error = document.getElementById(errorId);
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            // Bypass khusus untuk admin (kalau gym butuh akun superadmin manual)
             if (input.value.toLowerCase() === 'admin') {
                 error.style.display = 'none';
                 input.classList.remove('invalid');
                 return;
             }
-            if (input.value.length < 6 && input.value.length > 0) {
+
+            if (!regex.test(input.value) && input.value.length > 0) {
                 error.style.display = 'block';
                 input.classList.add('invalid');
             } else {
@@ -388,7 +398,7 @@
                 input.classList.remove('invalid');
             }
             
-            // Trigger konfirmasi ulang jika field pertama diubah
+            // Trigger konfirmasi ulang jika field pertama diubah (khusus untuk form reset password)
             if (errorId === 'errorNewPass' && document.getElementById('confirmPass').value.length > 0) {
                 cekKonfirmasiPassword();
             }
@@ -415,15 +425,17 @@
 
         function simulasiLogin(e) {
             e.preventDefault();
-            const user = document.getElementById('logUser').value.trim();
+            const email = document.getElementById('logEmail').value.trim();
             const pass = document.getElementById('logPass').value.trim();
             const errorBox = document.getElementById('loginErrorBox');
             const successBox = document.getElementById('loginSuccessBox');
+            const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
             errorBox.style.display = 'none';
             successBox.style.display = 'none'; // Sembunyikan pesan reset berhasil jika ada
 
-            if (user.toLowerCase() === 'admin' && pass.toLowerCase() === 'admin') {
+            // Cek Admin (Sengaja tidak pakai regex untuk kemudahan tes)
+            if (email.toLowerCase() === 'admin' && pass.toLowerCase() === 'admin') {
                 prosesMasuk('admin_dasbor.php');
                 return;
             }
@@ -431,15 +443,15 @@
             const adaAngka = /\d/.test(pass);
             const adaHuruf = /[a-zA-Z]/.test(pass);
 
-            if (user.length < 6 || !adaAngka || !adaHuruf) {
-                errorBox.innerHTML = "❌ Username/Password tidak valid. Pastikan sesuai format.";
+            if (!regexEmail.test(email) || !adaAngka || !adaHuruf) {
+                errorBox.innerHTML = "❌ Email atau Password tidak valid. Pastikan sesuai format.";
                 errorBox.style.display = 'block';
                 return;
             }
 
-            // SIMULASI LOGIN
-            if (user !== 'ahsana123') {
-                errorBox.innerHTML = "❌ Akun tidak ditemukan. Silakan cek kembali username Anda.";
+            // SIMULASI LOGIN (Ganti 'ahsana@email.com' dengan email yang ingin Anda tes)
+            if (email !== 'ahsana@email.com') {
+                errorBox.innerHTML = "❌ Akun tidak ditemukan. Silakan cek kembali email Anda.";
                 errorBox.style.display = 'block';
                 return;
             }

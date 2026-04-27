@@ -133,6 +133,13 @@
         }
         .gallery-item:hover { border-color: var(--accent-gold); }
 
+        .btn-primary { 
+            background-color: var(--primary-red); color: white; padding: 10px 20px; 
+            border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s;
+            min-height: 44px; text-decoration: none; display: inline-block;
+        }
+        .btn-primary:hover { background-color: #a81a1a; box-shadow: 0 0 15px rgba(142, 22, 22, 0.5); }
+
         /* ================= FOOTER ================= */
         footer { 
             background-color: #050505; padding: 60px 5% 30px; 
@@ -168,7 +175,7 @@
 
         .chatbot-btn { 
             position: fixed; bottom: 30px; right: 30px; background-color: var(--primary-red); color: white; 
-            border: none; border-radius: 50%; width: 60px; height: 60px; font-size: 28px; cursor: pointer; 
+            border: none; border-radius: 50%; width: 60px; height: 60px; cursor: pointer; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s; display: flex; justify-content: center; align-items: center; text-decoration: none;
         }
         .chatbot-btn:hover { transform: scale(1.1); }
@@ -178,7 +185,7 @@
             header { flex-direction: column; padding: 15px; }
             nav { margin-top: 15px; justify-content: center;}
             nav a.nav-link { margin: 5px 10px; font-size: 0.9rem;}
-            .btn-logout { margin-left: 0; margin-top: 10px; width: 100%;}
+            .btn-logout { margin-left: 0; margin-top: 10px; width: 100%; text-align: center;}
             .profile-icon { margin-top: 15px; }
             .footer-container { grid-template-columns: 1fr; text-align: center; }
             .announcement-banner { flex-direction: column; text-align: center; }
@@ -273,7 +280,7 @@
 
     <section id="galeri">
         <h2 class="section-title">Fasilitas Gym Kami</h2>
-        <p style="text-align: center; color: #888; margin-bottom: 30px;">Geser untuk melihat area latihan yang tersedia untuk member.</p>
+        <p style="text-align: center; color: #888; margin-bottom: 30px;">Geser untuk melihat beberapa fasilitas alat beban dan kardio.</p>
         
         <div class="gallery-slider">
             <img src="https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&auto=format&fit=crop" alt="Fasilitas Dumbbell" class="gallery-item">
@@ -282,6 +289,10 @@
             <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&auto=format&fit=crop" alt="Area Angkat Beban" class="gallery-item">
             <img src="https://images.unsplash.com/photo-1576678927484-cc907957088c?w=600&auto=format&fit=crop" alt="Rak Beban" class="gallery-item">
         </div>
+
+        <div style="text-align: center; margin-top: 50px;">
+            <a href="galeri_member.php" id="btnGaleriSection" class="btn-primary" style="padding: 12px 40px; font-size: 1rem;">Lihat Galeri & Tutorial Lengkap</a>
+        </div>
     </section>
 
     <footer>
@@ -289,10 +300,40 @@
             <div class="footer-info">
                 <h3>Vanda Gym Classic</h3>
                 <p>Membentuk Karakter, Membangun Kekuatan.</p>
-                <p style="margin-top: 20px;">📍 Jl. Kapten Pierre Tendean No.17, Palangka Raya</p>
-                <p>📞 CS / Pendaftaran: <a href="https://wa.me/6282148556601" target="_blank" class="cs-text">0821-4855-6601</a></p>
-                <p>📱 Info Kelas Senam: 0821-5992-5490</p>
-                <p style="margin-top: 15px;">📸 Instagram: <a href="https://instagram.com/vandagympky_classic" target="_blank">@vandagympky_classic</a></p>
+                
+                <div style="margin-top: 25px;">
+                    <p style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                        Jl. Kapten Pierre Tendean No.17, Palangka Raya
+                    </p>
+                    
+                    <p style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                        <span>CS / Pendaftaran: <a href="https://wa.me/6282148556601" target="_blank" class="cs-text">0821-4855-6601</a></span>
+                    </p>
+
+                    <p style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                        </svg>
+                        Info Kelas Senam: 0821-5992-5490
+                    </p>
+
+                    <p style="display: flex; align-items: center; gap: 12px; margin-top: 20px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                        </svg>
+                        <span>Instagram: <a href="https://instagram.com/vandagympky_classic" target="_blank">@vandagympky_classic</a></span>
+                    </p>
+                </div>
             </div>
             
             <div class="footer-map">
@@ -311,7 +352,15 @@
         </svg>
     </a>
 
-    <a href="chatbot_member.php" id="floatingChatbot" class="chatbot-btn" title="Tanya Chatbot AI Vanda">🤖</a>
+    <a href="chatbot_member.php" id="floatingChatbot" class="chatbot-btn" title="Tanya Chatbot AI Vanda">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+            <line x1="8" y1="16" x2="8.01" y2="16"></line>
+            <line x1="16" y1="16" x2="16.01" y2="16"></line>
+        </svg>
+    </a>
 
     <script>
         // Logika Penguncian Fitur Berdasarkan URL Parameter (?status=kadaluarsa)
@@ -321,26 +370,38 @@
         const floatingChatbot = document.getElementById('floatingChatbot');
         const navChatbot = document.getElementById('navChatbot');
         const navGaleri = document.getElementById('navGaleri');
+        const btnGaleriSection = document.getElementById('btnGaleriSection');
 
         if (statusMember === 'kadaluarsa') {
+            const pesanTerkunci = 'Fitur Eksklusif terkunci. Silakan perpanjang membership Anda terlebih dahulu.';
+            
             navChatbot.style.color = "#777";
             navChatbot.onclick = function(e) {
                 e.preventDefault();
-                alert('Fitur Chatbot AI terkunci. Silakan perpanjang membership Anda.');
+                alert(pesanTerkunci);
             };
 
             navGaleri.style.color = "#777";
             navGaleri.onclick = function(e) {
                 e.preventDefault();
-                alert('Galeri Eksklusif terkunci. Silakan perpanjang membership Anda.');
+                alert(pesanTerkunci);
             };
+
+            if(btnGaleriSection) {
+                btnGaleriSection.style.backgroundColor = "#333";
+                btnGaleriSection.style.color = "#888";
+                btnGaleriSection.onclick = function(e) {
+                    e.preventDefault();
+                    alert(pesanTerkunci);
+                };
+            }
 
             floatingChatbot.classList.add('locked');
             floatingChatbot.title = "AI Terkunci";
             floatingChatbot.href = "#";
             floatingChatbot.onclick = (e) => {
                 e.preventDefault();
-                alert('Fitur Chatbot AI terkunci. Silakan perpanjang membership Anda.');
+                alert(pesanTerkunci);
             };
         }
     </script>

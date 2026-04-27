@@ -88,7 +88,7 @@
         .detail-row span:last-child { font-weight: bold; color: var(--text-light); text-align: right; }
 
         .btn-outline-gold {
-            display: inline-flex; align-items: center; justify-content: center;
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             background: transparent; border: 1px solid var(--accent-gold);
             color: var(--accent-gold); text-decoration: none; padding: 8px 15px;
             border-radius: 4px; font-weight: bold; font-size: 0.85rem;
@@ -132,6 +132,7 @@
         .receipt-footer { text-align: center; border-top: 2px dashed #000; padding-top: 15px; margin-top: 15px; }
         
         .btn-download {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
             background-color: #000; color: #fff; border: none; padding: 12px; width: 100%;
             margin-top: 20px; font-weight: bold; border-radius: 4px; cursor: pointer;
             font-family: sans-serif; transition: 0.3s;
@@ -155,20 +156,20 @@
         
         <h2 style="color: var(--accent-gold); text-transform: uppercase; font-size: 1.4rem;">Status Perpanjangan</h2>
         <p style="color: #888; font-size: 0.9rem; margin-top: 10px;">
-            Masukkan Username Anda untuk melihat status verifikasi perpanjangan membership.
+            Masukkan email Anda untuk melihat status verifikasi perpanjangan membership.
         </p>
 
         <div class="form-group">
-            <label>Username Member</label>
-            <input type="text" id="cekUser" class="form-control" placeholder="Minimal 6 karakter" oninput="cekUsername(this)">
-            <div id="errorUser" class="error-msg">Username minimal harus 6 karakter.</div>
+            <label>Email Member</label>
+            <input type="email" id="cekEmail" class="form-control" placeholder="nama@email.com" oninput="cekFormatEmail(this)">
+            <div id="errorEmail" class="error-msg">Format email tidak valid.</div>
         </div>
 
         <button class="btn-search" onclick="cariStatus()">Cek Status</button>
 
         <div id="hasilCek" class="result-box">
             <div style="border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
-                <span style="color: #888; font-size: 0.85rem;">Username Terkait:</span>
+                <span style="color: #888; font-size: 0.85rem;">Email Terkait:</span>
                 <div id="resNama" style="font-weight: bold; color: var(--text-light);">-</div>
             </div>
             
@@ -197,7 +198,10 @@
                 <p style="font-size:0.7rem; color:#666; margin-top:5px;">Terima kasih. Masa aktif Anda telah diperbarui. Simpan bukti ini sebagai referensi.</p>
             </div>
 
-            <button class="btn-download no-print" onclick="window.print()">📥 Simpan sebagai PDF</button>
+            <button class="btn-download no-print" onclick="window.print()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Simpan sebagai PDF
+            </button>
         </div>
     </div>
 
@@ -208,9 +212,10 @@
     </a>
 
     <script>
-        function cekUsername(input) {
-            const error = document.getElementById('errorUser');
-            if (input.value.length < 6 && input.value.length > 0) {
+        function cekFormatEmail(input) {
+            const error = document.getElementById('errorEmail');
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!regex.test(input.value) && input.value.length > 0) {
                 error.style.display = 'block';
                 input.classList.add('invalid');
             } else {
@@ -223,17 +228,18 @@
         function tutupBukti() { document.getElementById('receiptModal').style.display = 'none'; }
 
         function cariStatus() {
-            const user = document.getElementById('cekUser').value.trim();
+            const email = document.getElementById('cekEmail').value.trim();
             const resultBox = document.getElementById('hasilCek');
-            const inputElement = document.getElementById('cekUser');
-            const errorElement = document.getElementById('errorUser');
+            const inputElement = document.getElementById('cekEmail');
+            const errorElement = document.getElementById('errorEmail');
+            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             
-            if (!user) {
-                alert("Silakan masukkan username terlebih dahulu.");
+            if (!email) {
+                alert("Silakan masukkan email terlebih dahulu.");
                 return;
             }
 
-            if (user.length < 6) {
+            if (!regex.test(email)) {
                 errorElement.style.display = 'block';
                 inputElement.classList.add('invalid');
                 return;
@@ -244,14 +250,14 @@
             const resStatus = document.getElementById('resStatus');
             const resPesan = document.getElementById('resPesan');
 
-            resNama.innerText = user;
+            resNama.innerText = email;
 
             // ==========================================
             // SIMULASI CEK KE DATABASE PERPANJANGAN
             // ==========================================
             
-            // 1. Kondisi Jika AKTIF (Ketik username yang mengandung kata "aktif")
-            if (user.toLowerCase().includes('aktif')) {
+            // 1. Kondisi Jika AKTIF (Ketik email yang mengandung kata "aktif")
+            if (email.toLowerCase().includes('aktif')) {
                 
                 // === BACA DATA DARI LOCALSTORAGE (Hasil Input perpanjang.php) ===
                 const savedPaket = localStorage.getItem('vanda_renew_paket') || "1 Bulan Gym";
@@ -280,7 +286,7 @@
                 document.getElementById('receiptData').innerHTML = `
                     <p><span>No. Trx</span> <span>${noTrx}</span></p>
                     <p><span>Tgl Bayar</span> <span>${formatTglCetak(new Date())}</span></p>
-                    <p><span>Username</span> <span>${user}</span></p>
+                    <p><span>Email</span> <span>${email}</span></p>
                     <hr style="border:1px dashed #000; margin:10px 0;">
                     <p><span>Paket</span> <span>${savedPaket}</span></p>
                     <p><span>Mulai Berlaku</span> <span>${tglMulaiFormat}</span></p>
@@ -297,30 +303,36 @@
                         <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglAkhirFormat}</span></div>
                     </div>
                     
-                    <button class="btn-outline-gold" onclick="bukaBukti()">🧾 Download E-Receipt</button>
+                    <button class="btn-outline-gold" onclick="bukaBukti()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        Download E-Receipt
+                    </button>
 
-                    <a href="member_dasbor.php" style="display: flex; align-items: center; justify-content: center; background-color: var(--accent-gold); color: #000; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        🔑 Masuk ke Dasbor
+                    <a href="member_dasbor.php" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: var(--accent-gold); color: #000; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+                        Masuk ke Dasbor
                     </a>
                 `;
 
             // 2. Kondisi Jika DITOLAK
-            } else if (user.toLowerCase().includes('tolak') || user.toLowerCase().includes('gagal')) {
+            } else if (email.toLowerCase().includes('tolak') || email.toLowerCase().includes('gagal')) {
                 
                 resStatus.innerHTML = '<span class="status-badge status-rejected">Perpanjangan Ditolak</span>';
                 
-                const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pengajuan perpanjangan member saya dengan username *${user}* berstatus ditolak. Boleh mohon info alasannya?`);
+                const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pengajuan perpanjangan member saya dengan email *${email}* berstatus ditolak. Boleh mohon info alasannya?`);
                 const linkWaTolak = `https://wa.me/6282148556601?text=${pesanWaTolak}`;
 
                 resPesan.innerHTML = `
                     <strong style="color: #ff4d4d; display:block; margin-top:10px;">Verifikasi Gagal!</strong>
                     Pembayaran perpanjangan Anda tidak dapat diverifikasi (kemungkinan karena bukti bayar buram atau nominal tidak sesuai).
                     
-                    <a href="${linkWaTolak}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #8E1616; color: white; border: 1px solid #ff4d4d; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        📞 Tanya Alasan ke CS
+                    <a href="${linkWaTolak}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #8E1616; color: white; border: 1px solid #ff4d4d; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        Tanya Alasan ke CS
                     </a>
-                    <a href="perpanjang.php" style="display: flex; align-items: center; justify-content: center; background: transparent; color: #888; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 10px; min-height: 44px; transition: 0.3s; font-size: 0.9rem; border: 1px solid #333;">
-                        🔄 Ajukan Ulang Perpanjangan
+                    <a href="perpanjang.php" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: #888; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 10px; min-height: 44px; transition: 0.3s; font-size: 0.9rem; border: 1px solid #333;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        Ajukan Ulang Perpanjangan
                     </a>
                 `;
 
@@ -328,15 +340,16 @@
             } else {
                 resStatus.innerHTML = '<span class="status-badge status-pending">Menunggu Verifikasi</span>';
                 
-                const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pembayaran perpanjangan member saya dengan username *${user}*. Apakah sudah diverifikasi? Terima kasih.`);
+                const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pembayaran perpanjangan member saya dengan email *${email}*. Apakah sudah diverifikasi? Terima kasih.`);
                 const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
 
                 resPesan.innerHTML = `
                     <strong style="display:block; margin-top:10px; color:var(--text-light);">Informasi:</strong>
                     Admin sedang memverifikasi bukti transfer perpanjangan Anda. Masa aktif Anda akan otomatis diperbarui setelah pembayaran divalidasi.
                     
-                    <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        📞 Konfirmasi ke WhatsApp CS
+                    <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                        Konfirmasi ke WhatsApp CS
                     </a>
                 `;
             }

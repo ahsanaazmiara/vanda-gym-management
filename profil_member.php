@@ -68,7 +68,7 @@
         .btn-action:hover { background: var(--accent-gold); color: #000; }
         .btn-save { background-color: var(--primary-red); color: white; border: none; width: 100%; min-height: 48px; text-transform: uppercase; margin-top: 10px; display: none; cursor: pointer; font-weight: bold; border-radius: 4px; transition: 0.3s;}
         .btn-save:hover { background-color: #a81a1a; }
-        .btn-cancel { background: transparent; color: #888; border: none; width: 100%; margin-top: 5px; cursor: pointer; display: none; font-size: 0.85rem; }
+        .btn-cancel { background: transparent; color: #888; border: none; width: 100%; margin-top: 5px; cursor: pointer; display: none; font-size: 0.85rem; min-height: 44px; }
 
         .toast {
             position: fixed; top: 20px; right: 20px; background: #28a745;
@@ -84,7 +84,7 @@
 
         .text-link { color: #888; font-size: 0.85rem; text-decoration: none; transition: 0.3s; cursor: pointer; }
         .text-link:hover { color: var(--accent-gold); }
-        .icon-lock { font-size: 3rem; margin-bottom: 10px; text-align: center; }
+        .icon-lock { display: flex; justify-content: center; margin-bottom: 15px; color: var(--accent-gold); }
         .success-msg {
             display: none; background: rgba(40, 167, 69, 0.1); border: 1px dashed #28a745;
             color: #28a745; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem; text-align: center;
@@ -115,16 +115,10 @@
                     <input type="text" id="profNama" class="form-control" value="Ahsana Azmiara Ahmadiham" disabled required>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                    <div class="form-group">
-                        <label>Nomor WhatsApp</label>
-                        <input type="text" id="profHp" class="form-control" value="082148556601" disabled required oninput="validasiAngka(this)">
-                        <div id="errorHp" class="error-msg">Wajib angka saja.</div>
-                    </div>
-                    <div class="form-group">
-                        <label>Alamat Email</label>
-                        <input type="email" id="profEmail" class="form-control" value="ahsana@email.com" disabled required>
-                    </div>
+                <div class="form-group">
+                    <label>Nomor WhatsApp</label>
+                    <input type="text" id="profHp" class="form-control" value="082148556601" disabled required oninput="validasiAngka(this)">
+                    <div id="errorHp" class="error-msg">Wajib angka saja.</div>
                 </div>
 
                 <button type="submit" id="saveProfil" class="btn-save">Simpan Perubahan</button>
@@ -133,14 +127,15 @@
 
             <div class="section-header">
                 <h3>Keamanan Akun</h3>
-                <button type="button" class="btn-action" id="btnEditKeamanan" onclick="toggleEdit('keamanan')">Ubah Akun</button>
+                <button type="button" class="btn-action" id="btnEditKeamanan" onclick="toggleEdit('keamanan')">Ubah Password</button>
             </div>
 
             <form id="formKeamanan" onsubmit="handleSimpan(event, 'keamanan')">
+                
                 <div class="form-group">
-                    <label>Username</label>
-                    <input type="text" id="profUser" class="form-control" value="ahsana123" disabled required oninput="cekUsername(this)">
-                    <div id="errorUser" class="error-msg">Minimal 6 karakter.</div>
+                    <label>Email Login</label>
+                    <input type="email" id="profEmail" class="form-control" value="ahsana@email.com" disabled style="background-color: #050505;">
+                    <small style="color: #666; font-size: 0.75rem; margin-top: 5px; display: block;">Hubungi Admin jika ingin mengubah alamat email login Anda.</small>
                 </div>
 
                 <div id="groupPassDummy">
@@ -180,13 +175,18 @@
                     </div>
                 </div>
 
-                <button type="submit" id="saveKeamanan" class="btn-save">Simpan Keamanan</button>
+                <button type="submit" id="saveKeamanan" class="btn-save">Simpan Password Baru</button>
                 <button type="button" id="cancelKeamanan" class="btn-cancel" onclick="toggleEdit('keamanan')">Batal</button>
             </form>
         </div>
 
         <div id="blokResetPassword" style="display: none; padding-top: 10px;">
-            <div class="icon-lock">🔐</div>
+            <div class="icon-lock">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
             <div style="text-align: center; margin-bottom: 25px;">
                 <h2 style="color: var(--accent-gold); text-transform: uppercase; font-size: 1.4rem; margin-bottom: 5px;">Lupa Password?</h2>
                 <p style="color: #888; font-size: 0.9rem; line-height: 1.4;">Kami akan mengirimkan tautan untuk mengatur ulang password ke email Anda.</p>
@@ -219,7 +219,7 @@
                 document.getElementById('formResetPass').style.display = 'block';
                 document.getElementById('btnKirimReset').innerText = "Kirim Tautan Reset";
                 document.getElementById('btnKirimReset').disabled = false;
-                document.getElementById('resetEmailProf').value = ""; // Mengosongkan isian email agar diketik manual
+                document.getElementById('resetEmailProf').value = ""; // Mengosongkan isian email
 
                 // Tombol Back Kiri Atas kembali ke Pengaturan Akun
                 btnBack.onclick = function(e) { 
@@ -256,37 +256,36 @@
             const isProfil = (tipe === 'profil');
             
             if (isProfil) {
-                const ids = ['profNama', 'profHp', 'profEmail', 'btnEditProfil', 'saveProfil', 'cancelProfil'];
+                const ids = ['profNama', 'profHp', 'btnEditProfil', 'saveProfil', 'cancelProfil'];
                 const elements = ids.map(id => document.getElementById(id));
                 const isDisabled = elements[0].disabled;
 
-                for(let i=0; i < 3; i++) elements[i].disabled = !isDisabled;
+                for(let i=0; i < 2; i++) elements[i].disabled = !isDisabled;
                 
-                elements[3].style.display = isDisabled ? 'none' : 'block'; 
+                elements[2].style.display = isDisabled ? 'none' : 'block'; 
+                elements[3].style.display = isDisabled ? 'block' : 'none'; 
                 elements[4].style.display = isDisabled ? 'block' : 'none'; 
-                elements[5].style.display = isDisabled ? 'block' : 'none'; 
                 if (isDisabled) elements[0].focus();
 
             } else {
-                const ids = ['profUser', 'profPassLama', 'profPass', 'btnEditKeamanan', 'saveKeamanan', 'cancelKeamanan'];
+                const ids = ['profPassLama', 'profPass', 'btnEditKeamanan', 'saveKeamanan', 'cancelKeamanan'];
                 const elements = ids.map(id => document.getElementById(id));
                 const isDisabled = elements[0].disabled;
 
                 elements[0].disabled = !isDisabled; 
                 elements[1].disabled = !isDisabled; 
-                elements[2].disabled = !isDisabled; 
 
                 document.getElementById('groupPassDummy').style.display = isDisabled ? 'none' : 'block';
                 document.getElementById('groupEditPass').style.display = isDisabled ? 'block' : 'none';
 
-                elements[3].style.display = isDisabled ? 'none' : 'block'; 
+                elements[2].style.display = isDisabled ? 'none' : 'block'; 
+                elements[3].style.display = isDisabled ? 'block' : 'none'; 
                 elements[4].style.display = isDisabled ? 'block' : 'none'; 
-                elements[5].style.display = isDisabled ? 'block' : 'none'; 
                 
                 if (isDisabled) {
+                    elements[0].value = '';
                     elements[1].value = '';
-                    elements[2].value = '';
-                    elements[1].focus(); 
+                    elements[0].focus(); 
                 }
             }
         }
@@ -297,17 +296,6 @@
                 error.style.display = 'block';
                 input.classList.add('invalid');
                 input.value = input.value.replace(/\D/g, ''); 
-            } else {
-                error.style.display = 'none';
-                input.classList.remove('invalid');
-            }
-        }
-
-        function cekUsername(input) {
-            const error = document.getElementById('errorUser');
-            if (input.value.length < 6 && input.value.length > 0) {
-                error.style.display = 'block';
-                input.classList.add('invalid');
             } else {
                 error.style.display = 'none';
                 input.classList.remove('invalid');
@@ -364,12 +352,13 @@
             }
 
             const btn = form.querySelector('.btn-save');
+            const originalText = btn.innerText;
             btn.innerText = "Menyimpan...";
             btn.disabled = true;
 
             setTimeout(() => {
                 showToast("Data berhasil disimpan!");
-                btn.innerText = "Simpan Perubahan";
+                btn.innerText = originalText;
                 btn.disabled = false;
                 toggleEdit(tipe);
             }, 1000);
