@@ -1,3 +1,96 @@
+<?php
+session_start();
+require 'includes/koneksi.php'; // Pastikan path ini benar
+
+// BLOK PHP UNTUK MENERIMA DATA DARI JAVASCRIPT (AJAX)
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'register') {
+    header('Content-Type: application/json'); // Format kembalian ke JS
+
+    // 1. Ambil data
+    $nama      = mysqli_real_escape_string($koneksi, $_POST['regNama']);
+    $email     = mysqli_real_escape_string($koneksi, $_POST['regEmail']);
+    $wa        = mysqli_real_escape_string($koneksi, $_POST['regHp']);
+    $password  = password_hash($_POST['regPass'], PASSWORD_DEFAULT);
+    $harga     = (int) $_POST['regPaket']; // Value-nya 175000, 350000, dst
+    $tgl_mulai = $_POST['regTgl'];
+    $metode    = $_POST['metodeBayar'];
+
+    // Tentukan durasi bulan berdasarkan harga
+    $durasi = 1;
+    if ($harga == 350000) $durasi = 2;
+    else if ($harga == 525000) $durasi = 3;
+
+    $tgl_berakhir = date('Y-m-d', strtotime($tgl_mulai . " + $durasi months"));
+
+    // 2. Cek Email Ganda dan Logika "Timpa" Jika Ditolak
+    $id_user = 0;
+    $cek_email = mysqli_query($koneksi, "SELECT id_user, role FROM users WHERE email='$email'");
+    
+    if (mysqli_num_rows($cek_email) > 0) {
+        $data_u = mysqli_fetch_assoc($cek_email);
+        
+        // Jangan biarkan email admin ditimpa
+        if ($data_u['role'] === 'admin') {
+            echo json_encode(['status' => 'error', 'message' => 'Email <strong>'.$email.'</strong> tidak dapat digunakan.']);
+            exit;
+        }
+
+        $id_existing = $data_u['id_user'];
+        
+        // Cek apakah user ini punya membership yang belum "ditolak" (aktif, pending, kedaluwarsa)
+        $cek_m = mysqli_query($koneksi, "SELECT status FROM membership WHERE id_user='$id_existing' AND status != 'ditolak'");
+        
+        if (mysqli_num_rows($cek_m) > 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Email <strong>'.$email.'</strong> sudah terdaftar dan masih memiliki transaksi Aktif/Pending/Kedaluwarsa.']);
+            exit;
+        } else {
+            // Aman untuk ditimpa (Update data user yang lama yang pernah ditolak)
+            $query_update = "UPDATE users SET nama_lengkap='$nama', no_wa='$wa', password='$password', role='calon_member' WHERE id_user='$id_existing'";
+            if(mysqli_query($koneksi, $query_update)) {
+                $id_user = $id_existing;
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Gagal memperbarui data user lama.']);
+                exit;
+            }
+        }
+    } else {
+        // 3. Simpan ke tabel users (Email benar-benar baru)
+        $query_insert = "INSERT INTO users (nama_lengkap, email, no_wa, password, role) VALUES ('$nama', '$email', '$wa', '$password', 'calon_member')";
+        if (mysqli_query($koneksi, $query_insert)) {
+            $id_user = mysqli_insert_id($koneksi);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan data user baru.']);
+            exit;
+        }
+    }
+
+    // Pastikan $id_user valid sebelum lanjut menyimpan paket
+    if ($id_user > 0) {
+        // 4. Proses Upload Gambar Bukti
+        $nama_file_bukti = NULL;
+        if ($metode == 'qris' && isset($_FILES['regBukti']['name']) && $_FILES['regBukti']['name'] != '') {
+            $ext = pathinfo($_FILES['regBukti']['name'], PATHINFO_EXTENSION);
+            $nama_bersih = str_replace(' ', '_', preg_replace('/[^A-Za-z0-9 ]/', '', $nama));
+            $nama_file_bukti = "Bukti_Daftar_" . $nama_bersih . "_" . date('dmy_His') . "." . $ext;
+            
+            // Simpan ke folder uploads
+            move_uploaded_file($_FILES['regBukti']['tmp_name'], 'uploads/' . $nama_file_bukti);
+        }
+
+        // 5. Simpan ke tabel membership dengan status PENDING
+        $query_member = "INSERT INTO membership (id_user, jenis_pengajuan, paket_bulan, total_harga, tgl_mulai, tgl_berakhir, metode_bayar, bukti_bayar, status) 
+                         VALUES ($id_user, 'daftar', $durasi, $harga, '$tgl_mulai', '$tgl_berakhir', '$metode', '$nama_file_bukti', 'pending')";
+        
+        if (mysqli_query($koneksi, $query_member)) {
+            echo json_encode(['status' => 'success']); // Beritahu JS kalau sukses
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Gagal memproses data paket.']);
+        }
+    }
+    exit; // Hentikan PHP
+}
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -65,7 +158,6 @@
         .error-msg { color: #ff4d4d; font-size: 0.75rem; margin-top: 5px; display: none; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 
-        /* Status Nominal Tagihan Box */
         .nominal-box {
             background: rgba(232, 201, 153, 0.05); border: 1px dashed var(--accent-gold);
             padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 15px; text-align: center;
@@ -74,7 +166,6 @@
         .nominal-box span:first-child { color: #ccc; font-size: 0.85rem; margin-bottom: 5px;}
         .nominal-box span:last-child { color: var(--accent-gold); font-weight: bold; font-size: 1.4rem; }
 
-        /* Pilihan Metode Pembayaran (Radio Buttons) */
         .payment-methods { display: flex; gap: 15px; margin-bottom: 20px; }
         .pay-method {
             flex: 1; border: 1px solid #333; border-radius: 6px; padding: 15px 10px;
@@ -84,11 +175,9 @@
         .pay-method input { position: absolute; opacity: 0; cursor: pointer; }
         .pay-method span { font-weight: bold; color: #888; display: block; font-size: 0.9rem;}
         
-        /* State Aktif Metode Pembayaran */
         .pay-method.active { border-color: var(--accent-gold); background: rgba(232, 201, 153, 0.1); }
         .pay-method.active span { color: var(--accent-gold); }
 
-        /* Blok Detail Pembayaran */
         .pay-details { 
             background: #111; border: 1px solid #222; padding: 20px; 
             border-radius: 6px; margin-bottom: 20px; display: none;
@@ -97,7 +186,6 @@
         .qris-box { text-align: center; }
         .qris-box img { max-width: 150px; border-radius: 8px; margin: 10px 0; border: 2px solid white; background: #fff;}
         
-        /* Tombol Upload Kustom */
         .file-upload-wrapper { position: relative; margin-top: 15px; text-align: left; }
         .file-upload-wrapper input[type="file"] {
             position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;
@@ -159,18 +247,18 @@
             <div class="section-divider">1. Data Pribadi</div>
             <div class="form-group">
                 <label>Nama Lengkap</label>
-                <input type="text" id="regNama" class="form-control" required placeholder="Contoh: Ahsana Azmiara">
+                <input type="text" id="regNama" name="regNama" class="form-control" required placeholder="">
             </div>
             
             <div class="grid-2">
                 <div class="form-group">
                     <label>Nomor WhatsApp</label>
-                    <input type="text" id="regHp" class="form-control" required oninput="validasiAngka(this)" placeholder="0812xxxx">
+                    <input type="text" id="regHp" name="regHp" class="form-control" required oninput="validasiAngka(this)" placeholder="0812xxxx">
                     <div id="errorHp" class="error-msg">Wajib angka saja.</div>
                 </div>
                 <div class="form-group">
                     <label>Alamat Email</label>
-                    <input type="email" id="regEmail" class="form-control" required placeholder="nama@email.com">
+                    <input type="email" id="regEmail" name="regEmail" class="form-control" required placeholder="nama@email.com">
                 </div>
             </div>
 
@@ -178,7 +266,7 @@
             <div class="form-group">
                 <label>Password Akun</label>
                 <div style="position: relative;">
-                    <input type="password" id="regPass" class="form-control" required placeholder="Kombinasi angka & huruf" oninput="cekPassword(this)" style="padding-right: 50px;">
+                    <input type="password" id="regPass" name="regPass" class="form-control" required placeholder="Kombinasi angka & huruf" oninput="cekPassword(this)" style="padding-right: 50px;">
                     <span id="togglePassword" onclick="toggleVisibility()" style="position: absolute; right: 5px; top: 50%; transform: translateY(-50%); cursor: pointer; min-height: 44px; min-width: 44px; display: flex; align-items: center; justify-content: center; z-index: 10;">
                         <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -194,7 +282,7 @@
             <div class="grid-2">
                 <div class="form-group">
                     <label>Pilih Durasi</label>
-                    <select id="regPaket" class="form-control" onchange="updateNominal()" required style="cursor: pointer;">
+                    <select id="regPaket" name="regPaket" class="form-control" onchange="updateNominal()" required style="cursor: pointer;">
                         <option value="" disabled selected>-- Pilih Paket --</option>
                         <option value="175000" data-nama="1 Bulan Gym">1 Bulan Gym</option>
                         <option value="350000" data-nama="2 Bulan Gym">2 Bulan Gym</option>
@@ -203,7 +291,7 @@
                 </div>
                 <div class="form-group">
                     <label>Tanggal Mulai</label>
-                    <input type="date" id="regTgl" class="form-control" required>
+                    <input type="date" id="regTgl" name="regTgl" class="form-control" required>
                 </div>
             </div>
 
@@ -237,7 +325,7 @@
                         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
                         <span id="namaFile">Pilih Gambar / Screenshot...</span>
                     </div>
-                    <input type="file" id="regBukti" accept="image/*" required onchange="tampilkanNamaFile(this)">
+                    <input type="file" id="regBukti" name="regBukti" accept="image/*" required onchange="tampilkanNamaFile(this)">
                 </div>
             </div>
 
@@ -378,8 +466,7 @@
                 <h3 style="color:var(--accent-gold); border-bottom:1px solid #333; padding-bottom:10px; text-align:center; font-size:1.3rem;">Konfirmasi Data</h3>
                 <div style="margin:15px 0; font-size: 0.9rem; color:#ccc;">
                     <div class="draf-item"><span style="color:#888;">Nama:</span> <span style="text-align:right;">${namaLengkap}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Nomor WA:</span> <span style="text-align:right;">${noHp}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Login via:</span> <span style="text-align:right; font-weight:bold; color:white;">${email}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Kontak:</span> <span style="text-align:right;">${noHp} <br> ${email}</span></div>
                     <div class="draf-item"><span style="color:#888;">Paket Latihan:</span> <span style="text-align:right;">${namaPaket} <br> Mulai: ${tglMulai}</span></div>
                     <div class="draf-item"><span style="color:#888;">Metode:</span> <span style="text-align:right;">${metode.toUpperCase()}</span></div>
                     <div class="draf-item" style="border-top:1px dashed #333; margin-top:5px; padding-top:15px;">
@@ -389,59 +476,69 @@
                 </div>
                 <p style="font-size:0.8rem; color:#888; margin-bottom:15px; text-align:center;">Pastikan data pendaftaran Anda sudah benar.</p>
                 <button class="btn-submit" style="margin-top:0;" onclick="kirimFinal('${metode}', '${email}')">Kirim Pendaftaran</button>
-                <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:transparent; border:1px solid #333; border-radius:4px; color:#888; width:100%; margin-top:10px; cursor:pointer; min-height:44px; transition:0.3s;" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'">Kembali Edit</button>
+                <button type="button" onclick="document.getElementById('modalOverlay').style.display='none'" style="background:transparent; border:1px solid #333; border-radius:4px; color:#888; width:100%; margin-top:10px; cursor:pointer; min-height:44px; transition:0.3s;" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'">Kembali Edit</button>
             `;
         }
 
         function kirimFinal(metode, email) {
             const content = document.getElementById('modalContent');
+            const form = document.getElementById('formPendaftaran');
             
-            // --- AMBIL DATA UNTUK DISIMPAN DI LOCALSTORAGE ---
-            const selectPaket = document.getElementById('regPaket');
-            const namaPaket = selectPaket.options[selectPaket.selectedIndex].getAttribute('data-nama');
-            const hargaPaket = "Rp " + parseInt(selectPaket.value).toLocaleString('id-ID');
-            const tglMulai = document.getElementById('regTgl').value;
+            content.innerHTML = `<div style="text-align:center;"><p style="font-weight:bold; color:var(--accent-gold);">Sedang menyimpan data pendaftaran ke sistem...</p></div>`;
 
-            localStorage.setItem('vanda_daftar_paket', namaPaket);
-            localStorage.setItem('vanda_daftar_harga', hargaPaket);
-            localStorage.setItem('vanda_daftar_tglMulai', tglMulai);
-            // --------------------------------------------------
+            const formData = new FormData(form);
+            formData.append('action', 'register');
 
-            content.innerHTML = `<div style="text-align:center;"><p style="font-weight:bold; color:var(--accent-gold);">Sedang menyimpan data pendaftaran...</p></div>`;
+            fetch('daftar.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    let pesanStatus = "";
+                    let instruksi = "";
+                    let tombolWa = "";
 
-            setTimeout(() => {
-                let pesanStatus = "";
-                let instruksi = "";
-                let tombolWa = "";
+                    if (metode === 'tunai') {
+                        pesanStatus = `<strong style="color: #ffc107;">Menunggu Pembayaran</strong>`;
+                        instruksi = `Silakan datang ke resepsionis Vanda Gym untuk melakukan pembayaran tunai. Akun Anda akan diaktifkan setelah pembayaran diselesaikan.`;
+                    } else {
+                        pesanStatus = `<strong style="color: #ffc107;">Sedang Diproses</strong>`;
+                        instruksi = `Admin sedang memverifikasi bukti pembayaran Anda. Jika sudah aktif, Anda bisa login menggunakan email yang didaftarkan.`;
+                        
+                        const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya baru saja melakukan pendaftaran member baru dengan email *${email}*. Tolong dicek ya. Terima kasih.`);
+                        const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
+                        
+                        tombolWa = `
+                        <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                            📱 Konfirmasi ke WhatsApp CS
+                        </a>`;
+                    }
 
-                if (metode === 'tunai') {
-                    pesanStatus = `<strong style="color: #ffc107;">Menunggu Pembayaran</strong>`;
-                    instruksi = `Silakan datang ke resepsionis Vanda Gym untuk melakukan pembayaran tunai. Akun Anda akan diaktifkan setelah pembayaran diselesaikan.`;
+                    content.innerHTML = `
+                        <h3 style="color:var(--accent-gold); text-align:center; font-size:1.4rem;">Pendaftaran Berhasil!</h3>
+                        <p style="margin:10px 0; text-align:center; font-size:0.95rem;">Status: ${pesanStatus}</p>
+                        <div style="background:#050505; padding:15px; border:1px solid #222; border-radius:4px; font-size:0.85rem; line-height:1.6; text-align:left;">
+                            <strong style="color:white;">Langkah Selanjutnya:</strong><br>
+                            <span style="color:#aaa;">${instruksi}</span>
+                            ${tombolWa}
+                        </div>
+                        <button class="btn-submit" style="margin-top:20px;" onclick="window.location.href='cek_status.php'">Cek Status Pendaftaran</button>
+                        <button onclick="window.location.href='index.php'" style="background:transparent; border:none; color:#888; width:100%; margin-top:5px; cursor:pointer; min-height:44px;">Kembali ke Beranda</button>
+                    `;
                 } else {
-                    pesanStatus = `<strong style="color: #ffc107;">Sedang Diproses</strong>`;
-                    instruksi = `Admin sedang memverifikasi bukti pembayaran Anda. Jika sudah aktif, Anda bisa login menggunakan email yang didaftarkan.`;
-                    
-                    const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya baru saja melakukan pendaftaran member baru dengan email *${email}*. Tolong dicek ya. Terima kasih.`);
-                    const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
-                    
-                    tombolWa = `
-                    <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        📞 Konfirmasi ke WhatsApp CS
-                    </a>`;
+                    content.innerHTML = `
+                        <h3 style="color:#ff4d4d; text-align:center; font-size:1.4rem;">Pendaftaran Gagal!</h3>
+                        <p style="margin:15px 0; text-align:center; font-size: 0.95rem;">${data.message}</p>
+                        <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:transparent; border:1px solid #333; border-radius:4px; color:#888; width:100%; margin-top:10px; cursor:pointer; min-height:44px;">Kembali ke Form</button>
+                    `;
                 }
-
-                content.innerHTML = `
-                    <h3 style="color:var(--accent-gold); text-align:center; font-size:1.4rem;">Pendaftaran Berhasil!</h3>
-                    <p style="margin:10px 0; text-align:center; font-size:0.95rem;">Status: ${pesanStatus}</p>
-                    <div style="background:#050505; padding:15px; border:1px solid #222; border-radius:4px; font-size:0.85rem; line-height:1.6; text-align:left;">
-                        <strong style="color:white;">Langkah Selanjutnya:</strong><br>
-                        <span style="color:#aaa;">${instruksi}</span>
-                        ${tombolWa}
-                    </div>
-                    <button class="btn-submit" style="margin-top:20px;" onclick="window.location.href='cek_status.php'">Cek Status Pendaftaran</button>
-                    <button onclick="window.location.href='index.php'" style="background:transparent; border:none; color:#888; width:100%; margin-top:5px; cursor:pointer; min-height:44px;">Kembali ke Beranda</button>
-                `;
-            }, 1500);
+            })
+            .catch(error => {
+                content.innerHTML = `<p style="color:#ff4d4d; text-align:center;">Terjadi kesalahan sistem. Silakan coba lagi nanti.</p>
+                <button onclick="document.getElementById('modalOverlay').style.display='none'" style="background:transparent; border:1px solid #333; border-radius:4px; color:#888; width:100%; margin-top:10px; cursor:pointer; min-height:44px;">Kembali</button>`;
+            });
         }
     </script>
 </body>

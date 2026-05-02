@@ -1,3 +1,12 @@
-/includes/config.php
-.env
-/assets/img/uploads/
+# Abaikan file koneksi database dan API Key
+includes/api_key.php
+includes/koneksi.php
+
+# Abaikan semua isi folder uploads, KECUALI file .gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# Buka akses khusus untuk folder galeri agar .gitkeep di dalamnya bisa terbaca
+!uploads/galeri/
+uploads/galeri/*
+!uploads/galeri/.gitkeep

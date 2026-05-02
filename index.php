@@ -1,3 +1,52 @@
+<?php
+session_start();
+require 'includes/koneksi.php'; 
+
+// Ambil Data Pengaturan Web dari Database
+$q_pengaturan = mysqli_query($koneksi, "SELECT * FROM pengaturan_web WHERE id=1");
+$web_data = mysqli_fetch_assoc($q_pengaturan);
+
+// Decode Jam Operasional (JSON ke Array)
+$jam = isset($web_data['jam_operasional']) && !empty($web_data['jam_operasional']) ? json_decode($web_data['jam_operasional'], true) : [];
+
+// Jika data jam di database kosong, gunakan nilai default bawaan Vanda Gym
+if (empty($jam)) {
+    $jam = [
+        'sjPagi'  => ['libur' => false, 'buka' => '06:00', 'tutup' => '10:30'],
+        'sjSiang' => ['libur' => false, 'buka' => '14:15', 'tutup' => '19:45'],
+        'sbPagi'  => ['libur' => false, 'buka' => '06:00', 'tutup' => '10:30'],
+        'sbSiang' => ['libur' => false, 'buka' => '14:15', 'tutup' => '19:00'],
+        'mgPagi'  => ['libur' => true,  'buka' => '',      'tutup' => ''],
+        'mgSiang' => ['libur' => false, 'buka' => '14:15', 'tutup' => '19:00']
+    ];
+}
+
+// Decode Jadwal Senam (JSON ke Array)
+$js_data = isset($web_data['jadwal_senam']) && !empty($web_data['jadwal_senam']) ? json_decode($web_data['jadwal_senam'], true) : [];
+
+if (empty($js_data)) {
+    $js_data = [
+        'sr' => ['libur' => false, 'buka' => '16.15', 'tutup' => '17.15', 'ket' => 'BL+'],
+        'sk' => ['libur' => false, 'buka' => '16.00', 'tutup' => '17.00', 'ket' => 'Zumba'],
+        'sb' => ['libur' => false, 'buka' => '08.00', 'tutup' => '09.00', 'ket' => 'BL+'],
+        'mg' => ['libur' => false, 'buka' => '15.30', 'tutup' => '16.30', 'ket' => 'Pilates']
+    ];
+}
+
+// Fungsi Helper untuk Jam Gym
+function renderJam($jam_array, $sesi_key) {
+    $libur = $jam_array[$sesi_key]['libur'] ?? false;
+    $buka  = $jam_array[$sesi_key]['buka'] ?? '';
+    $tutup = $jam_array[$sesi_key]['tutup'] ?? '';
+    
+    if ($libur === true || $libur === 'true') {
+        return '<span class="schedule-time" style="display:block; margin-bottom:5px; color: var(--primary-red); font-weight:bold;">Libur / Tutup</span>';
+    } else {
+        return '<span class="schedule-time" style="display:block; margin-bottom:5px;">'.$buka.' - '.$tutup.' WIB</span>';
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -5,6 +54,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vanda Gym Classic Palangkaraya</title>
     <style>
+        /* ================= KESELURUHAN DESAIN CSS ASLI ================= */
         :root {
             --bg-dark: #000000;
             --primary-red: #8E1616;
@@ -47,27 +97,26 @@
         }
         .btn-daftar:hover { background-color: var(--accent-gold); color: var(--bg-dark); }
 
-        /* ================= BANNER PENGUMUMAN (DIPERBESAR) ================= */
         .announcement-banner {
             background-color: #1a1a1a;
             border-bottom: 1px solid #333;
             color: var(--text-light);
-            padding: 16px 25px; /* Diperbesar */
+            padding: 16px 25px; 
             text-align: center;
-            font-size: 1.1rem; /* Diperbesar */
+            font-size: 1.1rem; 
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 15px; /* Jarak diperbesar */
+            gap: 15px; 
             z-index: 99;
         }
         .announcement-badge {
             background-color: var(--primary-red);
             color: white;
-            padding: 5px 12px; /* Diperbesar */
+            padding: 5px 12px; 
             border-radius: 4px;
             font-weight: bold;
-            font-size: 0.85rem; /* Diperbesar */
+            font-size: 0.85rem; 
             text-transform: uppercase;
             letter-spacing: 0.5px;
             animation: pulse 2s infinite;
@@ -78,7 +127,6 @@
             100% { box-shadow: 0 0 0 0 rgba(142, 22, 22, 0); }
         }
         .announcement-text { font-weight: 500; }
-        /* ====================================================== */
 
         .hero { 
             height: 85vh; 
@@ -196,7 +244,7 @@
 
         @media (max-width: 768px) {
             .footer-container { grid-template-columns: 1fr; text-align: center; }
-            .announcement-banner { flex-direction: column; text-align: center; } /* Responsif untuk banner */
+            .announcement-banner { flex-direction: column; text-align: center; } 
         }
 
         .wa-btn {
@@ -257,10 +305,12 @@
         </nav>
     </header>
 
+    <?php if (($web_data['pengumuman_aktif'] ?? '') === 'aktif'): ?>
     <div class="announcement-banner" id="infoBanner">
         <span class="announcement-badge">Info Terkini</span>
-        <span class="announcement-text">Gym TUTUP pada hari Jumat, 1 Mei 2026 karena libur nasional. Buka kembali hari Sabtu.</span>
+        <span class="announcement-text"><?= htmlspecialchars($web_data['teks_pengumuman'] ?? '') ?></span>
     </div>
+    <?php endif; ?>
 
     <section id="beranda" class="hero">
         <h1>Bentuk Karakter,<br>Bangun Kekuatan</h1>
@@ -273,21 +323,21 @@
         <div class="grid-3">
             <div class="card">
                 <h3>1x Visit Gym</h3>
-                <div class="price">Rp 25.000</div>
+                <div class="price">Rp <?= number_format($web_data['harga_harian'] ?? 25000, 0, ',', '.') ?></div>
                 <p style="color: #aaa; margin-bottom: 15px;">Akses harian penuh ke seluruh fasilitas beban dan kardio.</p>
                 <div class="highlight-text">Tidak perlu daftar online. Silakan langsung datang bayar di resepsionis.</div>
             </div>
             
             <div class="card" style="border-top-color: var(--accent-gold); transform: scale(1.05); box-shadow: 0 0 20px rgba(232, 201, 153, 0.1);">
                 <h3 style="color: #fff;">Gym Bulanan</h3>
-                <div class="price" style="color: var(--accent-gold);">Mulai Rp 175rb</div>
+                <div class="price" style="color: var(--accent-gold);">Mulai Rp <?= number_format($web_data['harga_bulanan'] ?? 175000, 0, ',', '.') ?></div>
                 <p style="color: #aaa; margin-bottom: 25px;">Akses gym tanpa batas dan dapatkan semua keuntungan sistem online.</p>
                 <button class="btn-action solid" onclick="window.location.href='daftar.php'">Daftar</button>
             </div>
 
             <div class="card">
                 <h3>Kelas Senam</h3>
-                <div class="price">Rp 25.000<span>/datang</span></div>
+                <div class="price">Rp <?= number_format($web_data['harga_senam'] ?? 25000, 0, ',', '.') ?><span>/datang</span></div>
                 <p style="color: #aaa; margin-bottom: 15px;">Bergabunglah dengan kelas Zumba, Pilates, atau BL+ bersama instruktur ahli.</p>
                 <div class="highlight-text">Tidak perlu daftar online. Silakan langsung datang bayar di resepsionis.</div>
             </div>
@@ -303,22 +353,22 @@
                     <div class="schedule-row">
                         <span class="schedule-day">Senin - Jumat</span>
                         <div style="text-align: right;">
-                            <span class="schedule-time" style="display:block; margin-bottom:5px;">06.00 - 10.30 WIB</span>
-                            <span class="schedule-time" style="display:block;">14.15 - 19.45 WIB</span>
+                            <?= renderJam($jam, 'sjPagi') ?>
+                            <?= renderJam($jam, 'sjSiang') ?>
                         </div>
                     </div>
                     <div class="schedule-row">
                         <span class="schedule-day">Sabtu</span>
                         <div style="text-align: right;">
-                            <span class="schedule-time" style="display:block; margin-bottom:5px;">06.00 - 10.30 WIB</span>
-                            <span class="schedule-time" style="display:block;">14.15 - 19.00 WIB</span>
+                            <?= renderJam($jam, 'sbPagi') ?>
+                            <?= renderJam($jam, 'sbSiang') ?>
                         </div>
                     </div>
                     <div class="schedule-row">
                         <span class="schedule-day">Minggu</span>
                         <div style="text-align: right;">
-                            <span class="schedule-time" style="display:block; margin-bottom:5px; color: var(--primary-red); font-weight:bold;">Pagi Tutup</span>
-                            <span class="schedule-time" style="display:block;">14.15 - 19.00 WIB</span>
+                            <?= renderJam($jam, 'mgPagi') ?>
+                            <?= renderJam($jam, 'mgSiang') ?>
                         </div>
                     </div>
                 </div>
@@ -327,22 +377,25 @@
             <div class="schedule-box">
                 <div class="schedule-header gold">Jadwal Kelas Senam</div>
                 <div class="schedule-body">
+                    <?php
+                    $labels = ['sr' => 'Senin & Rabu', 'sk' => 'Selasa & Kamis', 'sb' => 'Sabtu', 'mg' => 'Minggu'];
+                    foreach($labels as $k => $v):
+                        $l = $js_data[$k]['libur'] ?? false;
+                        $b = $js_data[$k]['buka'] ?? '';
+                        $t = $js_data[$k]['tutup'] ?? '';
+                        $ket = $js_data[$k]['ket'] ?? '';
+                    ?>
                     <div class="schedule-row">
-                        <span class="schedule-day">Senin & Rabu</span>
-                        <span class="schedule-time">16.15 - 17.15 (BL+)</span>
+                        <span class="schedule-day"><?= $v ?></span>
+                        <span class="schedule-time">
+                            <?php if($l === true || $l === 'true'): ?>
+                                <span style="color:var(--primary-red); font-weight:bold;">Libur / Tutup</span>
+                            <?php else: ?>
+                                <?= $b ?> - <?= $t ?> (<?= $ket ?>)
+                            <?php endif; ?>
+                        </span>
                     </div>
-                    <div class="schedule-row">
-                        <span class="schedule-day">Selasa & Kamis</span>
-                        <span class="schedule-time">16.00 - 17.00 (Zumba)</span>
-                    </div>
-                    <div class="schedule-row">
-                        <span class="schedule-day">Sabtu</span>
-                        <span class="schedule-time">08.00 - 09.00 (BL+)</span>
-                    </div>
-                    <div class="schedule-row">
-                        <span class="schedule-day">Minggu</span>
-                        <span class="schedule-time">15.30 - 16.30 (Pilates)</span>
-                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
         </div>
@@ -377,12 +430,15 @@
             <div class="benefit-card">
                 <div class="benefit-icon">
                     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="23 7 16 12 23 17 23 7"></polygon>
-                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
                 </div>
-                <h3>Video Tutorial Eksklusif</h3>
-                <p>Dapatkan akses ke galeri panduan gerakan gym yang benar agar latihan optimal dan aman.</p>
+                <h3>Konfirmasi & Riwayat Instan</h3>
+                <p>Dapatkan bukti pembayaran digital langsung di dashboard dan akses riwayat transaksi Anda kapan saja.</p>
             </div>
         </div>
     </section>
@@ -423,7 +479,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
                         </svg>
-                        <span>CS / Pendaftaran: 0821-4855-6601</span>
+                        <span>CS / Pendaftaran: <?= htmlspecialchars($web_data['wa_cs'] ?? '0821-4855-6601') ?></span>
                     </p>
 
                     <p style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -440,7 +496,7 @@
                             <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                             <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
                         </svg>
-                        <span>Instagram: <a href="https://instagram.com/vandagympky_classic" target="_blank">@vandagympky_classic</a></span>
+                        <span>Instagram: <a href="<?= htmlspecialchars($web_data['ig'] ?? 'https://instagram.com/vandagympky_classic') ?>" target="_blank">@vandagympky_classic</a></span>
                     </p>
                 </div>
             </div>
@@ -455,7 +511,11 @@
         </div>
     </footer>
 
-    <a href="https://wa.me/6282148556601" target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
+    <?php
+    $wa_db = $web_data['wa_cs'] ?? '082148556601';
+    $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
+    ?>
+    <a href="https://wa.me/<?= $wa_link ?>" target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
         <svg viewBox="0 0 24 24">
             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/>
         </svg>
@@ -496,13 +556,14 @@
         </div>
         <div class="chat-footer-menu">
             <div class="quick-replies">
-                <button class="btn-qr" onclick="kirimFaq('Bagaimana cara menghubungi CS?', 'Silakan hubungi WhatsApp CS Vanda Gym di nomor <br><strong><a href=\'https://wa.me/6282148556601\' target=\'_blank\' style=\'color:var(--accent-gold);\'>0821-4855-6601</a></strong><br>Atau klik tombol WhatsApp hijau di pojok kiri bawah layar.')">📞 Hubungi CS</button>
+                <button class="btn-qr" onclick="kirimFaq('Apa saja peraturan gym?', '1. Bawa handuk sendiri.<br>2. Kembalikan alat setelah dipakai.<br>3. Dilarang merokok dan vape di area gym.<br>4. Jaga kebersihan gym.')">📜 Peraturan</button>
+                <button class="btn-qr" onclick="kirimFaq('Bagaimana cara menghubungi CS?', 'Silakan hubungi WhatsApp CS Vanda Gym di nomor <br><strong><a href=\'https://wa.me/<?= $wa_link ?>\' target=\'_blank\' style=\'color:var(--accent-gold);\'><?= htmlspecialchars($web_data['wa_cs'] ?? '0821-4855-6601') ?></a></strong><br>Atau klik tombol WhatsApp hijau di pojok kiri bawah layar.')">📞 Hubungi CS</button>
                 
                 <button class="btn-qr" onclick="kirimFaq('Di mana lokasi Vanda Gym?', 'Lokasi kami ada di <strong>Jl. Kapten Pierre Tendean No.17, Palangka Raya</strong>. Anda bisa melihat panduan peta (Google Maps) di bagian paling bawah halaman ini.')">📍 Info Lokasi</button>
-                <button class="btn-qr" onclick="kirimFaq('Apa saja peraturan gym?', '1. Bawa handuk sendiri.<br>2. Kembalikan alat setelah dipakai.<br>3. Gunakan pakaian & sepatu olahraga.<br>4. Jaga kebersihan gym.')">📜 Peraturan</button>
+                
 
-                <button class="btn-qr" onclick="kirimFaq('Berapa harga paket membership?', 'Harga Gym Bulanan mulai dari Rp 175.000. Tersedia juga 1x Visit (Rp 25.000) dan Kelas Senam (Rp 25.000/datang). Pendaftaran langganan bulanan bisa dilakukan via website.')">💰 Harga Membership</button>
-                <button class="btn-qr" onclick="kirimFaq('Kapan jadwal buka gym?', 'Senin-Jumat: 06.00-10.30 & 14.15-19.45.<br>Sabtu tutup jam 19.00.<br>Minggu pagi tutup, buka sore sampai jam 19.00.')">🕒 Jadwal Buka</button>
+                <button class="btn-qr" onclick="kirimFaq('Berapa harga paket membership?', 'Harga Gym Bulanan mulai dari Rp <?= number_format($web_data['harga_bulanan'] ?? 175000, 0, ',', '.') ?>. Tersedia juga 1x Visit (Rp <?= number_format($web_data['harga_harian'] ?? 25000, 0, ',', '.') ?>) dan Kelas Senam (Rp <?= number_format($web_data['harga_senam'] ?? 25000, 0, ',', '.') ?>/datang). Pendaftaran langganan bulanan bisa dilakukan via website.')">💰 Harga Membership</button>
+                
             </div>
         </div>
     </div>

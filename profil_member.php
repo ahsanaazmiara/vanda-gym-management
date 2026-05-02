@@ -1,3 +1,159 @@
+<?php
+session_start();
+require 'includes/koneksi.php';
+require_once 'includes/api_key.php'; 
+
+// 1. PROTEKSI: Cek apakah user sudah login
+if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'member') {
+    header("Location: login.php");
+    exit;
+}
+
+$id_user = $_SESSION['id_user'];
+
+// =========================================================
+// BLOK PHP: HANDLING AJAX UPDATE DATA
+// =========================================================
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
+    header('Content-Type: application/json');
+    $action = $_POST['action'];
+
+    // --- A. UPDATE PROFIL (NAMA & WA) ---
+    if ($action === 'update_profil') {
+        $nama = mysqli_real_escape_string($koneksi, $_POST['nama']);
+        $wa   = mysqli_real_escape_string($koneksi, $_POST['wa']);
+
+        $q = mysqli_query($koneksi, "UPDATE users SET nama_lengkap='$nama', no_wa='$wa' WHERE id_user='$id_user'");
+        
+        if ($q) {
+            $_SESSION['nama'] = $nama; // Update nama di session juga
+            echo json_encode(['status' => 'success', 'message' => 'Profil berhasil diperbarui!']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Gagal memperbarui database.']);
+        }
+        exit;
+    }
+
+    // --- B. UPDATE PASSWORD DENGAN PASS LAMA ---
+    if ($action === 'update_password') {
+        $passLama = $_POST['passLama'];
+        $passBaru = $_POST['passBaru'];
+
+        // Ambil password asli di DB
+        $res = mysqli_query($koneksi, "SELECT password FROM users WHERE id_user='$id_user'");
+        $user = mysqli_fetch_assoc($res);
+
+        if (password_verify($passLama, $user['password'])) {
+            $hashBaru = password_hash($passBaru, PASSWORD_DEFAULT);
+            mysqli_query($koneksi, "UPDATE users SET password='$hashBaru' WHERE id_user='$id_user'");
+            echo json_encode(['status' => 'success', 'message' => 'Password berhasil diubah!']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Password lama salah!']);
+        }
+        exit;
+    }
+
+    // --- C. KIRIM LINK LUPA PASSWORD VIA WHATSAPP (FONNTE) ---
+    if ($action === 'forgot_password') {
+        $input_wa = mysqli_real_escape_string($koneksi, trim($_POST['resetWa']));
+
+        // Bersihkan & Format Nomor WA ke awalan 62
+        $clean_wa = preg_replace('/[^0-9]/', '', $input_wa);
+        $wa_62 = '';
+        if(substr($clean_wa, 0, 1) == '0') {
+            $wa_62 = '62' . substr($clean_wa, 1);
+        } elseif(substr($clean_wa, 0, 1) == '8') {
+            $wa_62 = '62' . $clean_wa;
+        } else {
+            $wa_62 = $clean_wa;
+        }
+
+        // Cek apakah WA yang diinput cocok dengan profil user yang sedang login
+        $cek_akun = mysqli_query($koneksi, "SELECT id_user, nama_lengkap, no_wa FROM users WHERE id_user='$id_user' AND (no_wa='$wa_62' OR no_wa='$clean_wa' OR no_wa='$input_wa')");
+        
+        if(mysqli_num_rows($cek_akun) > 0) {
+            $user_reset = mysqli_fetch_assoc($cek_akun);
+            $no_wa_tujuan = $user_reset['no_wa']; 
+
+            // Pastikan format WA DB valid untuk dikirim ke Fonnte
+            if(substr($no_wa_tujuan, 0, 1) == '0') {
+                $no_wa_tujuan = '62' . substr($no_wa_tujuan, 1);
+            }
+
+            // Buat token unik
+            $token = bin2hex(random_bytes(16));
+
+            // Simpan token ke database menggunakan DATE_ADD
+            $simpan_token = mysqli_query($koneksi, "UPDATE users SET reset_token='$token', reset_token_exp=DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id_user='$id_user'");
+            
+            if(!$simpan_token) {
+                echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan token ke database. Hubungi Admin.']);
+                exit;
+            }
+
+            // Buat link reset dinamis menuju halaman login.php
+            $base_url = "http://" . $_SERVER['HTTP_HOST'] . dirname($_SERVER['PHP_SELF']);
+            $reset_link = $base_url . "/login.php?token=" . $token;
+
+            // Siapkan Teks Pesan WhatsApp
+            $pesan_wa = "*Vanda Gym Classic - Reset Password*\n\n";
+            $pesan_wa .= "Halo *" . $user_reset['nama_lengkap'] . "*,\n\n";
+            $pesan_wa .= "Anda meminta reset password melalui halaman Profil Akun.\n\n";
+            $pesan_wa .= "Klik link di bawah ini untuk membuat password baru Anda:\n";
+            $pesan_wa .= $reset_link . "\n\n";
+            $pesan_wa .= "_Link ini kedaluwarsa dalam 1 jam._\n";
+            $pesan_wa .= "Abaikan pesan ini jika Anda tidak merasa memintanya.";
+
+            // --- INTEGRASI WHATSAPP API FONNTE ---
+            $api_token = $fonnte_api_key; // Mengambil dari api_key.php
+            
+            $curl = curl_init();
+            curl_setopt_array($curl, array(
+              CURLOPT_URL => 'https://api.fonnte.com/send',
+              CURLOPT_RETURNTRANSFER => true,
+              CURLOPT_ENCODING => '',
+              CURLOPT_MAXREDIRS => 10,
+              CURLOPT_TIMEOUT => 0,
+              CURLOPT_FOLLOWLOCATION => true,
+              CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+              CURLOPT_CUSTOMREQUEST => 'POST',
+              CURLOPT_POSTFIELDS => array(
+                'target' => $no_wa_tujuan,
+                'message' => $pesan_wa,
+                'countryCode' => '62',
+              ),
+              CURLOPT_HTTPHEADER => array(
+                "Authorization: $api_token"
+              ),
+            ));
+
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+            curl_close($curl);
+
+            if ($err) {
+                echo json_encode(['status' => 'error', 'message' => 'Gagal mengirim pesan WhatsApp. Pastikan koneksi internet aktif.']);
+            } else {
+                $res = json_decode($response, true);
+                if(isset($res['status']) && $res['status'] == true) {
+                    echo json_encode(['status' => 'success', 'message' => 'Tautan reset telah berhasil dikirim ke WhatsApp Anda.']);
+                } else {
+                    echo json_encode(['status' => 'error', 'message' => 'WhatsApp Gateway Gagal: ' . ($res['reason'] ?? 'Device Offline')]);
+                }
+            }
+
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Nomor WhatsApp tidak cocok dengan data profil Anda saat ini.']);
+        }
+        exit;
+    }
+}
+
+// 2. AMBIL DATA USER TERBARU UNTUK DITAMPILKAN DI FORM
+$query = mysqli_query($koneksi, "SELECT * FROM users WHERE id_user = '$id_user'");
+$u = mysqli_fetch_assoc($query);
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -68,6 +224,8 @@
         .btn-action:hover { background: var(--accent-gold); color: #000; }
         .btn-save { background-color: var(--primary-red); color: white; border: none; width: 100%; min-height: 48px; text-transform: uppercase; margin-top: 10px; display: none; cursor: pointer; font-weight: bold; border-radius: 4px; transition: 0.3s;}
         .btn-save:hover { background-color: #a81a1a; }
+        .btn-save-wa { display: block; background-color: var(--primary-red); color: white; border: none; width: 100%; min-height: 48px; text-transform: uppercase; margin-top: 20px; cursor: pointer; font-weight: bold; border-radius: 4px; transition: 0.3s;}
+        .btn-save-wa:hover { background-color: #a81a1a; }
         .btn-cancel { background: transparent; color: #888; border: none; width: 100%; margin-top: 5px; cursor: pointer; display: none; font-size: 0.85rem; min-height: 44px; }
 
         .toast {
@@ -98,9 +256,10 @@
     <div class="profil-container">
         <div class="nav-top">
             <a href="member_dasbor.php" id="btnBackTop" class="btn-back-square" title="Kembali ke Dasbor">←</a>
-            <span style="color: #444; font-size: 0.8rem;">ID Member: VGYM-202604</span>
+            <span style="color: #444; font-size: 0.8rem;">ID Member: VGYM-00<?= $u['id_user'] ?></span>
         </div>
 
+        <!-- BLOK PROFIL UTAMA -->
         <div id="blokProfilUtama">
             <h2 style="text-align:center; color:var(--text-light); text-transform:uppercase; letter-spacing:1px;">Pengaturan Akun</h2>
 
@@ -112,12 +271,12 @@
             <form id="formProfil" onsubmit="handleSimpan(event, 'profil')">
                 <div class="form-group">
                     <label>Nama Lengkap</label>
-                    <input type="text" id="profNama" class="form-control" value="Ahsana Azmiara Ahmadiham" disabled required>
+                    <input type="text" id="profNama" class="form-control" value="<?= htmlspecialchars($u['nama_lengkap']) ?>" disabled required>
                 </div>
 
                 <div class="form-group">
                     <label>Nomor WhatsApp</label>
-                    <input type="text" id="profHp" class="form-control" value="082148556601" disabled required oninput="validasiAngka(this)">
+                    <input type="text" id="profHp" class="form-control" value="<?= htmlspecialchars($u['no_wa']) ?>" disabled required oninput="validasiAngka(this)">
                     <div id="errorHp" class="error-msg">Wajib angka saja.</div>
                 </div>
 
@@ -131,17 +290,16 @@
             </div>
 
             <form id="formKeamanan" onsubmit="handleSimpan(event, 'keamanan')">
-                
                 <div class="form-group">
                     <label>Email Login</label>
-                    <input type="email" id="profEmail" class="form-control" value="ahsana@email.com" disabled style="background-color: #050505;">
+                    <input type="email" id="profEmail" class="form-control" value="<?= htmlspecialchars($u['email']) ?>" disabled style="background-color: #050505;">
                     <small style="color: #666; font-size: 0.75rem; margin-top: 5px; display: block;">Hubungi Admin jika ingin mengubah alamat email login Anda.</small>
                 </div>
 
                 <div id="groupPassDummy">
                     <div class="form-group">
                         <label>Password</label>
-                        <input type="password" class="form-control" value="passwordpalsu" disabled>
+                        <input type="password" class="form-control" value="********" disabled>
                     </div>
                 </div>
 
@@ -180,6 +338,7 @@
             </form>
         </div>
 
+        <!-- BLOK LUPA PASSWORD (VIA WA) -->
         <div id="blokResetPassword" style="display: none; padding-top: 10px;">
             <div class="icon-lock">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -189,185 +348,160 @@
             </div>
             <div style="text-align: center; margin-bottom: 25px;">
                 <h2 style="color: var(--accent-gold); text-transform: uppercase; font-size: 1.4rem; margin-bottom: 5px;">Lupa Password?</h2>
-                <p style="color: #888; font-size: 0.9rem; line-height: 1.4;">Kami akan mengirimkan tautan untuk mengatur ulang password ke email Anda.</p>
+                <p style="color: #888; font-size: 0.9rem; line-height: 1.4;">Kami akan mengirimkan tautan pengaturan ulang password <strong>ke nomor WhatsApp</strong> Anda.</p>
             </div>
-
+            
             <div id="pesanSuksesReset" class="success-msg"></div>
-
+            
             <form id="formResetPass" onsubmit="kirimLinkReset(event)">
                 <div class="form-group">
-                    <label>Alamat Email Terdaftar</label>
-                    <input type="email" id="resetEmailProf" class="form-control" placeholder="Masukkan email Anda" required>
+                    <label>Nomor WhatsApp Terdaftar</label>
+                    <!-- Nomor otomatis diisi dari database -->
+                    <input type="tel" id="resetWaProf" class="form-control" value="<?= htmlspecialchars($u['no_wa']) ?>" required oninput="validasiAngka(this)">
                 </div>
-                <button type="submit" id="btnKirimReset" class="btn-save" style="display: block; margin-top: 20px;">Kirim Tautan Reset</button>
+                <button type="submit" id="btnKirimReset" class="btn-save-wa">Kirim Tautan Reset</button>
             </form>
         </div>
-
     </div>
 
     <script>
+        // Logika Perpindahan Form (Lupa Pass)
         function toggleResetForm(tampilkanLupaPass, e) {
-            if (e) e.preventDefault(); // Mencegah link pindah halaman
-            
+            if (e) e.preventDefault();
             const btnBack = document.getElementById('btnBackTop');
-
             document.getElementById('blokProfilUtama').style.display = tampilkanLupaPass ? 'none' : 'block';
             document.getElementById('blokResetPassword').style.display = tampilkanLupaPass ? 'block' : 'none';
-            
             if (tampilkanLupaPass) {
-                document.getElementById('pesanSuksesReset').style.display = 'none';
-                document.getElementById('formResetPass').style.display = 'block';
-                document.getElementById('btnKirimReset').innerText = "Kirim Tautan Reset";
-                document.getElementById('btnKirimReset').disabled = false;
-                document.getElementById('resetEmailProf').value = ""; // Mengosongkan isian email
-
-                // Tombol Back Kiri Atas kembali ke Pengaturan Akun
-                btnBack.onclick = function(e) { 
-                    e.preventDefault(); 
-                    toggleResetForm(false); 
-                };
-                btnBack.title = "Kembali ke Pengaturan";
+                btnBack.onclick = function(e) { e.preventDefault(); toggleResetForm(false); };
             } else {
-                // Tombol Back Kiri Atas kembali ke Dasbor
                 btnBack.onclick = null;
                 btnBack.href = "member_dasbor.php";
-                btnBack.title = "Kembali ke Dasbor";
             }
         }
 
+        // --- FETCH AJAX: KIRIM LINK RESET KE WHATSAPP ---
         function kirimLinkReset(e) {
             e.preventDefault();
             const btn = document.getElementById('btnKirimReset');
-            const form = document.getElementById('formResetPass');
-            const pesan = document.getElementById('pesanSuksesReset');
-            const email = document.getElementById('resetEmailProf').value;
+            const originalText = btn.innerText;
+            const waInput = document.getElementById('resetWaProf').value.trim();
 
-            btn.innerText = "Mengirim...";
-            btn.disabled = true;
+            btn.innerText = "Mengirim..."; btn.disabled = true;
 
-            setTimeout(() => {
-                form.style.display = 'none'; 
-                pesan.style.display = 'block'; 
-                pesan.innerHTML = `Tautan reset password telah dikirim ke <strong>${email}</strong>! Silakan periksa kotak masuk Anda.`;
-            }, 1500);
+            const formData = new FormData();
+            formData.append('action', 'forgot_password');
+            formData.append('resetWa', waInput);
+
+            fetch('profil_member.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('formResetPass').style.display = 'none'; 
+                    const msg = document.getElementById('pesanSuksesReset');
+                    msg.style.display = 'block'; 
+                    msg.innerHTML = data.message;
+                } else {
+                    alert('❌ ' + data.message);
+                    btn.innerText = originalText; btn.disabled = false;
+                }
+            })
+            .catch(() => {
+                alert('Terjadi kesalahan jaringan atau server.');
+                btn.innerText = originalText; btn.disabled = false;
+            });
         }
 
+        // Tampilan Mode Edit
         function toggleEdit(tipe) {
-            const isProfil = (tipe === 'profil');
-            
-            if (isProfil) {
+            if (tipe === 'profil') {
                 const ids = ['profNama', 'profHp', 'btnEditProfil', 'saveProfil', 'cancelProfil'];
                 const elements = ids.map(id => document.getElementById(id));
                 const isDisabled = elements[0].disabled;
-
-                for(let i=0; i < 2; i++) elements[i].disabled = !isDisabled;
-                
+                elements[0].disabled = !isDisabled;
+                elements[1].disabled = !isDisabled;
                 elements[2].style.display = isDisabled ? 'none' : 'block'; 
                 elements[3].style.display = isDisabled ? 'block' : 'none'; 
                 elements[4].style.display = isDisabled ? 'block' : 'none'; 
-                if (isDisabled) elements[0].focus();
-
             } else {
                 const ids = ['profPassLama', 'profPass', 'btnEditKeamanan', 'saveKeamanan', 'cancelKeamanan'];
                 const elements = ids.map(id => document.getElementById(id));
                 const isDisabled = elements[0].disabled;
-
                 elements[0].disabled = !isDisabled; 
                 elements[1].disabled = !isDisabled; 
-
                 document.getElementById('groupPassDummy').style.display = isDisabled ? 'none' : 'block';
                 document.getElementById('groupEditPass').style.display = isDisabled ? 'block' : 'none';
-
                 elements[2].style.display = isDisabled ? 'none' : 'block'; 
                 elements[3].style.display = isDisabled ? 'block' : 'none'; 
                 elements[4].style.display = isDisabled ? 'block' : 'none'; 
-                
-                if (isDisabled) {
-                    elements[0].value = '';
-                    elements[1].value = '';
-                    elements[0].focus(); 
-                }
             }
         }
 
+        // Validasi Front-end
         function validasiAngka(input) {
             const error = document.getElementById('errorHp');
-            if (/\D/g.test(input.value)) {
-                error.style.display = 'block';
-                input.classList.add('invalid');
-                input.value = input.value.replace(/\D/g, ''); 
-            } else {
-                error.style.display = 'none';
-                input.classList.remove('invalid');
-            }
+            input.value = input.value.replace(/\D/g, ''); 
+            if(error) error.style.display = (/\D/g.test(input.value)) ? 'block' : 'none';
         }
 
         function cekPassword(input, errorId) {
             const error = document.getElementById(errorId);
             const regex = /^(?=.*[0-9])(?=.*[a-zA-Z])([a-zA-Z0-9]{6,})$/;
-            if (!regex.test(input.value) && input.value.length > 0) {
-                error.style.display = 'block';
-                input.classList.add('invalid');
-            } else {
-                error.style.display = 'none';
-                input.classList.remove('invalid');
-            }
+            error.style.display = (!regex.test(input.value) && input.value.length > 0) ? 'block' : 'none';
         }
 
         function toggleVisibility(inputId, iconId) {
-            const passwordInput = document.getElementById(inputId);
-            const eyeIcon = document.getElementById(iconId);
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                eyeIcon.innerHTML = `
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                `;
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>`;
             } else {
-                passwordInput.type = 'password';
-                eyeIcon.innerHTML = `
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                `;
+                input.type = 'password';
+                icon.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>`;
             }
         }
 
+        // =========================================================
+        // AJAX: PROSES SIMPAN DATA KE DATABASE
+        // =========================================================
         function handleSimpan(e, tipe) {
             e.preventDefault();
-            const form = e.target;
-            
-            if (form.querySelector('.invalid')) {
-                alert("Harap perbaiki kesalahan input.");
-                return;
-            }
-
-            if (tipe === 'keamanan') {
-                const passLama = document.getElementById('profPassLama').value;
-                if (passLama !== "password123") {
-                    alert("❌ Password Lama salah! Gagal memperbarui keamanan akun.");
-                    document.getElementById('profPassLama').classList.add('invalid');
-                    return;
-                }
-            }
-
-            const btn = form.querySelector('.btn-save');
+            const btn = (tipe === 'profil') ? document.getElementById('saveProfil') : document.getElementById('saveKeamanan');
             const originalText = btn.innerText;
-            btn.innerText = "Menyimpan...";
-            btn.disabled = true;
+            
+            btn.innerText = "Menyimpan..."; btn.disabled = true;
 
-            setTimeout(() => {
-                showToast("Data berhasil disimpan!");
-                btn.innerText = originalText;
-                btn.disabled = false;
-                toggleEdit(tipe);
-            }, 1000);
+            const formData = new FormData();
+            formData.append('action', (tipe === 'profil' ? 'update_profil' : 'update_password'));
+
+            if (tipe === 'profil') {
+                formData.append('nama', document.getElementById('profNama').value);
+                formData.append('wa', document.getElementById('profHp').value);
+            } else {
+                formData.append('passLama', document.getElementById('profPassLama').value);
+                formData.append('passBaru', document.getElementById('profPass').value);
+            }
+
+            fetch('profil_member.php', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showToast(data.message);
+                    setTimeout(() => location.reload(), 1000); 
+                } else {
+                    alert('❌ ' + data.message);
+                    btn.innerText = originalText; btn.disabled = false;
+                }
+            })
+            .catch(() => {
+                alert('Terjadi kesalahan jaringan.');
+                btn.innerText = originalText; btn.disabled = false;
+            });
         }
 
         function showToast(pesan) {
             const toast = document.getElementById('toastNotif');
-            toast.innerText = pesan;
-            toast.style.display = 'block';
+            toast.innerText = pesan; toast.style.display = 'block';
             setTimeout(() => { toast.style.display = 'none'; }, 3000);
         }
     </script>

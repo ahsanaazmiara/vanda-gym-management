@@ -1,3 +1,52 @@
+<?php
+// =========================================================
+// BLOK PHP: MENCARI DATA PENDAFTARAN DARI DATABASE MENGGUNAKAN AJAX
+// =========================================================
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'cek_status') {
+    require 'includes/koneksi.php'; // Pastikan path benar
+    header('Content-Type: application/json');
+
+    $email = mysqli_real_escape_string($koneksi, $_POST['email']);
+
+    // Cari di tabel users di-join ke membership untuk dapat status terbarunya
+    $query = "SELECT u.nama_lengkap, u.email, m.paket_bulan, m.total_harga, m.tgl_mulai, m.tgl_berakhir, m.status, m.alasan_tolak 
+              FROM users u 
+              LEFT JOIN membership m ON u.id_user = m.id_user 
+              WHERE u.email = '$email' 
+              ORDER BY m.id_membership DESC LIMIT 1";
+
+    $result = mysqli_query($koneksi, $query);
+
+    if (mysqli_num_rows($result) > 0) {
+        $data = mysqli_fetch_assoc($result);
+        
+        // Bikin format Rupiah untuk Harga
+        $harga = "Rp " . number_format($data['total_harga'], 0, ',', '.');
+        
+        // Bikin format nama Paket (misal 1 -> 1 Bulan Gym)
+        $namaPaket = $data['paket_bulan'] . " Bulan Gym";
+
+        // Bikin format Tanggal Cantik (misal: 25 Apr 2026)
+        $tgl_mulai = date('d M Y', strtotime($data['tgl_mulai']));
+        $tgl_berakhir = $data['tgl_berakhir'] ? date('d M Y', strtotime($data['tgl_berakhir'])) : '-';
+
+        echo json_encode([
+            'status_code' => 'ditemukan',
+            'status' => $data['status'], // pending, aktif, atau ditolak
+            'email' => $data['email'],
+            'namaPaket' => $namaPaket,
+            'harga' => $harga,
+            'tglMulai' => $tgl_mulai,
+            'tglBerakhir' => $tgl_berakhir,
+            'alasan_tolak' => $data['alasan_tolak']
+        ]);
+    } else {
+        echo json_encode(['status_code' => 'tidak_ditemukan']);
+    }
+    exit;
+}
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -5,6 +54,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cek Status Pendaftaran - Vanda Gym Classic</title>
     <style>
+        /* [SELURUH CSS KAMU YANG ASLI TIDAK ADA YANG DIUBAH] */
         :root {
             --bg-dark: #000000;
             --primary-red: #8E1616;
@@ -64,7 +114,6 @@
         }
         .btn-search:hover { background-color: #a81a1a; }
 
-        /* Result Box Style */
         .result-box {
             margin-top: 30px; padding: 20px; border-radius: 4px;
             background: #111; border: 1px solid #222; display: none;
@@ -78,7 +127,6 @@
         .status-active { background: #155724; color: #fff; }
         .status-rejected { background: #721c24; color: #fff; }
 
-        /* Detail Info Style */
         .detail-info {
             background-color: #1a1a1a; border: 1px dashed #333; border-radius: 4px;
             padding: 15px; margin: 15px 0; font-size: 0.85rem; color: #ccc;
@@ -96,7 +144,6 @@
         }
         .btn-outline-gold:hover { background: var(--accent-gold); color: #000; }
 
-        /* Tombol WA (Floating) */
         .wa-btn {
             position: fixed; bottom: 30px; left: 30px; 
             background-color: #25D366; color: white; 
@@ -108,7 +155,6 @@
         .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
         .wa-btn svg { width: 35px; height: 35px; fill: currentColor; }
 
-        /* ================= MODAL & E-RECEIPT STYLE ================= */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); display: none; justify-content: center; 
@@ -138,7 +184,6 @@
         }
         .btn-download:hover { background-color: #333; }
 
-        /* ================= CSS KHUSUS CETAK (PRINT) ================= */
         @media print {
             body * { visibility: hidden; } 
             .modal-overlay { position: absolute; left: 0; top: 0; padding: 0; background: transparent; }
@@ -164,7 +209,7 @@
             <div id="errorEmail" class="error-msg">Format email tidak valid.</div>
         </div>
 
-        <button class="btn-search" onclick="cariStatus()">Cari Data</button>
+        <button class="btn-search" id="btnCariTeks" onclick="cariStatus()">Cari Data</button>
 
         <div id="hasilCek" class="result-box">
             <div style="border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 10px;">
@@ -220,128 +265,141 @@
             }
         }
 
-        // Fungsi Buka & Tutup Bukti
         function bukaBukti() { document.getElementById('receiptModal').style.display = 'flex'; }
         function tutupBukti() { document.getElementById('receiptModal').style.display = 'none'; }
 
+        // ==========================================
+        // FUNGSI INI SEKARANG MENARIK DATA DARI PHP DATABASE (AJAX)
+        // ==========================================
         function cariStatus() {
             const email = document.getElementById('cekEmail').value.trim();
             const resultBox = document.getElementById('hasilCek');
             const inputElement = document.getElementById('cekEmail');
             const errorElement = document.getElementById('errorEmail');
+            const btnTeks = document.getElementById('btnCariTeks');
             const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             
-            if (!email) {
-                alert("Silakan masukkan email terlebih dahulu.");
-                return;
-            }
-
+            if (!email) { alert("Silakan masukkan email terlebih dahulu."); return; }
             if (!regex.test(email)) {
                 errorElement.style.display = 'block';
-                inputElement.classList.add('invalid');
-                return;
+                inputElement.classList.add('invalid'); return;
             }
 
-            resultBox.style.display = 'block';
+            resultBox.style.display = 'none'; // Sembunyikan dulu selama loading
             const resNama = document.getElementById('resNama');
             const resStatus = document.getElementById('resStatus');
             const resPesan = document.getElementById('resPesan');
 
-            resNama.innerText = email;
+            // Animasi Loading
+            const aslinya = btnTeks.innerText;
+            btnTeks.innerText = "Mencari di Sistem...";
+            btnTeks.disabled = true;
 
-            // ==========================================
-            // SIMULASI PROTOTIPE UNTUK MELIHAT PERBEDAAN
-            // (Tes ketik email yang mengandung kata "aktif" / "tolak" / "gagal")
-            // ==========================================
-            
-            // 1. Kondisi Jika AKTIF
-            if (email.toLowerCase().includes('aktif')) {
-                
-                // === BACA DATA DARI LOCALSTORAGE (Hasil Input daftar.php) ===
-                const savedPaket = localStorage.getItem('vanda_daftar_paket') || "1 Bulan Gym";
-                const savedHarga = localStorage.getItem('vanda_daftar_harga') || "Rp 175.000";
-                const savedTglMulai = localStorage.getItem('vanda_daftar_tglMulai') || "2026-04-25";
-                
-                // Format Tanggal Mulai jadi teks cantik
-                const formatTglCetak = (tglString, tambahBulan = 0) => {
-                    let d = new Date(tglString);
-                    if (tambahBulan > 0) d.setMonth(d.getMonth() + tambahBulan);
-                    return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-                };
+            // Siapkan pengiriman AJAX ke atas file ini
+            const formData = new FormData();
+            formData.append('action', 'cek_status');
+            formData.append('email', email);
 
-                let tglMulaiFormat = formatTglCetak(savedTglMulai);
-                
-                // Otomatis tambah bulan kedaluwarsa sesuai paket
-                let durasiBulan = 1;
-                if (savedPaket.includes('2')) durasiBulan = 2;
-                if (savedPaket.includes('3')) durasiBulan = 3;
-                let tglAkhirFormat = formatTglCetak(savedTglMulai, durasiBulan);
+            fetch('cek_status.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                btnTeks.innerText = aslinya;
+                btnTeks.disabled = false;
+                resultBox.style.display = 'block';
+                resNama.innerText = email;
 
-                const noTrx = "REG-" + Math.floor(Math.random() * 99999);
-                // ================================================================
+                // JIKA DATA TIDAK DITEMUKAN
+                if (data.status_code === 'tidak_ditemukan') {
+                    resStatus.innerHTML = '<span class="status-badge status-rejected">Tidak Terdaftar</span>';
+                    resPesan.innerHTML = `
+                        <strong style="color: #ff4d4d; display:block; margin-top:10px;">Email Tidak Ditemukan!</strong>
+                        Sistem kami tidak menemukan pendaftaran dengan email tersebut. Pastikan email tidak salah ketik, atau silakan daftar baru.
+                        <a href="daftar.php" style="display: flex; align-items: center; justify-content: center; background-color: var(--primary-red); color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; transition: 0.3s; font-size: 0.9rem;">Daftar Sekarang</a>
+                    `;
+                    return;
+                }
 
-                // --- Render Data ke Struk ---
-                document.getElementById('receiptData').innerHTML = `
-                    <p><span>No. Trx</span> <span>${noTrx}</span></p>
-                    <p><span>Tgl Bayar</span> <span>${formatTglCetak(new Date())}</span></p>
-                    <p><span>Email</span> <span style="font-size:0.75rem;">${email}</span></p>
-                    <hr style="border:1px dashed #000; margin:10px 0;">
-                    <p><span>Paket</span> <span>${savedPaket}</span></p>
-                    <p><span>Mulai Berlaku</span> <span>${tglMulaiFormat}</span></p>
-                    <p><span>Berakhir Pada</span> <span>${tglAkhirFormat}</span></p>
-                    <hr style="border:1px dashed #000; margin:10px 0;">
-                    <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${savedHarga}</span></p>
-                `;
-                
-                resStatus.innerHTML = '<span class="status-badge status-active">Aktif Terverifikasi</span>';
-                resPesan.innerHTML = `
-                    <div class="detail-info">
-                        <div class="detail-row"><span>Paket:</span><span>${savedPaket}</span></div>
-                        <div class="detail-row"><span>Mulai:</span><span>${tglMulaiFormat}</span></div>
-                        <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglAkhirFormat}</span></div>
-                    </div>
+                // JIKA DATA DITEMUKAN, CEK STATUSNYA:
+                const statusDb = data.status; // pending, aktif, atau ditolak
+                const emailDb = data.email;
+                const namaPaket = data.namaPaket;
+                const harga = data.harga;
+                const tglMulai = data.tglMulai;
+                const tglBerakhir = data.tglBerakhir;
+
+                // 1. KONDISI JIKA AKTIF
+                if (statusDb === 'aktif') {
+                    const noTrx = "REG-" + Math.floor(Math.random() * 99999); // Nomor transaksi bebas
                     
-                    <button class="btn-outline-gold" onclick="bukaBukti()">🧾 Download E-Receipt</button>
-
-                    <a href="login.php" style="display: flex; align-items: center; justify-content: center; background-color: var(--accent-gold); color: #000; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        🔑 Login ke Dasbor
-                    </a>
-                `;
-
-            // 2. Kondisi Jika DITOLAK
-            } else if (email.toLowerCase().includes('tolak') || email.toLowerCase().includes('gagal')) {
+                    // Isi E-Receipt
+                    document.getElementById('receiptData').innerHTML = `
+                        <p><span>No. Trx</span> <span>${noTrx}</span></p>
+                        <p><span>Tgl Bayar</span> <span>${tglMulai}</span></p>
+                        <p><span>Email</span> <span style="font-size:0.75rem;">${emailDb}</span></p>
+                        <hr style="border:1px dashed #000; margin:10px 0;">
+                        <p><span>Paket</span> <span>${namaPaket}</span></p>
+                        <p><span>Mulai Berlaku</span> <span>${tglMulai}</span></p>
+                        <p><span>Berakhir Pada</span> <span>${tglBerakhir}</span></p>
+                        <hr style="border:1px dashed #000; margin:10px 0;">
+                        <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${harga}</span></p>
+                    `;
+                    
+                    resStatus.innerHTML = '<span class="status-badge status-active">Aktif Terverifikasi</span>';
+                    resPesan.innerHTML = `
+                        <div class="detail-info">
+                            <div class="detail-row"><span>Paket:</span><span>${namaPaket}</span></div>
+                            <div class="detail-row"><span>Mulai:</span><span>${tglMulai}</span></div>
+                            <div class="detail-row"><span>Berakhir:</span><span style="color: var(--primary-red);">${tglBerakhir}</span></div>
+                        </div>
+                        <button class="btn-outline-gold" onclick="bukaBukti()">🧾 Download E-Receipt</button>
+                        <a href="login.php" style="display: flex; align-items: center; justify-content: center; background-color: var(--accent-gold); color: #000; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                            🔑 Login ke Dasbor
+                        </a>
+                    `;
+                } 
                 
-                resStatus.innerHTML = '<span class="status-badge status-rejected">Pendaftaran Ditolak</span>';
-                const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pendaftaran member saya dengan email *${email}* berstatus ditolak. Boleh mohon info perbaikannya?`);
-                const linkWaTolak = `https://wa.me/6282148556601?text=${pesanWaTolak}`;
-
-                resPesan.innerHTML = `
-                    <strong style="color: #ff4d4d; display:block; margin-top:10px;">Verifikasi Gagal!</strong>
-                    Pendaftaran Anda tidak dapat diverifikasi (kemungkinan karena bukti bayar tidak valid, buram, atau nominal tidak sesuai).
+                // 2. KONDISI JIKA DITOLAK
+                else if (statusDb === 'ditolak') {
+                    resStatus.innerHTML = '<span class="status-badge status-rejected">Pendaftaran Ditolak</span>';
+                    const alasanTolak = data.alasan_tolak ? data.alasan_tolak : 'Bukti transfer tidak valid/nominal tidak sesuai.';
+                    const pesanWaTolak = encodeURIComponent(`Halo Admin Vanda Gym, pendaftaran member saya dengan email *${emailDb}* berstatus ditolak. Boleh mohon info perbaikannya?`);
                     
-                    <a href="${linkWaTolak}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #8E1616; color: white; border: 1px solid #ff4d4d; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        📞 Tanya Alasan ke CS
-                    </a>
-                    <a href="daftar.php" style="display: flex; align-items: center; justify-content: center; background: transparent; color: #888; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 10px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        Daftar Ulang
-                    </a>
-                `;
-
-            // 3. Kondisi DEFAULT (Menunggu)
-            } else {
-                resStatus.innerHTML = '<span class="status-badge status-pending">Menunggu Verifikasi</span>';
-                const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pendaftaran member baru saya dengan email *${email}*. Apakah pembayarannya sudah diverifikasi? Terima kasih.`);
-                const linkWa = `https://wa.me/6282148556601?text=${pesanWa}`;
-
-                resPesan.innerHTML = `
-                    <strong style="display:block; margin-top:10px; color:var(--text-light);">Cara Cek Status:</strong>
-                    Admin sedang memverifikasi data Anda. Jika sudah aktif, Anda bisa login menggunakan email yang didaftarkan.
+                    resPesan.innerHTML = `
+                        <strong style="color: #ff4d4d; display:block; margin-top:10px;">Verifikasi Gagal!</strong>
+                        Alasan Admin: <em style="color:#aaa;">"${alasanTolak}"</em>
+                        
+                        <a href="https://wa.me/6282148556601?text=${pesanWaTolak}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #8E1616; color: white; border: 1px solid #ff4d4d; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                            📞 Tanya Detail ke CS
+                        </a>
+                        <a href="daftar.php" style="display: flex; align-items: center; justify-content: center; background: transparent; color: #888; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 10px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                            Daftar Ulang
+                        </a>
+                    `;
+                } 
+                
+                // 3. KONDISI DEFAULT (PENDING)
+                else {
+                    resStatus.innerHTML = '<span class="status-badge status-pending">Menunggu Verifikasi</span>';
+                    const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya ingin mengkonfirmasi pendaftaran member baru saya dengan email *${emailDb}*. Apakah pembayarannya sudah diverifikasi? Terima kasih.`);
                     
-                    <a href="${linkWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
-                        📞 Konfirmasi ke WhatsApp CS
-                    </a>
-                `;
-            }
+                    resPesan.innerHTML = `
+                        <strong style="display:block; margin-top:10px; color:var(--text-light);">Tahap Verifikasi:</strong>
+                        Admin sedang memverifikasi data dan bukti pembayaran Anda. Jika status sudah berubah aktif, Anda bisa langsung login.
+                        
+                        <a href="https://wa.me/6282148556601?text=${pesanWa}" target="_blank" style="display: flex; align-items: center; justify-content: center; background-color: #25D366; color: white; text-decoration: none; padding: 10px; border-radius: 4px; font-weight: bold; margin-top: 15px; min-height: 44px; transition: 0.3s; font-size: 0.9rem;">
+                            📞 Konfirmasi Pengecekan ke WhatsApp
+                        </a>
+                    `;
+                }
+            })
+            .catch(error => {
+                btnTeks.innerText = aslinya;
+                btnTeks.disabled = false;
+                alert("Terjadi kesalahan pada server. Pastikan XAMPP/Database menyala.");
+            });
         }
     </script>
 </body>
