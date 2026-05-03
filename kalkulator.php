@@ -85,6 +85,40 @@
         .macro-note { font-size: 0.75rem; color: #777; line-height: 1.4; display: block;}
 
         .note { font-size: 0.8rem; color: #555; margin-top: 20px; text-align: left; line-height: 1.5; border-top: 1px solid #222; padding-top: 15px;}
+
+        /* ====== RESPONSIVE KHUSUS MOBILE ====== */
+        @media (max-width: 768px) {
+            body { 
+                padding: 20px 15px; 
+            }
+            .calc-container {
+                padding: 25px 20px;
+            }
+            /* Ubah grid 2 kolom menjadi 1 kolom menyusun ke bawah */
+            .grid-2 { 
+                grid-template-columns: 1fr; 
+                gap: 12px; 
+            }
+            .macro-grid { 
+                grid-template-columns: 1fr; 
+                gap: 12px;
+            }
+            
+            /* Penyesuaian ukuran font agar proporsional di layar kecil */
+            .form-header h2 { font-size: 1.4rem; }
+            .result-value { font-size: 2.2rem; }
+            .macro-number { font-size: 1.2rem; }
+            .btn-submit { font-size: 1rem; min-height: 44px; }
+        }
+        
+        @media (max-width: 480px) {
+            .calc-container {
+                padding: 20px 15px;
+            }
+            .result-box {
+                padding: 15px;
+            }
+        }
     </style>
 </head>
 <body>

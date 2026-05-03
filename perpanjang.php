@@ -135,10 +135,21 @@ $harga_base = $web['harga_bulanan'] ?? 175000;
         <div class="status-box">
             <h4>Status Membership Saat Ini</h4>
             <?php 
-                $hari_ini = date('Y-m-d');
-                $is_expired = ($tgl_akhir_db < $hari_ini);
-                $format_tgl = date('d F Y', strtotime($tgl_akhir_db));
-            ?>
+    $hari_ini = date('Y-m-d');
+    $is_expired = ($tgl_akhir_db < $hari_ini);
+    
+    // Kamus Nama Bulan Indonesia
+    $bulanIndo = [
+        '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+        '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+        '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+        '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+    ];
+    
+    // Ubah format tanggal menjadi bahasa Indonesia
+    $waktu = strtotime($tgl_akhir_db);
+    $format_tgl = date('d', $waktu) . ' ' . $bulanIndo[date('m', $waktu)] . ' ' . date('Y', $waktu);
+?>
             <div id="badgeStatus" class="status-badge <?= $is_expired ? 'badge-expired' : 'badge-active' ?>">
                 <?= $is_expired ? 'KADALUWARSA' : 'AKTIF' ?>
             </div>

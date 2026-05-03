@@ -67,8 +67,29 @@ $status_member = $data['status'] ?? 'belum_daftar';
 $paket         = $data['paket_bulan'] ? $data['paket_bulan'] . ' Bulan Gym' : 'Belum Ada Paket';
 $tgl_mulai_raw = $data['tgl_mulai'];
 $tgl_akhir_raw = $data['tgl_berakhir'];
-$tgl_mulai     = $tgl_mulai_raw ? date('d F Y', strtotime($tgl_mulai_raw)) : '-';
-$tgl_berakhir  = $tgl_akhir_raw ? date('d F Y', strtotime($tgl_akhir_raw)) : '-';
+
+// Kamus Nama Bulan Indonesia
+$bulanIndo = [
+    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+    '04' => 'April', '05' => 'Mei', '06' => 'Juni',
+    '07' => 'Juli', '08' => 'Agustus', '09' => 'September',
+    '10' => 'Oktober', '11' => 'November', '12' => 'Desember'
+];
+
+// Konversi ke format Indonesia
+if ($tgl_mulai_raw) {
+    $time_mulai = strtotime($tgl_mulai_raw);
+    $tgl_mulai = date('d', $time_mulai) . ' ' . $bulanIndo[date('m', $time_mulai)] . ' ' . date('Y', $time_mulai);
+} else {
+    $tgl_mulai = '-';
+}
+
+if ($tgl_akhir_raw) {
+    $time_akhir = strtotime($tgl_akhir_raw);
+    $tgl_berakhir = date('d', $time_akhir) . ' ' . $bulanIndo[date('m', $time_akhir)] . ' ' . date('Y', $time_akhir);
+} else {
+    $tgl_berakhir = '-';
+}
 $metode_bayar  = $data['metode_bayar'] ? strtoupper($data['metode_bayar']) : '-';
 
 // Tentukan preferensi notifikasi saat ini untuk tampilan radio button
@@ -99,86 +120,162 @@ if ($status_member === 'aktif' && $tgl_akhir_raw) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dasbor Member - Vanda Gym Classic</title>
-    <style>
-        :root { --bg-dark: #000000; --primary-red: #8E1616; --accent-gold: #E8C999; --text-light: #F8EEDF; --input-bg: #111111; --success-green: #28a745; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-dark); color: var(--text-light); line-height: 1.6; overflow-x: hidden; }
-        header { background-color: rgba(10, 10, 10, 0.95); padding: 10px 5%; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid var(--primary-red); }
-        .logo img { height: 70px; width: auto; object-fit: contain; }
-        nav { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end;}
-        nav a.nav-link { color: var(--text-light); text-decoration: none; margin-left: 20px; font-weight: 600; transition: 0.3s; min-height: 44px; display: inline-flex; align-items: center; }
-        nav a.nav-link:hover { color: var(--accent-gold); }
-        nav a.active { color: var(--accent-gold); border-bottom: 2px solid var(--accent-gold); }
-        .btn-logout { border: 2px solid var(--primary-red); padding: 0 20px; border-radius: 4px; color: var(--primary-red); margin-left: 20px; background: transparent; font-weight: bold; font-size: 1rem; min-height: 44px; min-width: 44px; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; }
-        .btn-logout:hover { background-color: var(--primary-red); color: white; }
-        .profile-icon { margin-left: 20px; color: var(--text-light); display: inline-flex; align-items: center; justify-content: center; transition: 0.3s; min-height: 44px; }
-        .profile-icon svg { width: 28px; height: 28px; }
-        .announcement-banner { background-color: #1a1a1a; border-bottom: 1px solid #333; color: var(--text-light); padding: 16px 25px; text-align: center; font-size: 1.1rem; display: flex; justify-content: center; align-items: center; gap: 15px; z-index: 99; }
-        .announcement-badge { background-color: var(--primary-red); color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(142, 22, 22, 0.7); } 70% { box-shadow: 0 0 0 8px rgba(142, 22, 22, 0); } 100% { box-shadow: 0 0 0 0 rgba(142, 22, 22, 0); } }
-        .dashboard-container { padding: 40px 5%; max-width: 1200px; margin: 0 auto; }
-        .alert-box { background-color: rgba(232, 201, 153, 0.1); border: 1px solid var(--accent-gold); color: var(--accent-gold); padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
-        .alert-box.danger { background-color: rgba(142, 22, 22, 0.15); border-color: var(--primary-red); color: #ff4d4d; }
-        .alert-box.info { background-color: rgba(0, 123, 255, 0.1); border-color: #66b2ff; color: #66b2ff; }
-        .dash-card { background-color: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 30px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); position: relative; overflow: hidden; margin-bottom: 30px; }
-        .dash-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--accent-gold); }
-        .dash-card.card-danger::before { background: var(--primary-red); }
-        .profile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 25px;}
-        .user-info h2 { color: var(--text-light); font-size: 2rem; text-transform: uppercase; margin-bottom: 5px;}
-        .user-info p { color: #888; font-size: 1rem; }
-        .status-badge { background: var(--success-green); color: white; padding: 6px 20px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; letter-spacing: 1px; }
-        .status-badge.danger { background: var(--primary-red); }
-        .membership-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; border-top: 1px dashed #333; padding-top: 25px; }
-        .detail-item span { display: block; color: #888; font-size: 0.85rem; margin-bottom: 5px;}
-        .detail-item strong { display: block; color: var(--accent-gold); font-size: 1.3rem; }
-        .detail-item strong.danger-text { color: #ff4d4d; }
-        .setting-methods { display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap; }
-        .set-method { flex: 1; border: 1px solid #333; border-radius: 6px; padding: 12px 10px; text-align: center; cursor: pointer; transition: 0.3s; background: #151515; position: relative; min-width: 140px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .set-method input { position: absolute; opacity: 0; cursor: pointer; }
-        .set-method span { font-weight: bold; color: #888; display: flex; align-items: center; gap: 8px; font-size: 0.85rem;}
-        .set-method.active { border-color: var(--accent-gold); background: rgba(232, 201, 153, 0.1); }
-        .set-method.active span { color: var(--accent-gold); }
-        .btn-outline-gold { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--accent-gold); color: var(--accent-gold); text-decoration: none; padding: 10px 20px; border-radius: 4px; font-weight: bold; font-size: 0.9rem; transition: 0.3s; cursor: pointer; }
-        .btn-outline-gold:hover:not(:disabled) { background: var(--accent-gold); color: #000; }
-        .btn-simulasi-notif { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px dashed #555; color: #aaa; padding: 10px 20px; border-radius: 4px; font-weight: bold; font-size: 0.9rem; transition: 0.3s; cursor: pointer; margin-left: 10px; }
-        .popup-simulasi { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; }
-        .popup-box { background: #111; border: 2px solid var(--accent-gold); padding: 30px; border-radius: 8px; max-width: 400px; text-align: center; }
-        .popup-icon { display: flex; justify-content: center; color: var(--accent-gold); margin-bottom: 15px; }
-        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px;}
-        .action-btn { background: #111; border: 1px solid #333; border-radius: 8px; padding: 25px; text-align: center; color: var(--text-light); text-decoration: none; transition: 0.3s; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 120px; }
-        .action-btn:hover { border-color: var(--accent-gold); transform: translateY(-5px); background: #1a1a1a;}
-        .action-btn.locked { opacity: 0.5; cursor: not-allowed; pointer-events: none;}
-        .action-icon { margin-bottom: 15px; color: var(--accent-gold); }
-        .action-btn.danger-border .action-icon { color: var(--primary-red); }
-        .btn-primary { background-color: var(--primary-red); color: white; padding: 10px 20px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; min-height: 44px; text-decoration: none; display: inline-block; }
-        
-        /* CSS TOMBOL MELAYANG DIPERBARUI */
-        .wa-btn { position: fixed; bottom: 30px; left: 30px; background-color: #25D366; color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s; text-decoration: none; border: 2px solid transparent;}
-        .wa-btn:hover { transform: scale(1.1); border-color: white;}
-        
-        .chatbot-btn { position: fixed; bottom: 30px; right: 30px; background-color: var(--primary-red); color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s; text-decoration: none; border: 2px solid transparent;}
-        .chatbot-btn:hover { transform: scale(1.1); border-color: var(--accent-gold);}
-        .chatbot-btn.locked { background-color: #333; color: #666; cursor: not-allowed; border-color: transparent;}
-        
-        @media (max-width: 768px) { header { flex-direction: column; padding: 15px; } nav { margin-top: 15px; justify-content: center;} nav a.nav-link { margin: 5px 10px; font-size: 0.9rem;} .btn-logout { margin-left: 0; margin-top: 10px; width: 100%; text-align: center;} .announcement-banner { flex-direction: column; text-align: center; } .btn-simulasi-notif { margin-left: 0; margin-top: 10px; width: 100%; } .btn-outline-gold { width: 100%; } }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-
     <header>
-        <div class="logo"><img src="assets/logo.png" alt="Logo"></div>
-        <nav>
-            <a href="member_dasbor.php" class="nav-link active">Dasbor</a>
-            <a href="profil_gym_member.php" class="nav-link">Profil Gym</a>
-            <a href="chatbot_member.php" id="navChatbot" class="nav-link <?= ($status_member !== 'aktif') ? 'locked' : '' ?>">Chatbot AI</a>
-            <a href="kalkulator.php?source=dasbor" class="nav-link">Kalkulator Gizi</a>
-            <a href="galeri_member.php" id="navGaleri" class="nav-link">Galeri Gym</a>
-            <button class="btn-logout" onclick="window.location.href='index.php'">Keluar</button>
-            <a href="profil_member.php" class="profile-icon" title="Profil Saya">
-                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            </a>
-        </nav>
-    </header>
+    <div class="logo">
+        <img src="assets/logo.png" alt="Logo">
+    </div>
+
+    <div class="header-right">
+        <a href="profil_member.php" class="profile-icon-header" title="Profil Saya">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+        </a>
+
+        <button class="menu-toggle" id="mobile-menu" aria-label="Toggle Menu">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+        </button>
+    </div>
+
+    <nav id="nav-menu">
+        <a href="member_dasbor.php" class="nav-link active">Dasbor</a>
+        <a href="profil_gym_member.php" class="nav-link">Profil Gym</a>
+        <a href="chatbot_member.php" class="nav-link <?= ($status_member !== 'aktif') ? 'locked' : '' ?>">Chatbot AI</a>
+        <a href="kalkulator.php?source=dasbor" class="nav-link">Kalkulator Gizi</a>
+        <a href="galeri_member.php" class="nav-link">Galeri Gym</a>
+        <button class="btn-logout" onclick="window.location.href='index.php'">Keluar</button>
+    </nav>
+</header>
+
+<style>
+/* Container untuk membungkus ikon profil & hamburger */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Styling Ikon Profil di Header */
+.profile-icon-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-gold); 
+    width: 40px;
+    height: 40px;
+    transition: 0.3s;
+    border: 1px solid transparent;
+}
+
+.profile-icon-header:hover {
+    transform: scale(1.1);
+    color: var(--text-light);
+}
+
+/* Sembunyikan profil di dalam nav-menu jika ada */
+nav .profile-icon { display: none; }
+
+/* Penyesuaian untuk tampilan Desktop */
+@media (min-width: 769px) {
+    .header-right { order: 3; }
+    nav { order: 2; flex: 1; justify-content: flex-end; }
+    .profile-icon-header { margin-left: 15px; border: 1px solid #333; border-radius: 4px; }
+}
+
+/* =========================================
+   PENGECILAN KHUSUS DASHBOARD (MOBILE)
+   ========================================= */
+@media (max-width: 768px) {
+    .header-right { gap: 5px; }
+    .profile-icon-header { color: var(--accent-gold); }
+    .btn-logout { width: 85% !important; margin: 20px auto !important; }
+
+    .dashboard-container { padding: 20px 15px; }
+    
+    .alert-box { flex-direction: column; text-align: center; gap: 10px; padding: 12px 15px; font-size: 0.9rem; }
+    .alert-box a { width: 100%; text-align: center; padding: 8px 15px; font-size: 0.85rem; }
+    
+    .dash-card { padding: 20px 15px; margin-bottom: 20px; }
+
+    /* Info Profil */
+    .profile-header { flex-direction: column; align-items: center; text-align: center; gap: 10px; margin-bottom: 15px; }
+    .user-info h2 { font-size: 1.4rem; margin-bottom: 2px;}
+    .user-info p { font-size: 0.85rem; }
+    .status-badge { font-size: 0.8rem; padding: 4px 15px; }
+
+    /* DETAIL MEMBERSHIP - Diubah jadi Kiri Kanan agar mudah dibaca */
+    .membership-details { 
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 15px;
+    }
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px dashed #333;
+        padding-bottom: 8px;
+    }
+    .detail-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .detail-item span { font-size: 0.85rem; margin-bottom: 0; text-align: left; }
+    .detail-item strong { font-size: 0.95rem; text-align: right; } 
+
+    /* Pengaturan Notifikasi */
+    .setting-methods { gap: 10px; margin-bottom: 10px; }
+    .set-method { min-width: 100%; padding: 10px; } 
+    .set-method span { font-size: 0.8rem; }
+    .btn-outline-gold { width: 100%; font-size: 0.85rem; padding: 8px 15px; margin-bottom: 10px; }
+    .btn-simulasi-notif { margin-left: 0; width: 100%; font-size: 0.85rem; padding: 8px 15px; } 
+
+    /* AKSI CEPAT - Diubah jadi 1 Baris Ke Bawah dengan Ikon di Kiri */
+    .action-grid { 
+        grid-template-columns: 1fr; 
+        gap: 12px; 
+        margin-bottom: 20px; 
+    }
+    .action-btn { 
+        display: grid;
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        column-gap: 15px;
+        row-gap: 4px;
+        padding: 15px; 
+        min-height: auto; 
+        text-align: left;
+        align-items: center;
+    }
+    .action-icon { 
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        margin-bottom: 0; 
+        display: flex;
+        align-items: center;
+    }
+    .action-icon svg { width: 32px; height: 32px; } 
+    .action-btn h3 { grid-column: 2; grid-row: 1; font-size: 1rem; margin-bottom: 0; line-height: 1.2;} 
+    .action-btn p { grid-column: 2; grid-row: 2; font-size: 0.8rem; line-height: 1.2; color: #aaa; margin-bottom: 0;} 
+
+    /* Popups */
+    .popup-box { padding: 20px; width: 90%; }
+    .popup-icon { font-size: 1.5rem; margin-bottom: 10px; }
+    #popupTitle { font-size: 1.2rem; }
+}
+
+/* Penyesuaian akhir untuk layar HP super kecil */
+@media (max-width: 480px) {
+    .wa-btn, .chatbot-btn { width: 45px; height: 45px; bottom: 20px; }
+    .wa-btn { left: 15px; }
+    .chatbot-btn { right: 15px; }
+    .wa-btn svg, .chatbot-btn svg { width: 20px; height: 20px; }
+}
+</style>
 
     <?php if (($web_data['pengumuman_aktif'] ?? '') === 'aktif'): ?>
     <div class="announcement-banner">
@@ -227,12 +324,12 @@ if ($status_member === 'aktif' && $tgl_akhir_raw) {
                 <div class="detail-item"><span>Tanggal Berakhir</span><strong class="<?= ($status_member !== 'aktif') ? 'danger-text' : '' ?>"><?= $tgl_berakhir ?></strong></div>
             </div>
 
-            <div style="margin-top: 40px; border-top: 1px solid #222; padding-top: 25px;">
+            <div style="margin-top: 30px; border-top: 1px solid #222; padding-top: 20px;">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <span style="color: var(--accent-gold);"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
-                    <h3 style="font-size: 1.1rem;">Pengaturan Pengingat Masa Aktif</h3>
+                    <span style="color: var(--accent-gold);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg></span>
+                    <h3 style="font-size: 1rem;">Pengaturan Pengingat</h3>
                 </div>
-                <p style="color: #888; font-size: 0.85rem; margin-bottom: 15px;">Pilih jalur notifikasi penagihan membership Anda.</p>
+                <p style="color: #888; font-size: 0.8rem; margin-bottom: 15px;">Pilih jalur notifikasi penagihan membership Anda.</p>
                 <form id="formNotif" onsubmit="simpanNotif(event)">
                     <div class="setting-methods">
                         <label class="set-method <?= ($current_notif == 'wa') ? 'active' : '' ?>">
@@ -250,7 +347,7 @@ if ($status_member === 'aktif' && $tgl_akhir_raw) {
             </div>
         </div>
 
-        <h3 style="color: var(--accent-gold); border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;">Aksi Cepat</h3>
+        <h3 style="color: var(--accent-gold); border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 15px; font-size: 1.1rem;">Aksi Cepat</h3>
         <div class="action-grid">
             <a href="kalkulator.php?source=dasbor" class="action-btn">
                 <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="16" y1="14" x2="16.01" y2="14"></line></svg></div>
@@ -259,12 +356,12 @@ if ($status_member === 'aktif' && $tgl_akhir_raw) {
             </a>
             <a href="perpanjang.php" class="action-btn <?= ($status_member !== 'aktif' || $sedang_perpanjang) ? 'danger-border' : '' ?>">
                 <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg></div>
-                <h3 style="<?= ($status_member !== 'aktif' || $sedang_perpanjang) ? 'color:var(--primary-red);' : '' ?>">Perpanjang Member</h3>
+                <h3 style="<?= ($status_member !== 'aktif' || $sedang_perpanjang) ? 'color:var(--primary-red);' : '' ?>">Perpanjang</h3>
                 <p><?= $sedang_perpanjang ? 'Sedang Diproses...' : 'Bayar tagihan Anda.' ?></p>
             </a>
             <a href="chatbot_member.php" class="action-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Fitur AI terkunci. Silakan perpanjang membership Anda.\')"' : '' ?>>
                 <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg></div>
-                <h3>Chatbot AI Vanda</h3>
+                <h3>Chatbot AI</h3>
                 <p>Cek kalori via foto.</p>
             </a>
             <a href="galeri_member.php" class="action-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Galeri terkunci. Silakan perpanjang membership Anda.\')"' : '' ?>>
@@ -301,6 +398,22 @@ if ($status_member === 'aktif' && $tgl_akhir_raw) {
     </a>
 
     <script>
+    const menuToggle = document.getElementById('mobile-menu');
+    const navMenu = document.getElementById('nav-menu');
+
+    menuToggle.addEventListener('click', () => {
+        menuToggle.classList.toggle('active');
+        navMenu.classList.toggle('active');
+    });
+
+    // Menutup menu jika link diklik
+    document.querySelectorAll('#nav-menu a').forEach(link => {
+        link.addEventListener('click', () => {
+            menuToggle.classList.remove('active');
+            navMenu.classList.remove('active');
+        });
+    });
+
         function visualRadio(el) {
             document.querySelectorAll('.set-method').forEach(box => box.classList.remove('active'));
             el.closest('.set-method').classList.add('active');

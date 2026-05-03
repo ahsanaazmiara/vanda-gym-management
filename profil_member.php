@@ -105,7 +105,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
             $pesan_wa .= "Abaikan pesan ini jika Anda tidak merasa memintanya.";
 
             // --- INTEGRASI WHATSAPP API FONNTE ---
-            $api_token = $fonnte_api_key; // Mengambil dari api_key.php
+            $api_token = $fonnte_api_key; 
             
             $curl = curl_init();
             curl_setopt_array($curl, array(
@@ -129,7 +129,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
 
             $response = curl_exec($curl);
             $err = curl_error($curl);
-            curl_close($curl);
 
             if ($err) {
                 echo json_encode(['status' => 'error', 'message' => 'Gagal mengirim pesan WhatsApp. Pastikan koneksi internet aktif.']);
@@ -160,73 +159,51 @@ $u = mysqli_fetch_assoc($query);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Profil Saya - Vanda Gym Classic</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    
     <style>
-        :root {
-            --bg-dark: #000000;
-            --primary-red: #8E1616;
-            --accent-gold: #E8C999;
-            --text-light: #F8EEDF;
-            --input-bg: #111111;
-        }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: var(--bg-dark); 
-            color: var(--text-light); 
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; padding: 40px 20px;
-        }
-
-        .profil-container {
-            background-color: #0a0a0a;
-            border: 1px solid #333; border-top: 4px solid var(--primary-red);
-            border-radius: 8px; padding: 30px;
-            width: 100%; max-width: 600px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-            position: relative;
-        }
-
-        .nav-top { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
-        .btn-back-square { 
-            width: 44px; height: 44px; 
-            background-color: #1a1a1a; border: 1px solid #333; 
-            color: var(--accent-gold); border-radius: 4px;
-            display: flex; align-items: center; justify-content: center;
-            text-decoration: none; font-weight: bold; font-size: 1.2rem;
-            transition: 0.3s;
-        }
-        .btn-back-square:hover { background-color: var(--primary-red); color: white; border-color: var(--primary-red); }
-
         .section-header { 
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid #222; padding-bottom: 10px; margin: 25px 0 15px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 10px; 
+            margin: 25px 0 15px;
         }
-        .section-header h3 { color: var(--accent-gold); text-transform: uppercase; font-size: 1rem; }
+        .section-header h3 { 
+            color: var(--accent-gold); 
+            text-transform: uppercase; 
+            font-size: 1rem; 
+            margin: 0; /* Hindari margin default bawaan browser */
+        }
 
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; margin-bottom: 8px; color: #ccc; font-weight: 600; font-size: 0.85rem; }
+        /* NAMA CLASS BARU: btn-profil-action (Menghindari tabrakan CSS) */
+        .btn-profil-action {
+            padding: 6px 12px; 
+            border-radius: 4px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            font-size: 0.8rem; 
+            border: 1px solid var(--accent-gold); 
+            background: transparent; 
+            color: var(--accent-gold);
+            width: auto; /* Memastikan lebarnya pas dengan teks, tidak 100% */
+            margin: 0;
+        }
+        .btn-profil-action:hover { background: var(--accent-gold); color: #000; }
         
-        .form-control {
-            width: 100%; padding: 12px 15px; min-height: 44px;
-            background-color: var(--input-bg); border: 1px solid #333;
-            border-radius: 4px; color: white; font-size: 0.95rem; transition: 0.3s;
-        }
-        .form-control:focus { outline: none; border-color: var(--accent-gold); }
         .form-control:disabled { background-color: #050505; color: #666; cursor: not-allowed; border-color: #222; }
-        .form-control.invalid { border-color: var(--primary-red); }
-
-        .error-msg { color: #ff4d4d; font-size: 0.75rem; margin-top: 5px; display: none; }
-
-        .btn-action {
-            padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 0.85rem; border: 1px solid var(--accent-gold); background: transparent; color: var(--accent-gold);
+        
+        .btn-save, .btn-save-wa { 
+            background-color: var(--primary-red); color: white; border: none; width: 100%; min-height: 44px; text-transform: uppercase; cursor: pointer; font-weight: bold; border-radius: 4px; transition: 0.3s; font-size: 0.9rem;
         }
-        .btn-action:hover { background: var(--accent-gold); color: #000; }
-        .btn-save { background-color: var(--primary-red); color: white; border: none; width: 100%; min-height: 48px; text-transform: uppercase; margin-top: 10px; display: none; cursor: pointer; font-weight: bold; border-radius: 4px; transition: 0.3s;}
-        .btn-save:hover { background-color: #a81a1a; }
-        .btn-save-wa { display: block; background-color: var(--primary-red); color: white; border: none; width: 100%; min-height: 48px; text-transform: uppercase; margin-top: 20px; cursor: pointer; font-weight: bold; border-radius: 4px; transition: 0.3s;}
-        .btn-save-wa:hover { background-color: #a81a1a; }
-        .btn-cancel { background: transparent; color: #888; border: none; width: 100%; margin-top: 5px; cursor: pointer; display: none; font-size: 0.85rem; min-height: 44px; }
+        .btn-save { margin-top: 10px; display: none; }
+        .btn-save-wa { display: block; margin-top: 20px; }
+        .btn-save:hover, .btn-save-wa:hover { background-color: #a81a1a; }
+        
+        .btn-cancel { background: transparent; color: #888; border: none; width: 100%; margin-top: 5px; cursor: pointer; display: none; font-size: 0.85rem; min-height: 40px; }
 
         .toast {
             position: fixed; top: 20px; right: 20px; background: #28a745;
@@ -239,33 +216,30 @@ $u = mysqli_fetch_assoc($query);
             cursor: pointer; min-height: 44px; min-width: 44px; 
             display: flex; align-items: center; justify-content: center; z-index: 10;
         }
-
-        .text-link { color: #888; font-size: 0.85rem; text-decoration: none; transition: 0.3s; cursor: pointer; }
-        .text-link:hover { color: var(--accent-gold); }
-        .icon-lock { display: flex; justify-content: center; margin-bottom: 15px; color: var(--accent-gold); }
-        .success-msg {
-            display: none; background: rgba(40, 167, 69, 0.1); border: 1px dashed #28a745;
-            color: #28a745; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-size: 0.9rem; text-align: center;
+        
+        @media (max-width: 480px) {
+            .section-header h3 { font-size: 0.9rem; }
+            .btn-profil-action { font-size: 0.75rem; padding: 5px 10px; }
         }
     </style>
 </head>
-<body>
+
+<body style="min-height: 100vh; display: flex; flex-direction: column; justify-content: center;">
 
     <div id="toastNotif" class="toast">Data berhasil disimpan!</div>
 
-    <div class="profil-container">
+    <div class="form-container">
         <div class="nav-top">
             <a href="member_dasbor.php" id="btnBackTop" class="btn-back-square" title="Kembali ke Dasbor">←</a>
-            <span style="color: #444; font-size: 0.8rem;">ID Member: VGYM-00<?= $u['id_user'] ?></span>
+            <span style="color: #444; font-size: 0.8rem; font-weight: bold;">ID: VGYM-00<?= $u['id_user'] ?></span>
         </div>
 
-        <!-- BLOK PROFIL UTAMA -->
         <div id="blokProfilUtama">
-            <h2 style="text-align:center; color:var(--text-light); text-transform:uppercase; letter-spacing:1px;">Pengaturan Akun</h2>
+            <h2 style="text-align:center; color:var(--text-light); text-transform:uppercase; letter-spacing:1px; font-size: 1.4rem; margin-bottom: 5px;">Pengaturan Akun</h2>
 
             <div class="section-header">
                 <h3>Data Pribadi</h3>
-                <button type="button" class="btn-action" id="btnEditProfil" onclick="toggleEdit('profil')">Edit Profil</button>
+                <button type="button" class="btn-profil-action" id="btnEditProfil" onclick="toggleEdit('profil')">Edit Profil</button>
             </div>
 
             <form id="formProfil" onsubmit="handleSimpan(event, 'profil')">
@@ -286,7 +260,7 @@ $u = mysqli_fetch_assoc($query);
 
             <div class="section-header">
                 <h3>Keamanan Akun</h3>
-                <button type="button" class="btn-action" id="btnEditKeamanan" onclick="toggleEdit('keamanan')">Ubah Password</button>
+                <button type="button" class="btn-profil-action" id="btnEditKeamanan" onclick="toggleEdit('keamanan')">Ubah Password</button>
             </div>
 
             <form id="formKeamanan" onsubmit="handleSimpan(event, 'keamanan')">
@@ -338,7 +312,6 @@ $u = mysqli_fetch_assoc($query);
             </form>
         </div>
 
-        <!-- BLOK LUPA PASSWORD (VIA WA) -->
         <div id="blokResetPassword" style="display: none; padding-top: 10px;">
             <div class="icon-lock">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -356,7 +329,6 @@ $u = mysqli_fetch_assoc($query);
             <form id="formResetPass" onsubmit="kirimLinkReset(event)">
                 <div class="form-group">
                     <label>Nomor WhatsApp Terdaftar</label>
-                    <!-- Nomor otomatis diisi dari database -->
                     <input type="tel" id="resetWaProf" class="form-control" value="<?= htmlspecialchars($u['no_wa']) ?>" required oninput="validasiAngka(this)">
                 </div>
                 <button type="submit" id="btnKirimReset" class="btn-save-wa">Kirim Tautan Reset</button>
@@ -365,7 +337,6 @@ $u = mysqli_fetch_assoc($query);
     </div>
 
     <script>
-        // Logika Perpindahan Form (Lupa Pass)
         function toggleResetForm(tampilkanLupaPass, e) {
             if (e) e.preventDefault();
             const btnBack = document.getElementById('btnBackTop');
@@ -379,7 +350,6 @@ $u = mysqli_fetch_assoc($query);
             }
         }
 
-        // --- FETCH AJAX: KIRIM LINK RESET KE WHATSAPP ---
         function kirimLinkReset(e) {
             e.preventDefault();
             const btn = document.getElementById('btnKirimReset');
@@ -411,7 +381,6 @@ $u = mysqli_fetch_assoc($query);
             });
         }
 
-        // Tampilan Mode Edit
         function toggleEdit(tipe) {
             if (tipe === 'profil') {
                 const ids = ['profNama', 'profHp', 'btnEditProfil', 'saveProfil', 'cancelProfil'];
@@ -436,7 +405,6 @@ $u = mysqli_fetch_assoc($query);
             }
         }
 
-        // Validasi Front-end
         function validasiAngka(input) {
             const error = document.getElementById('errorHp');
             input.value = input.value.replace(/\D/g, ''); 
@@ -461,9 +429,6 @@ $u = mysqli_fetch_assoc($query);
             }
         }
 
-        // =========================================================
-        // AJAX: PROSES SIMPAN DATA KE DATABASE
-        // =========================================================
         function handleSimpan(e, tipe) {
             e.preventDefault();
             const btn = (tipe === 'profil') ? document.getElementById('saveProfil') : document.getElementById('saveKeamanan');
