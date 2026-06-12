@@ -43,18 +43,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
         echo json_encode(['status' => $q ? 'success' : 'error']); exit;
     }
 
-    // --- MEMBER MANAJEMEN (ARSIP & PULIHKAN) ---
+    // --- MEMBER MANAJEMEN ---
     if ($action === 'arsip') {
         $id_u = mysqli_real_escape_string($koneksi, $_POST['id_user']);
-        // Ubah role menjadi 'arsip' agar tidak bisa login, tapi data riwayat transaksi tetap aman!
         $q = mysqli_query($koneksi, "UPDATE users SET role='arsip' WHERE id_user='$id_u'");
         echo json_encode(['status' => $q ? 'success' : 'error']); exit;
     }
 
     if ($action === 'pulihkan') {
         $id_u = mysqli_real_escape_string($koneksi, $_POST['id_user']);
-        // Kembalikan role ke 'member'
         $q = mysqli_query($koneksi, "UPDATE users SET role='member' WHERE id_user='$id_u'");
+        echo json_encode(['status' => $q ? 'success' : 'error']); exit;
+    }
+
+    if ($action === 'hapus') {
+        $id_u = mysqli_real_escape_string($koneksi, $_POST['id_user']);
+        mysqli_query($koneksi, "DELETE FROM membership WHERE id_user='$id_u'");
+        $q = mysqli_query($koneksi, "DELETE FROM users WHERE id_user='$id_u'");
         echo json_encode(['status' => $q ? 'success' : 'error']); exit;
     }
 
@@ -142,6 +147,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
     // --- MANAJEMEN MEDIA GALERI ---
     if ($action === 'upload_galeri') {
         $judul = mysqli_real_escape_string($koneksi, $_POST['judul_media']);
+        $caption = mysqli_real_escape_string($koneksi, $_POST['caption_media']);
         $kategori = $_POST['kategori_media'];
         $tipe = $_POST['tipe_media'];
         
@@ -161,10 +167,49 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
             $target_file = $target_dir . $nama_file_baru;
 
             if (move_uploaded_file($file['tmp_name'], $target_file)) {
-                $q = mysqli_query($koneksi, "INSERT INTO galeri_gym (judul, kategori, tipe_media, file_path) VALUES ('$judul', '$kategori', '$tipe', '$target_file')");
+                $q = mysqli_query($koneksi, "INSERT INTO galeri_gym (judul, caption, kategori, tipe_media, file_path) VALUES ('$judul', '$caption', '$kategori', '$tipe', '$target_file')");
                 echo json_encode(['status' => $q ? 'success' : 'error', 'message' => $q ? 'Media diupload!' : 'Gagal DB.']);
             } else { echo json_encode(['status' => 'error', 'message' => 'Gagal pindah file.']); }
         } else { echo json_encode(['status' => 'error', 'message' => 'File tidak ada/kebesaran.']); }
+        exit;
+    }
+
+    if ($action === 'edit_galeri') {
+        $id_media = (int)$_POST['id_media'];
+        $judul = mysqli_real_escape_string($koneksi, $_POST['judul_media']);
+        $caption = mysqli_real_escape_string($koneksi, $_POST['caption_media']);
+        $kategori = $_POST['kategori_media'];
+
+        // Cek apakah user mengupload file baru
+        if (isset($_FILES['file_media_edit']) && $_FILES['file_media_edit']['error'] == 0) {
+            $q_file_lama = mysqli_query($koneksi, "SELECT file_path, tipe_media FROM galeri_gym WHERE id_media=$id_media");
+            $row_lama = mysqli_fetch_assoc($q_file_lama);
+            $tipe_lama = $row_lama['tipe_media'];
+            
+            $file = $_FILES['file_media_edit'];
+            $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+            $allowed_img = ['jpg', 'jpeg', 'png', 'webp'];
+            $allowed_vid = ['mp4', 'webm'];
+            
+            if (($tipe_lama == 'foto' && !in_array($ext, $allowed_img)) || ($tipe_lama == 'video' && !in_array($ext, $allowed_vid))) {
+                echo json_encode(['status' => 'error', 'message' => 'Format file tidak sesuai dengan tipe media aslinya!']); exit;
+            }
+
+            $nama_file_baru = time() . '_' . rand(100,999) . '.' . $ext;
+            $target_dir = "uploads/galeri/";
+            if (!is_dir($target_dir)) { mkdir($target_dir, 0777, true); }
+            $target_file = $target_dir . $nama_file_baru;
+
+            if (move_uploaded_file($file['tmp_name'], $target_file)) {
+                if (file_exists($row_lama['file_path'])) unlink($row_lama['file_path']); // hapus file lama
+                $q = mysqli_query($koneksi, "UPDATE galeri_gym SET judul='$judul', caption='$caption', kategori='$kategori', file_path='$target_file' WHERE id_media=$id_media");
+                echo json_encode(['status' => $q ? 'success' : 'error', 'message' => $q ? 'Media diperbarui!' : 'Gagal update DB.']);
+            } else { echo json_encode(['status' => 'error', 'message' => 'Gagal memindahkan file baru.']); }
+        } else {
+            // Update data teks saja
+            $q = mysqli_query($koneksi, "UPDATE galeri_gym SET judul='$judul', caption='$caption', kategori='$kategori' WHERE id_media=$id_media");
+            echo json_encode(['status' => $q ? 'success' : 'error', 'message' => $q ? 'Info media diperbarui!' : 'Gagal update DB.']);
+        }
         exit;
     }
 
@@ -285,22 +330,8 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         .activity-time { white-space: nowrap; color: #888; font-size: 0.75rem; padding-top: 2px; }
 
         /* ── TABLE (SCROLL HORIZONTAL) ── */
-        .table-container { 
-            background: #0a0a0a; 
-            border: 1px solid #222; 
-            border-radius: 8px; 
-            width: 100%; 
-            overflow-x: auto; 
-            -webkit-overflow-scrolling: touch; 
-            margin-bottom: 15px; 
-            display: block;
-        }
-        table { 
-            width: 100%; 
-            min-width: 800px; 
-            border-collapse: collapse; 
-            text-align: left; 
-        }
+        .table-container { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; display: block; }
+        table { width: 100%; min-width: 800px; border-collapse: collapse; text-align: left; }
         th, td { padding: 15px; border-bottom: 1px solid #222; }
         th { background-color: #111; color: var(--accent-gold); font-weight: 600; text-transform: uppercase; font-size: 0.85rem; white-space: nowrap; }
         td { color: #ccc; font-size: 0.9rem; vertical-align: middle; }
@@ -368,7 +399,6 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         /* ================================================================
             RESPONSIVE STYLES
            ================================================================ */
-
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.sidebar-open { transform: translateX(0); z-index: 2000; }
@@ -491,7 +521,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
     <div class="main-content">
         <div class="top-header">
             <h1 id="pageTitle">Dasbor Utama</h1>
-            <div class="admin-profile"><span>👋 Halo, <?= $_SESSION['nama'] ?></span></div>
+            <div class="admin-profile"><span> Halo, <?= $_SESSION['nama'] ?></span></div>
         </div>
 
         <div id="tab-dasbor" class="tab-section active">
@@ -503,7 +533,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                     <h3>Total Pendapatan</h3>
                     <div class="number" style="font-size:1.8rem;line-height:2.5rem;color:var(--success-green); margin-bottom: 10px;">Rp <?= $rp_income ?></div>
                     <button onclick="bukaModalCetak()" class="btn-action btn-view" style="width: 100%; margin: 0; background: var(--success-green); color: white; border: none; padding: 10px;">
-                        📄 Cetak Laporan PDF
+                        Cetak Laporan PDF
                     </button>
                 </div>
             </div>
@@ -606,7 +636,6 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                     </thead>
                     <tbody>
                         <?php
-                        // TAB MEMBER HANYA MENAMPILKAN ROLE 'member'
                         $query_member = mysqli_query($koneksi, "
                             SELECT u.id_user, u.nama_lengkap, u.email, u.no_wa,
                                    m.status, m.tgl_mulai, m.tgl_berakhir, m.metode_bayar, m.total_harga
@@ -635,14 +664,13 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                             </td>
                             <td><span class="badge <?= $b_class ?> status-label"><?= ucfirst($usr['status']) ?></span></td>
                             <td style="min-width:150px;">
-    <button class="btn-action btn-view" onclick="bukaEditMember('<?= $usr['id_user'] ?>', '<?= addslashes($usr['nama_lengkap']) ?>', '<?= addslashes($usr['email']) ?>', '<?= addslashes($usr['no_wa']) ?>')">Edit</button>
-    
-    <?php if ($usr['status'] == 'ditolak'): ?>
-        <button class="btn-action btn-rej" onclick="konfirmasiHapus('<?= $usr['id_user'] ?>', '<?= addslashes($usr['nama_lengkap']) ?>')" title="Hapus Data Permanen">Hapus</button>
-    <?php else: ?>
-        <button class="btn-action btn-rej" style="background-color: #ffc107; border-color: #ffc107; color: #000;" onclick="konfirmasiArsip('<?= $usr['id_user'] ?>', '<?= addslashes($usr['nama_lengkap']) ?>')" title="Pindahkan ke Arsip Sementara">Arsipkan</button>
-    <?php endif; ?>
-</td>
+                                <button class="btn-action btn-view" onclick="bukaEditMember('<?= $usr['id_user'] ?>', '<?= addslashes($usr['nama_lengkap']) ?>', '<?= addslashes($usr['email']) ?>', '<?= addslashes($usr['no_wa']) ?>')">Edit</button>
+                                <?php if ($usr['status'] == 'ditolak'): ?>
+                                    <button class="btn-action btn-rej" onclick="konfirmasiHapus('<?= $usr['id_user'] ?>', '<?= addslashes($usr['nama_lengkap']) ?>')" title="Hapus Data Permanen">Hapus</button>
+                                <?php else: ?>
+                                    <button class="btn-action btn-rej" style="background-color: #ffc107; border-color: #ffc107; color: #000;" onclick="konfirmasiArsip('<?= $usr['id_user'] ?>', '<?= addslashes($usr['nama_lengkap']) ?>')" title="Pindahkan ke Arsip Sementara">Arsipkan</button>
+                                <?php endif; ?>
+                            </td>
                         </tr>
                         <?php endwhile; ?>
                     </tbody>
@@ -667,7 +695,6 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                     </thead>
                     <tbody>
                         <?php
-                        // MENGAMBIL USER DENGAN ROLE 'arsip'
                         $query_arsip = mysqli_query($koneksi, "
                             SELECT u.id_user, u.nama_lengkap, u.email, u.no_wa,
                                    m.status, m.tgl_berakhir
@@ -698,7 +725,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
 
         <div id="tab-konten" class="tab-section">
             <div class="content-card">
-                <h3>📢 Kelola Banner Pengumuman</h3>
+                <h3> Kelola Banner Pengumuman</h3>
                 <form onsubmit="simpanBanner(event)">
                     <div class="grid-2">
                         <div class="form-group">
@@ -720,7 +747,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             <div class="grid-2">
                 <div style="display:flex;flex-direction:column;gap:30px;">
                     <div class="content-card" style="margin-bottom:0;">
-                        <h3>💰 Edit Harga Membership & Senam</h3>
+                        <h3>Edit Harga Membership & Senam</h3>
                         <form onsubmit="simpanHarga(event)">
                             <div class="form-group"><label>1x Visit Gym (Harian)</label><input type="text" id="set_harga_harian" class="form-control" value="<?= $web['harga_harian'] ?? '' ?>" required></div>
                             <div class="form-group"><label>Gym Bulanan (Mulai Dari)</label><input type="text" id="set_harga_bulanan" class="form-control" value="<?= $web['harga_bulanan'] ?? '' ?>" required></div>
@@ -729,7 +756,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                         </form>
                     </div>
                     <div class="content-card" style="margin-bottom:0;">
-                        <h3>📍 Edit Kontak & Lokasi</h3>
+                        <h3>Edit Kontak & Lokasi</h3>
                         <form onsubmit="simpanKontak(event)">
                             <div class="form-group"><label>No. WA CS Gym</label><input type="text" id="set_wa" class="form-control" value="<?= $web['wa_cs'] ?? '' ?>" required></div>
                             <div class="form-group"><label>Link Instagram</label><input type="text" id="set_ig" class="form-control" value="<?= $web['ig'] ?? '' ?>" required></div>
@@ -740,7 +767,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
 
                 <div style="display:flex;flex-direction:column;gap:30px;">
                     <div class="content-card" style="margin-bottom:0;">
-                        <h3>🕒 Edit Jam Operasional Gym</h3>
+                        <h3>Edit Jam Operasional Gym</h3>
                         <form onsubmit="simpanJam(event)">
                             <?php
                             $sesiGym = [
@@ -754,7 +781,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                             $open_card = false;
                             foreach($sesiGym as $key => $s):
                                 if($s['hari'] !== null):
-                                    if($open_card) echo '</div></div>'; // tutup grid + card sebelumnya
+                                    if($open_card) echo '</div></div>';
                                     $open_card = true;
                             ?>
                             <div class="jam-card">
@@ -780,7 +807,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                     </div>
 
                     <div class="content-card" style="margin-bottom:0;border-top-color:var(--accent-gold);">
-                        <h3 style="color:var(--text-light);">🧘 Edit Jadwal Kelas Senam</h3>
+                        <h3 style="color:var(--text-light);">Edit Jadwal Kelas Senam</h3>
                         <form onsubmit="simpanJadwalSenam(event)">
                             <?php
                             $hari_senam = ['sr'=>'Senin & Rabu','sk'=>'Selasa & Kamis','sb'=>'Sabtu','mg'=>'Minggu'];
@@ -825,6 +852,10 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                         <label>Judul Media (Misal: Tutorial Bench Press)</label>
                         <input type="text" id="judul_media" class="form-control" required placeholder="Masukkan judul...">
                     </div>
+                    <div class="form-group">
+                        <label>Caption / Penjelasan Alat (Opsional)</label>
+                        <textarea id="caption_media" class="form-control" rows="3" placeholder="Tuliskan fungsi alat atau cara menggunakannya..."></textarea>
+                    </div>
                     <div style="display:flex;gap:15px;margin-bottom:15px;flex-wrap:wrap;" class="flex-column-mobile">
                         <div class="form-group" style="flex:1;min-width:200px;">
                             <label>Kategori</label>
@@ -852,27 +883,57 @@ $harga_senam = $web['harga_senam'] ?? 25000;
 
             <div class="content-card">
                 <h3>Daftar Media Terupload</h3>
-                <p style="color:#888;font-size:0.85rem;margin-bottom:15px;">Hapus media yang sudah tidak relevan agar server tidak penuh.</p>
-                <div class="media-grid">
+                <p style="color:#888;font-size:0.85rem;margin-bottom:15px;">Kelola media yang tampil di halaman utama dan menu Galeri.</p>
+                
+                <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+                    <input type="text" id="searchGaleri" placeholder="Cari judul media..." class="form-control" onkeyup="filterGaleri()" style="max-width:300px; margin-bottom:0;">
+                    <select id="filterKategoriGaleri" class="form-control" onchange="filterGaleri()" style="max-width:200px; margin-bottom:0; cursor:pointer;">
+                        <option value="">Semua Kategori</option>
+                        <option value="alat">Fasilitas & Alat Gym</option>
+                        <option value="upper">Tutorial Upper Body</option>
+                        <option value="lower">Tutorial Lower Body</option>
+                    </select>
+                </div>
+
+                <div class="media-grid" id="containerGaleri">
                     <?php
                     $q_g = mysqli_query($koneksi, "SELECT * FROM galeri_gym ORDER BY id_media DESC");
-                    if(mysqli_num_rows($q_g) == 0) echo "<div style='color:#666;'>Belum ada media terupload.</div>";
+                    if(mysqli_num_rows($q_g) == 0) echo "<div class='no-media-msg' style='color:#666;'>Belum ada media terupload.</div>";
                     while($mg = mysqli_fetch_assoc($q_g)):
                     ?>
-                    <div class="media-item">
+                    <div class="media-item" 
+                         data-judul="<?= htmlspecialchars(strtolower($mg['judul'])) ?>" 
+                         data-kat="<?= $mg['kategori'] ?>">
+                         
                         <?php if($mg['tipe_media'] == 'video'): ?>
-                            <video src="<?= $mg['file_path'] ?>" muted></video>
+                            <video src="<?= $mg['file_path'] ?>#t=0.1" preload="metadata" muted></video>
                         <?php else: ?>
-                            <img src="<?= $mg['file_path'] ?>">
+                            <img src="<?= $mg['file_path'] ?>" loading="lazy" alt="<?= htmlspecialchars($mg['judul']) ?>">
                         <?php endif; ?>
+                        
                         <div class="media-item-info">
                             <p title="<?= htmlspecialchars($mg['judul']) ?>"><?= htmlspecialchars($mg['judul']) ?></p>
                             <span><?= strtoupper($mg['kategori']) ?> • <?= strtoupper($mg['tipe_media']) ?></span>
-                            <button class="btn-action btn-rej" style="width:100%;margin:0;" onclick="konfirmasiHapusMedia('<?= $mg['id_media'] ?>', '<?= htmlspecialchars(addslashes($mg['judul'])) ?>')">Hapus Media</button>
+                            
+                            <div style="display:flex; gap:5px; margin-top: 10px;">
+                                <button class="btn-action btn-view" style="flex:1; margin:0;" 
+                                        data-id="<?= $mg['id_media'] ?>" 
+                                        data-judul="<?= htmlspecialchars($mg['judul']) ?>" 
+                                        data-caption="<?= htmlspecialchars($mg['caption'] ?? '') ?>" 
+                                        data-kat="<?= $mg['kategori'] ?>" 
+                                        onclick="bukaEditMedia(this)">Edit</button>
+                                        
+                                <button class="btn-action btn-rej" style="flex:1; margin:0;" 
+                                        data-id="<?= $mg['id_media'] ?>"
+                                        data-judul="<?= htmlspecialchars($mg['judul']) ?>"
+                                        onclick="konfirmasiHapusMedia(this)">Hapus</button>
+                            </div>
                         </div>
                     </div>
                     <?php endwhile; ?>
                 </div>
+                
+                <div class="pagination-container" id="pagGaleri" style="margin-top:25px;"></div>
             </div>
         </div>
     </div>
@@ -935,6 +996,37 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                 </div>
                 <div class="form-group"><label>Password Baru (Kosongkan jika tidak ingin diubah)</label><input type="text" id="ePass" class="form-control" placeholder="Ketik sandi baru..."></div>
                 <button type="submit" id="btnSimpanEdit" class="btn-submit" style="margin-top:15px;">Simpan Perubahan</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalEditMedia">
+        <div class="modal-box" style="max-width:500px;">
+            <button class="close-modal" onclick="tutupModal('modalEditMedia')">×</button>
+            <h3 style="color:var(--accent-gold);margin-bottom:20px;text-align:left;">Edit Info Media</h3>
+            <form onsubmit="prosesEditMedia(event)" enctype="multipart/form-data">
+                <input type="hidden" id="eMediaId">
+                <div class="form-group">
+                    <label>Judul Media</label>
+                    <input type="text" id="eMediaJudul" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Caption / Penjelasan</label>
+                    <textarea id="eMediaCaption" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Kategori</label>
+                    <select id="eMediaKategori" class="form-control" required>
+                        <option value="alat">Fasilitas & Alat Gym</option>
+                        <option value="upper">Tutorial Upper Body</option>
+                        <option value="lower">Tutorial Lower Body</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ganti File (Kosongkan jika tidak ingin menimpa foto lama)</label>
+                    <input type="file" id="eMediaFile" class="form-control" style="padding:9px 15px;">
+                </div>
+                <button type="submit" id="btnSimpanEditMedia" class="btn-submit" style="margin-top:15px;">Simpan Perubahan</button>
             </form>
         </div>
     </div>
@@ -1009,245 +1101,386 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         </div>
     </div>
 
-    <script>
-        // ── CHART.JS ──
-        const ctx = document.getElementById('memberChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['Member Aktif', 'Menunggu Verifikasi', 'Kedaluwarsa', 'Ditolak'],
-                datasets: [{
-                    data: [<?= $count_aktif ?>, <?= $count_pending ?>, <?= $count_expired ?>, <?= $count_ditolak ?>],
-                    backgroundColor: ['#28a745','#ffc107','#E8C999','#8E1616'],
-                    borderColor: '#111',
-                    borderWidth: 2
-                }]
+    <div class="modal-overlay" id="modalHapusMember">
+        <div class="modal-box" style="max-width:400px;">
+            <div style="font-size:3rem;margin-bottom:10px;text-align:center;">🗑️</div>
+            <h3 style="color:#ff4d4d;margin-bottom:10px;text-align:center;">Hapus Permanen?</h3>
+            <p style="color:#ccc;font-size:0.9rem;margin-bottom:25px;text-align:center;">Akun <strong id="hapusNamaText" style="color:white;"></strong> akan dihapus secara permanen dari database.</p>
+            <div style="display:flex;gap:10px;">
+                <button class="btn-action btn-rej" onclick="eksekusiHapus()" style="flex:1;padding:12px;margin:0;">Hapus Permanen</button>
+                <button class="btn-action btn-view" onclick="tutupModal('modalHapusMember')" style="flex:1;padding:12px;margin:0;">Batal</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // ==========================================
+    // 1. INISIALISASI CHART.JS
+    // ==========================================
+    const ctx = document.getElementById('memberChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Member Aktif', 'Menunggu Verifikasi', 'Kedaluwarsa', 'Ditolak'],
+            datasets: [{
+                data: [<?= $count_aktif ?>, <?= $count_pending ?>, <?= $count_expired ?>, <?= $count_ditolak ?>],
+                backgroundColor: ['#28a745','#ffc107','#E8C999','#8E1616'],
+                borderColor: '#111',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'right', labels: { color: '#F8EEDF', font: { family: "'Segoe UI', sans-serif" } } }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'right', labels: { color: '#F8EEDF', font: { family: "'Segoe UI', sans-serif" } } }
-                },
-                cutout: '65%'
-            }
-        });
+            cutout: '65%'
+        }
+    });
 
-        // ── SIDEBAR TOGGLE (MOBILE) ──
-        const sidebarToggle  = document.getElementById('sidebarToggle');
-        const mainSidebar    = document.getElementById('mainSidebar');
-        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    // ==========================================
+    // 2. SIDEBAR TOGGLE (UNTUK HP & TABLET)
+    // ==========================================
+    const sidebarToggle  = document.getElementById('sidebarToggle');
+    const mainSidebar    = document.getElementById('mainSidebar');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
 
-        function openSidebar()  { mainSidebar.classList.add('sidebar-open'); sidebarBackdrop.classList.add('open'); }
-        function closeSidebar() { mainSidebar.classList.remove('sidebar-open'); sidebarBackdrop.classList.remove('open'); }
+    function openSidebar()  { mainSidebar.classList.add('sidebar-open'); sidebarBackdrop.classList.add('open'); }
+    function closeSidebar() { mainSidebar.classList.remove('sidebar-open'); sidebarBackdrop.classList.remove('open'); }
 
-        sidebarToggle.addEventListener('click', () => mainSidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar());
-        sidebarBackdrop.addEventListener('click', closeSidebar);
+    sidebarToggle.addEventListener('click', () => mainSidebar.classList.contains('sidebar-open') ? closeSidebar() : openSidebar());
+    sidebarBackdrop.addEventListener('click', closeSidebar);
 
-        // ── TABS ──
-        let currentIdMembership = '', currentIdUser = '', currentIdMedia = '';
+    // ==========================================
+    // 3. TABS DENGAN LOCALSTORAGE (INGATAN TAB)
+    // ==========================================
+    let currentIdMembership = '', currentIdUser = '', currentIdMedia = '';
 
-        function switchTab(tabId, el) {
-            document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
+    function switchTab(tabId, el) {
+        document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        
+        if(el) {
             el.classList.add('active');
-            if (window.innerWidth <= 1024) closeSidebar();
-        }
-
-        // ==========================================================
-        // ── PAGINATION & SEARCH LOGIC (VERIFIKASI, MEMBER, ARSIP) ──
-        // ==========================================================
-        let currentPageVerif = 1;
-        let currentPageMember = 1;
-        let currentPageArsip = 1;
-        const rowsPerPage = 10;
-
-        function renderTable(tableId, paginationId, searchInputId, filterSelectId, currentPageVarStr) {
-            const sv = document.getElementById(searchInputId) ? document.getElementById(searchInputId).value.toLowerCase() : '';
-            const fv = document.getElementById(filterSelectId) ? document.getElementById(filterSelectId).value.toLowerCase() : '';
-            const tbody = document.querySelector(`#${tableId} tbody`);
-            const trs = Array.from(tbody.querySelectorAll('tr:not(.no-data)'));
-            
-            let visibleRows = [];
-            trs.forEach(tr => {
-                let textToSearch = tr.cells[0].innerText.toLowerCase(); 
-                let badgeText = '';
-
-                if(tableId === 'tabelVerifikasi') {
-                    textToSearch = tr.cells[1].innerText.toLowerCase();
-                    badgeText = tr.querySelector('.jenis-label') ? tr.querySelector('.jenis-label').innerText.toLowerCase() : '';
-                } else if (tableId === 'tabelMember') {
-                    badgeText = tr.querySelector('.status-label') ? tr.querySelector('.status-label').innerText.toLowerCase() : '';
-                }
-                
-                if (textToSearch.includes(sv) && (fv === '' || badgeText === fv)) {
-                    visibleRows.push(tr);
-                } else {
-                    tr.style.display = 'none'; 
-                }
-            });
-
-            const totalPages = Math.ceil(visibleRows.length / rowsPerPage);
-            
-            let currentPage = 1;
-            if (currentPageVarStr === 'currentPageVerif') currentPage = currentPageVerif;
-            else if (currentPageVarStr === 'currentPageMember') currentPage = currentPageMember;
-            else if (currentPageVarStr === 'currentPageArsip') currentPage = currentPageArsip;
-
-            if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-            
-            if (currentPageVarStr === 'currentPageVerif') currentPageVerif = currentPage;
-            else if (currentPageVarStr === 'currentPageMember') currentPageMember = currentPage;
-            else if (currentPageVarStr === 'currentPageArsip') currentPageArsip = currentPage;
-
-            const start = (currentPage - 1) * rowsPerPage;
-            const end = start + rowsPerPage;
-
-            visibleRows.forEach((tr, index) => {
-                if (index >= start && index < end) { tr.style.display = ''; } else { tr.style.display = 'none'; }
-            });
-
-            const pagContainer = document.getElementById(paginationId);
-            if(pagContainer) {
-                pagContainer.innerHTML = '';
-                if (totalPages > 1) {
-                    for (let i = 1; i <= totalPages; i++) {
-                        const btn = document.createElement('button');
-                        btn.innerText = i;
-                        btn.className = `btn-page ${i === currentPage ? 'active' : ''}`;
-                        btn.onclick = () => {
-                            if (currentPageVarStr === 'currentPageVerif') currentPageVerif = i;
-                            else if (currentPageVarStr === 'currentPageMember') currentPageMember = i;
-                            else if (currentPageVarStr === 'currentPageArsip') currentPageArsip = i;
-                            renderTable(tableId, paginationId, searchInputId, filterSelectId, currentPageVarStr);
-                        };
-                        pagContainer.appendChild(btn);
-                    }
-                }
-            }
-        }
-
-        function filterVerifikasi() { currentPageVerif = 1; renderTable('tabelVerifikasi', 'pagVerifikasi', 'searchVerifikasi', 'filterVerifikasiJenis', 'currentPageVerif'); }
-        function filterMember() { currentPageMember = 1; renderTable('tabelMember', 'pagMember', 'searchMember', 'filterStatus', 'currentPageMember'); }
-        function filterArsip() { currentPageArsip = 1; renderTable('tabelArsip', 'pagArsip', 'searchArsip', null, 'currentPageArsip'); }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            renderTable('tabelVerifikasi', 'pagVerifikasi', 'searchVerifikasi', 'filterVerifikasiJenis', 'currentPageVerif');
-            renderTable('tabelMember', 'pagMember', 'searchMember', 'filterStatus', 'currentPageMember');
-            renderTable('tabelArsip', 'pagArsip', 'searchArsip', null, 'currentPageArsip');
-        });
-
-        // ── TOGGLE LIBUR ──
-        function toggleLibur(checkbox, containerId) {
-            const inputs = document.getElementById(containerId).querySelectorAll('input[type="time"]');
-            inputs.forEach(input => { input.disabled = checkbox.checked; if (checkbox.checked) input.value = ''; });
-        }
-
-        // ── VALIDASI WA ──
-        function validasiAngka(input, errId) {
-            const error = document.getElementById(errId);
-            if (/\D/g.test(input.value)) { error.style.display = 'block'; input.value = input.value.replace(/\D/g, ''); } else { error.style.display = 'none'; }
-        }
-
-        // ── MODAL HELPERS ──
-        function bukaModal(id) { document.getElementById(id).style.display = 'flex'; }
-        function tutupModal(id) { document.getElementById(id).style.display = 'none'; }
-        function lihatBuktiTransfer(imgUrl) { document.getElementById('imgBukti').src = imgUrl; bukaModal('modalBukti'); }
-        function bukaModalCetak() { document.getElementById('modalCetakLaporan').style.display = 'flex'; }
-
-        // ── VERIFIKASI ACTIONS ──
-        function konfirmasiTerima(id, nama) { currentIdMembership = id; document.getElementById('verifNama').innerText = nama; bukaModal('modalTerimaPembayaran'); }
-        function eksekusiTerima() {
-            const fd = new FormData(); fd.append('action', 'terima'); fd.append('id_membership', currentIdMembership);
-            fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); });
-        }
-        function konfirmasiTolak(id, nama) { currentIdMembership = id; document.getElementById('tolakNama').innerText = nama; bukaModal('modalTolakPembayaran'); }
-        function eksekusiTolak(e) {
-            e.preventDefault();
-            const fd = new FormData(); fd.append('action', 'tolak'); fd.append('id_membership', currentIdMembership); fd.append('alasan', document.getElementById('alasanTolakText').value);
-            fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); });
-        }
-
-        // ── ARSIP & PULIHKAN (PENGGANTI HAPUS) ──
-        function konfirmasiArsip(id, nama) { currentIdUser = id; document.getElementById('arsipNamaText').innerText = nama; bukaModal('modalArsipMember'); }
-        function eksekusiArsip() {
-            const fd = new FormData(); fd.append('action', 'arsip'); fd.append('id_user', currentIdUser);
-            fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { 
-                if (d.status === 'success') {
-                    location.reload(); 
-                } else {
-                    alert('Gagal mengarsipkan! Pastikan tidak ada error di database.');
-                }
-            });
+        } else {
+            const menuItem = document.querySelector(`.menu-item[onclick="switchTab('${tabId}', this)"]`);
+            if(menuItem) menuItem.classList.add('active');
         }
         
-        function konfirmasiPulihkan(id, nama) { currentIdUser = id; document.getElementById('pulihkanNamaText').innerText = nama; bukaModal('modalPulihkanMember'); }
-        function eksekusiPulihkan() {
-            const fd = new FormData(); fd.append('action', 'pulihkan'); fd.append('id_user', currentIdUser);
-            fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); });
+        localStorage.setItem('activeTabVandaAdmin', tabId);
+        if (window.innerWidth <= 1024) closeSidebar();
+    }
+
+    // ==========================================
+    // 4. PAGINASI & PENCARIAN (TABEL & GALERI)
+    // ==========================================
+    let currentPageVerif = 1, currentPageMember = 1, currentPageArsip = 1;
+    const rowsPerPage = 10;
+
+    function renderTable(tableId, paginationId, searchInputId, filterSelectId, currentPageVarStr) {
+        const sv = document.getElementById(searchInputId) ? document.getElementById(searchInputId).value.toLowerCase() : '';
+        const fv = document.getElementById(filterSelectId) ? document.getElementById(filterSelectId).value.toLowerCase() : '';
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        if (!tbody) return;
+        
+        const trs = Array.from(tbody.querySelectorAll('tr:not(.no-data)'));
+        let visibleRows = [];
+        
+        trs.forEach(tr => {
+            let textToSearch = tr.cells[0].innerText.toLowerCase(); 
+            let badgeText = '';
+
+            if(tableId === 'tabelVerifikasi') {
+                textToSearch = tr.cells[1].innerText.toLowerCase();
+                badgeText = tr.querySelector('.jenis-label') ? tr.querySelector('.jenis-label').innerText.toLowerCase() : '';
+            } else if (tableId === 'tabelMember') {
+                badgeText = tr.querySelector('.status-label') ? tr.querySelector('.status-label').innerText.toLowerCase() : '';
+            }
+            
+            if (textToSearch.includes(sv) && (fv === '' || badgeText === fv)) {
+                visibleRows.push(tr);
+            } else {
+                tr.style.display = 'none'; 
+            }
+        });
+
+        const totalPages = Math.ceil(visibleRows.length / rowsPerPage);
+        let currentPage = 1;
+        
+        if (currentPageVarStr === 'currentPageVerif') currentPage = currentPageVerif;
+        else if (currentPageVarStr === 'currentPageMember') currentPage = currentPageMember;
+        else if (currentPageVarStr === 'currentPageArsip') currentPage = currentPageArsip;
+
+        if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        
+        if (currentPageVarStr === 'currentPageVerif') currentPageVerif = currentPage;
+        else if (currentPageVarStr === 'currentPageMember') currentPageMember = currentPage;
+        else if (currentPageVarStr === 'currentPageArsip') currentPageArsip = currentPage;
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+
+        visibleRows.forEach((tr, index) => {
+            if (index >= start && index < end) { tr.style.display = ''; } else { tr.style.display = 'none'; }
+        });
+
+        const pagContainer = document.getElementById(paginationId);
+        if(pagContainer) {
+            pagContainer.innerHTML = '';
+            if (totalPages > 1) {
+                for (let i = 1; i <= totalPages; i++) {
+                    const btn = document.createElement('button');
+                    btn.innerText = i;
+                    btn.className = `btn-page ${i === currentPage ? 'active' : ''}`;
+                    btn.onclick = () => {
+                        if (currentPageVarStr === 'currentPageVerif') currentPageVerif = i;
+                        else if (currentPageVarStr === 'currentPageMember') currentPageMember = i;
+                        else if (currentPageVarStr === 'currentPageArsip') currentPageArsip = i;
+                        renderTable(tableId, paginationId, searchInputId, filterSelectId, currentPageVarStr);
+                    };
+                    pagContainer.appendChild(btn);
+                }
+            }
+        }
+    }
+
+    function filterVerifikasi() { currentPageVerif = 1; renderTable('tabelVerifikasi', 'pagVerifikasi', 'searchVerifikasi', 'filterVerifikasiJenis', 'currentPageVerif'); }
+    function filterMember() { currentPageMember = 1; renderTable('tabelMember', 'pagMember', 'searchMember', 'filterStatus', 'currentPageMember'); }
+    function filterArsip() { currentPageArsip = 1; renderTable('tabelArsip', 'pagArsip', 'searchArsip', null, 'currentPageArsip'); }
+
+    // Logic Khusus Grid Galeri Admin
+    let pageGaleri = 1;
+    const mediaPerPage = 8;
+    function renderGaleri() {
+        const container = document.getElementById('containerGaleri');
+        if(!container) return;
+        const items = Array.from(container.querySelectorAll('.media-item'));
+        const search = document.getElementById('searchGaleri') ? document.getElementById('searchGaleri').value.toLowerCase() : '';
+        const kat = document.getElementById('filterKategoriGaleri') ? document.getElementById('filterKategoriGaleri').value : '';
+
+        let visibleItems = items.filter(it => {
+            const judul = it.getAttribute('data-judul') || '';
+            const kategori = it.getAttribute('data-kat') || '';
+            return judul.includes(search) && (kat === '' || kategori === kat);
+        });
+
+        const totalPages = Math.ceil(visibleItems.length / mediaPerPage);
+        if (pageGaleri > totalPages && totalPages > 0) pageGaleri = totalPages;
+        if (pageGaleri < 1) pageGaleri = 1;
+
+        const start = (pageGaleri - 1) * mediaPerPage;
+        const end = start + mediaPerPage;
+
+        items.forEach(it => it.style.display = 'none');
+        visibleItems.slice(start, end).forEach(it => it.style.display = 'block');
+
+        const pag = document.getElementById('pagGaleri');
+        if(pag) {
+            pag.innerHTML = '';
+            if (totalPages > 1) {
+                for(let i=1; i <= totalPages; i++) {
+                    const btn = document.createElement('button');
+                    btn.innerText = i;
+                    btn.className = `btn-page ${i === pageGaleri ? 'active' : ''}`;
+                    btn.onclick = () => {
+                        pageGaleri = i;
+                        renderGaleri();
+                        document.getElementById('searchGaleri').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    };
+                    pag.appendChild(btn);
+                }
+            }
+        }
+    }
+    function filterGaleri() { pageGaleri = 1; renderGaleri(); }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedTab = localStorage.getItem('activeTabVandaAdmin');
+        if(savedTab && document.getElementById(savedTab)) {
+            switchTab(savedTab, null);
+        }
+        renderTable('tabelVerifikasi', 'pagVerifikasi', 'searchVerifikasi', 'filterVerifikasiJenis', 'currentPageVerif');
+        renderTable('tabelMember', 'pagMember', 'searchMember', 'filterStatus', 'currentPageMember');
+        renderTable('tabelArsip', 'pagArsip', 'searchArsip', null, 'currentPageArsip');
+        renderGaleri();
+    });
+
+    // ==========================================
+    // 5. HELPER FORM & MODAL
+    // ==========================================
+    function toggleLibur(checkbox, containerId) {
+        const inputs = document.getElementById(containerId).querySelectorAll('input[type="time"]');
+        inputs.forEach(input => { input.disabled = checkbox.checked; if (checkbox.checked) input.value = ''; });
+    }
+
+    function validasiAngka(input, errId) {
+        const error = document.getElementById(errId);
+        if (/\D/g.test(input.value)) { error.style.display = 'block'; input.value = input.value.replace(/\D/g, ''); } 
+        else { error.style.display = 'none'; }
+    }
+
+    function bukaModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function tutupModal(id) { document.getElementById(id).style.display = 'none'; }
+    function lihatBuktiTransfer(imgUrl) { document.getElementById('imgBukti').src = imgUrl; bukaModal('modalBukti'); }
+    function bukaModalCetak() { document.getElementById('modalCetakLaporan').style.display = 'flex'; }
+
+    // ==========================================
+    // 6. FUNGSI AJAX (VERIFIKASI, ARSIP, MEMBER)
+    // ==========================================
+    function konfirmasiTerima(id, nama) { currentIdMembership = id; document.getElementById('verifNama').innerText = nama; bukaModal('modalTerimaPembayaran'); }
+    function eksekusiTerima() {
+        const fd = new FormData(); fd.append('action', 'terima'); fd.append('id_membership', currentIdMembership);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); });
+    }
+
+    function konfirmasiTolak(id, nama) { currentIdMembership = id; document.getElementById('tolakNama').innerText = nama; bukaModal('modalTolakPembayaran'); }
+    function eksekusiTolak(e) {
+        e.preventDefault();
+        const fd = new FormData(); fd.append('action', 'tolak'); fd.append('id_membership', currentIdMembership); fd.append('alasan', document.getElementById('alasanTolakText').value);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); });
+    }
+
+    function konfirmasiArsip(id, nama) { currentIdUser = id; document.getElementById('arsipNamaText').innerText = nama; bukaModal('modalArsipMember'); }
+    function eksekusiArsip() {
+        const fd = new FormData(); fd.append('action', 'arsip'); fd.append('id_user', currentIdUser);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { 
+            if (d.status === 'success') location.reload(); else alert('Gagal mengarsipkan!');
+        });
+    }
+    
+    function konfirmasiPulihkan(id, nama) { currentIdUser = id; document.getElementById('pulihkanNamaText').innerText = nama; bukaModal('modalPulihkanMember'); }
+    function eksekusiPulihkan() {
+        const fd = new FormData(); fd.append('action', 'pulihkan'); fd.append('id_user', currentIdUser);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); });
+    }
+
+    function konfirmasiHapus(id, nama) { currentIdUser = id; document.getElementById('hapusNamaText').innerText = nama; bukaModal('modalHapusMember'); }
+    function eksekusiHapus() {
+        const fd = new FormData(); fd.append('action', 'hapus'); fd.append('id_user', currentIdUser);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); });
+    }
+
+    function bukaEditMember(id, nama, email, wa) {
+        document.getElementById('eId').value = id; document.getElementById('eNama').value = nama;
+        document.getElementById('eEmail').value = email; document.getElementById('eWa').value = wa;
+        document.getElementById('ePass').value = ''; bukaModal('modalEditMember');
+    }
+    function prosesEditMember(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSimpanEdit'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
+        const fd = new FormData();
+        fd.append('action', 'edit_member'); fd.append('id_user', document.getElementById('eId').value);
+        fd.append('nama', document.getElementById('eNama').value); fd.append('wa', document.getElementById('eWa').value);
+        fd.append('pass', document.getElementById('ePass').value);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+            if (d.status === 'success') { alert('✅ Data member berhasil diperbarui!'); location.reload(); }
+            else { alert('❌ Gagal memperbarui data.'); btn.innerText = 'Simpan Perubahan'; btn.disabled = false; }
+        });
+    }
+
+    function prosesTambahMember(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSimpanMember'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
+        const fd = new FormData();
+        fd.append('action', 'tambah_member'); fd.append('nama', document.getElementById('tNama').value);
+        fd.append('email', document.getElementById('tEmail').value); fd.append('wa', document.getElementById('tWa').value);
+        fd.append('pass', document.getElementById('tPass').value); fd.append('paket', document.getElementById('tPaket').value);
+        fd.append('tgl', document.getElementById('tTgl').value);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
+            if (d.status === 'success') { alert('✅ Member berhasil ditambahkan!'); location.reload(); }
+            else { alert('❌ Gagal: ' + (d.message || 'Terjadi kesalahan')); btn.innerText = 'Simpan & Aktifkan Member'; btn.disabled = false; }
+        });
+    }
+
+    // ==========================================
+    // 7. FUNGSI PENGATURAN KONTEN & GALERI
+    // ==========================================
+    function kirimPengaturan(fd, pesan) { fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') alert(pesan); location.reload(); }); }
+    
+    function simpanBanner(e) { e.preventDefault(); const fd = new FormData(); fd.append('action', 'update_banner'); fd.append('status', document.getElementById('set_banner_status').value); fd.append('teks', document.getElementById('set_banner_teks').value); kirimPengaturan(fd, '✅ Banner pengumuman berhasil diperbarui!'); }
+    function simpanHarga(e) { e.preventDefault(); const fd = new FormData(); fd.append('action', 'update_harga'); fd.append('harian', document.getElementById('set_harga_harian').value); fd.append('bulanan', document.getElementById('set_harga_bulanan').value); fd.append('senam', document.getElementById('set_harga_senam').value); kirimPengaturan(fd, '✅ Harga berhasil diperbarui!'); }
+    function simpanKontak(e) { e.preventDefault(); const fd = new FormData(); fd.append('action', 'update_kontak'); fd.append('wa', document.getElementById('set_wa').value); fd.append('ig', document.getElementById('set_ig').value); kirimPengaturan(fd, '✅ Info kontak berhasil diperbarui!'); }
+    
+    function simpanJam(e) {
+        e.preventDefault(); const keys = ['sjPagi','sjSiang','sbPagi','sbSiang','mgPagi','mgSiang']; const jamData = {};
+        keys.forEach(k => { jamData[k] = { libur: document.getElementById('cb_' + k).checked, buka:  document.getElementById('v_' + k + '_b').value, tutup: document.getElementById('v_' + k + '_t').value }; });
+        const fd = new FormData(); fd.append('action', 'update_jam'); fd.append('data_jam', JSON.stringify(jamData)); kirimPengaturan(fd, '✅ Jadwal Operasional Gym berhasil diperbarui!');
+    }
+    
+    function simpanJadwalSenam(e) {
+        e.preventDefault(); const keys = ['sr','sk','sb','mg']; const jsData = {};
+        keys.forEach(k => { jsData[k] = { libur: document.getElementById('libur_' + k).checked, buka:  document.getElementById('buka_' + k).value, tutup: document.getElementById('tutup_' + k).value, ket: document.getElementById('ket_' + k).value }; });
+        const fd = new FormData(); fd.append('action', 'update_jadwal_senam'); fd.append('data_js', JSON.stringify(jsData)); kirimPengaturan(fd, '✅ Jadwal Kelas Senam berhasil diperbarui!');
+    }
+
+    function sesuaikanInputFile() { const tipe = document.getElementById('tipe_media').value; document.getElementById('file_media').accept = (tipe === 'foto') ? 'image/jpeg,image/png,image/webp' : 'video/mp4,video/webm'; }
+    
+    function uploadMedia(e) {
+        e.preventDefault(); const btn = document.getElementById('btnUpload'); const orig = btn.innerText; btn.innerText = 'Mengupload...'; btn.disabled = true;
+        const fd = new FormData(); 
+        fd.append('action', 'upload_galeri'); 
+        fd.append('judul_media', document.getElementById('judul_media').value); 
+        fd.append('caption_media', document.getElementById('caption_media').value);
+        fd.append('kategori_media', document.getElementById('kategori_media').value); 
+        fd.append('tipe_media', document.getElementById('tipe_media').value); 
+        fd.append('file_media', document.getElementById('file_media').files[0]);
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { alert(d.message); if (d.status === 'success') location.reload(); btn.innerText = orig; btn.disabled = false; }).catch(() => { alert('Terjadi kesalahan jaringan.'); btn.innerText = orig; btn.disabled = false; });
+    }
+
+    // PERBAIKAN: Mengambil data dari atribut tombol agar kebal spasi/enter
+    function bukaEditMedia(btn) {
+        document.getElementById('eMediaId').value = btn.getAttribute('data-id');
+        document.getElementById('eMediaJudul').value = btn.getAttribute('data-judul');
+        document.getElementById('eMediaCaption').value = btn.getAttribute('data-caption');
+        document.getElementById('eMediaKategori').value = btn.getAttribute('data-kat');
+        document.getElementById('eMediaFile').value = '';
+        bukaModal('modalEditMedia');
+    }
+
+    function prosesEditMedia(e) {
+        e.preventDefault();
+        const btn = document.getElementById('btnSimpanEditMedia');
+        const origText = btn.innerText;
+        btn.innerText = 'Menyimpan...'; btn.disabled = true;
+
+        const fd = new FormData();
+        fd.append('action', 'edit_galeri');
+        fd.append('id_media', document.getElementById('eMediaId').value);
+        fd.append('judul_media', document.getElementById('eMediaJudul').value);
+        fd.append('caption_media', document.getElementById('eMediaCaption').value);
+        fd.append('kategori_media', document.getElementById('eMediaKategori').value);
+        
+        const fileInput = document.getElementById('eMediaFile');
+        if (fileInput.files.length > 0) {
+            fd.append('file_media_edit', fileInput.files[0]);
         }
 
-        // ── EDIT MEMBER ──
-        function bukaEditMember(id, nama, email, wa) {
-            document.getElementById('eId').value = id; document.getElementById('eNama').value = nama;
-            document.getElementById('eEmail').value = email; document.getElementById('eWa').value = wa;
-            document.getElementById('ePass').value = ''; bukaModal('modalEditMember');
-        }
-        function prosesEditMember(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnSimpanEdit'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
-            const fd = new FormData();
-            fd.append('action', 'edit_member'); fd.append('id_user', document.getElementById('eId').value);
-            fd.append('nama', document.getElementById('eNama').value); fd.append('wa', document.getElementById('eWa').value);
-            fd.append('pass', document.getElementById('ePass').value);
-            fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
-                if (d.status === 'success') { alert('✅ Data member berhasil diperbarui!'); location.reload(); }
-                else { alert('❌ Gagal memperbarui data.'); btn.innerText = 'Simpan Perubahan'; btn.disabled = false; }
-            });
-        }
-
-        // ── TAMBAH MEMBER ──
-        function prosesTambahMember(e) {
-            e.preventDefault();
-            const btn = document.getElementById('btnSimpanMember'); btn.innerText = 'Menyimpan...'; btn.disabled = true;
-            const fd = new FormData();
-            fd.append('action', 'tambah_member'); fd.append('nama', document.getElementById('tNama').value);
-            fd.append('email', document.getElementById('tEmail').value); fd.append('wa', document.getElementById('tWa').value);
-            fd.append('pass', document.getElementById('tPass').value); fd.append('paket', document.getElementById('tPaket').value);
-            fd.append('tgl', document.getElementById('tTgl').value);
-            fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
-                if (d.status === 'success') { alert('✅ Member berhasil ditambahkan dan otomatis Aktif!'); location.reload(); }
-                else { alert('❌ Gagal: ' + (d.message || 'Terjadi kesalahan')); btn.innerText = 'Simpan & Aktifkan Member'; btn.disabled = false; }
-            });
-        }
-
-        // ── PENGATURAN KONTEN ──
-        function kirimPengaturan(fd, pesan) { fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') alert(pesan); }); }
-        function simpanBanner(e) { e.preventDefault(); const fd = new FormData(); fd.append('action', 'update_banner'); fd.append('status', document.getElementById('set_banner_status').value); fd.append('teks', document.getElementById('set_banner_teks').value); kirimPengaturan(fd, '✅ Banner pengumuman berhasil diperbarui!'); }
-        function simpanHarga(e) { e.preventDefault(); const fd = new FormData(); fd.append('action', 'update_harga'); fd.append('harian', document.getElementById('set_harga_harian').value); fd.append('bulanan', document.getElementById('set_harga_bulanan').value); fd.append('senam', document.getElementById('set_harga_senam').value); kirimPengaturan(fd, '✅ Harga berhasil diperbarui!'); }
-        function simpanKontak(e) { e.preventDefault(); const fd = new FormData(); fd.append('action', 'update_kontak'); fd.append('wa', document.getElementById('set_wa').value); fd.append('ig', document.getElementById('set_ig').value); kirimPengaturan(fd, '✅ Info kontak berhasil diperbarui!'); }
-        function simpanJam(e) {
-            e.preventDefault(); const keys = ['sjPagi','sjSiang','sbPagi','sbSiang','mgPagi','mgSiang']; const jamData = {};
-            keys.forEach(k => { jamData[k] = { libur: document.getElementById('cb_' + k).checked, buka:  document.getElementById('v_' + k + '_b').value, tutup: document.getElementById('v_' + k + '_t').value }; });
-            const fd = new FormData(); fd.append('action', 'update_jam'); fd.append('data_jam', JSON.stringify(jamData)); kirimPengaturan(fd, '✅ Jadwal Operasional Gym berhasil diperbarui!');
-        }
-        function simpanJadwalSenam(e) {
-            e.preventDefault(); const keys = ['sr','sk','sb','mg']; const jsData = {};
-            keys.forEach(k => { jsData[k] = { libur: document.getElementById('libur_' + k).checked, buka:  document.getElementById('buka_' + k).value, tutup: document.getElementById('tutup_' + k).value, ket: document.getElementById('ket_' + k).value }; });
-            const fd = new FormData(); fd.append('action', 'update_jadwal_senam'); fd.append('data_js', JSON.stringify(jsData)); kirimPengaturan(fd, '✅ Jadwal Kelas Senam berhasil diperbarui!');
-        }
-
-        // ── GALERI ──
-        function sesuaikanInputFile() { const tipe = document.getElementById('tipe_media').value; document.getElementById('file_media').accept = (tipe === 'foto') ? 'image/jpeg,image/png,image/webp' : 'video/mp4,video/webm'; }
-        function uploadMedia(e) {
-            e.preventDefault(); const btn = document.getElementById('btnUpload'); const orig = btn.innerText; btn.innerText = 'Mengupload...'; btn.disabled = true;
-            const fd = new FormData(); fd.append('action', 'upload_galeri'); fd.append('judul_media', document.getElementById('judul_media').value); fd.append('kategori_media', document.getElementById('kategori_media').value); fd.append('tipe_media', document.getElementById('tipe_media').value); fd.append('file_media', document.getElementById('file_media').files[0]);
-            fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { alert(d.message); if (d.status === 'success') location.reload(); btn.innerText = orig; btn.disabled = false; }).catch(() => { alert('Terjadi kesalahan jaringan.'); btn.innerText = orig; btn.disabled = false; });
-        }
-        function konfirmasiHapusMedia(id, judul) { currentIdMedia = id; document.getElementById('hapusMediaText').innerText = judul; bukaModal('modalHapusMedia'); }
-        function eksekusiHapusMedia() { const fd = new FormData(); fd.append('action', 'hapus_galeri'); fd.append('id_media', currentIdMedia); fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); }); }
-    </script>
+        fetch('admin_dasbor.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            alert(d.message);
+            if (d.status === 'success') location.reload();
+            btn.innerText = origText; btn.disabled = false;
+        }).catch(() => {
+            alert('Terjadi kesalahan jaringan.');
+            btn.innerText = origText; btn.disabled = false;
+        });
+    }
+    
+    // PERBAIKAN: Fungsi Hapus menggunakan atribut tombol
+    function konfirmasiHapusMedia(btn) { 
+        currentIdMedia = btn.getAttribute('data-id'); 
+        document.getElementById('hapusMediaText').innerText = btn.getAttribute('data-judul'); 
+        bukaModal('modalHapusMedia'); 
+    }
+    
+    function eksekusiHapusMedia() { 
+        const fd = new FormData(); fd.append('action', 'hapus_galeri'); fd.append('id_media', currentIdMedia); 
+        fetch('admin_dasbor.php', { method: 'POST', body: fd }).then(r => r.json()).then(d => { if (d.status === 'success') location.reload(); }); 
+    }
+</script>
 </body>
 </html>

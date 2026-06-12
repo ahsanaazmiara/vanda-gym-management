@@ -30,8 +30,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     $parts = [];
 
     // 1. Instruksi Sistem (System Prompt) agar AI berperan sebagai Trainer Vanda Gym
-    $prompt_sistem = "Kamu adalah Vanda AI, asisten virtual dan personal trainer untuk Vanda Gym Classic di Palangka Raya. Jawablah dengan singkat, padat, ramah, dan gunakan bahasa Indonesia yang santai tapi profesional. Jangan gunakan bahasa pemrograman dalam jawabanmu. Fokus pada fitness, kesehatan, nutrisi, dan alat gym. Jika user mengirim foto makanan, berikan estimasi kalori dan nutrisinya. Jika user mengirim foto alat gym, jelaskan nama dan cara pakainya secara singkat. Pertanyaan/Pernyataan member: " . $pesan;
+    $prompt_sistem = "Kamu adalah Vanda AI, asisten virtual dan personal trainer untuk Vanda Gym Classic di Palangka Raya. Jawablah dengan ramah, enerjik, dan gunakan bahasa Indonesia yang santai tapi profesional.
 
+    ATURAN PENTING YANG WAJIB DIIKUTI:
+    1. BATASAN TOPIK: Kamu HANYA boleh membahas seputar gym, fitness, kebugaran, diet, dan nutrisi. Jika member bertanya di luar topik tersebut (misalnya tentang politik, coding, cuaca, film, dll), tolak dengan sopan dan ingatkan bahwa kamu hanya asisten khusus Vanda Gym. 
+       Contoh penolakan: 'Maaf ya, Vanda AI cuma bisa bantu jawab seputar gym, kebugaran, dan nutrisi aja nih. Ada pertanyaan soal latihan atau diet hari ini? 💪'
+    
+    2. ANALISIS MAKANAN & NUTRISI: Jika member bertanya tentang kalori atau mengirim foto makanan, kamu WAJIB memberikan estimasi dengan rincian berikut secara rapi:
+       - 🍽️ Nama Makanan:
+       - 🔥 Total Kalori: ... kkal
+       - 🥩 Protein: ... gram
+       - 🥑 Lemak: ... gram
+       - 🍚 Karbohidrat: ... gram
+       Berikan juga sedikit saran singkat apakah makanan tersebut cocok untuk bulking, cutting, atau maintenance.
+
+    3. ALAT GYM: Jika member mengirim foto alat gym, sebutkan namanya dan jelaskan cara pakainya secara singkat dan aman.
+
+    Pertanyaan/Pernyataan member: " . $pesan;
+    
     if (!empty($pesan)) {
         $parts[] = ['text' => $prompt_sistem];
     } else if (!empty($gambarBase64)) {
@@ -291,156 +307,209 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     </div>
 
     <script>
-        const chatContent = document.getElementById('chatContent');
-        const userInput = document.getElementById('userInput');
-        const typingContainer = document.getElementById('typingContainer');
-        const attachMenu = document.getElementById('attachMenu');
-        const previewContainer = document.getElementById('previewContainer');
-        const imgPreview = document.getElementById('imgPreview');
-        const btnSend = document.getElementById('btnSend');
+    const chatContent = document.getElementById('chatContent');
+    const userInput = document.getElementById('userInput');
+    const typingContainer = document.getElementById('typingContainer');
+    const attachMenu = document.getElementById('attachMenu');
+    const previewContainer = document.getElementById('previewContainer');
+    const imgPreview = document.getElementById('imgPreview');
+    const btnSend = document.getElementById('btnSend');
 
-        let base64ImageTemp = null;
+    let base64ImageTemp = null;
+    
+    // Variabel untuk menyimpan input terakhir (buat jaga-jaga kalau error)
+    let draftPesanTerakhir = "";
+    let draftGambarTerakhir = null;
 
-        function toggleAttachMenu() {
-            attachMenu.style.display = attachMenu.style.display === 'block' ? 'none' : 'block';
-        }
-
-        // Kompresi ringan gambar ke canvas sebelum dikirim agar tidak terlalu berat untuk API
-        function previewGambar(input) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                // Cek ukuran (max 4MB)
-                if(file.size > 4 * 1024 * 1024) {
-                    alert('Ukuran gambar terlalu besar. Maksimal 4MB.');
-                    input.value = '';
-                    return;
-                }
-
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const img = new Image();
-                    img.onload = function() {
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        
-                        // Resize max width 800px untuk menghemat bandwidth API
-                        let width = img.width;
-                        let height = img.height;
-                        const MAX_WIDTH = 800;
-                        if (width > MAX_WIDTH) {
-                            height = Math.round((height * MAX_WIDTH) / width);
-                            width = MAX_WIDTH;
-                        }
-                        
-                        canvas.width = width;
-                        canvas.height = height;
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        base64ImageTemp = canvas.toDataURL('image/jpeg', 0.8);
-                        
-                        imgPreview.src = base64ImageTemp;
-                        previewContainer.style.display = 'block';
-                        attachMenu.style.display = 'none'; 
-                        userInput.focus(); 
-                    }
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-            input.value = ''; 
-        }
-
-        function hapusPreview() {
-            base64ImageTemp = null;
-            imgPreview.src = "";
-            previewContainer.style.display = 'none';
-        }
-
-        function kirimChat() {
-            const pesan = userInput.value.trim();
-            const imgKirim = base64ImageTemp; 
-            
-            if (pesan === "" && !imgKirim) return;
-
-            let isiBubble = "";
-            if (imgKirim) {
-                isiBubble += `<img src="${imgKirim}" alt="Foto Upload">`;
-            }
-            if (pesan !== "") {
-                isiBubble += `<p>${pesan.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`; // Keamanan anti XSS
-            }
-
-            tambahBubble(isiBubble, 'member');
-            
-            // Reset input
-            userInput.value = "";
-            hapusPreview();
-            attachMenu.style.display = 'none';
-
-            // Panggil API PHP secara Asinkron
-            prosesTanyaAPI(pesan, imgKirim);
-        }
-
-        function prosesTanyaAPI(pesanTeks, base64Data) {
-            typingContainer.style.display = 'block';
-            chatContent.scrollTop = chatContent.scrollHeight;
-            
-            // Kunci tombol kirim dan input saat memproses
+    // ==========================================
+    // 1. FITUR CEK KONEKSI INTERNET (SEBELUM KIRIM)
+    // ==========================================
+    function updateOnlineStatus() {
+        if (!navigator.onLine) {
             userInput.disabled = true;
             btnSend.disabled = true;
+            userInput.placeholder = "Peringatan: Koneksi internet terputus...";
+        } else {
+            userInput.disabled = false;
+            btnSend.disabled = false;
+            userInput.placeholder = "Ketik pesan atau caption...";
+        }
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus(); // Cek saat halaman pertama kali dimuat
 
-            const formData = new FormData();
-            formData.append('action', 'chat_ai');
-            formData.append('pesan', pesanTeks);
-            if (base64Data) {
-                formData.append('gambar', base64Data);
+
+    // ==========================================
+    // FUNGSI MENU & GAMBAR (Tetap Sama)
+    // ==========================================
+    function toggleAttachMenu() {
+        attachMenu.style.display = attachMenu.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function previewGambar(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            if(file.size > 4 * 1024 * 1024) {
+                alert('Ukuran gambar terlalu besar. Maksimal 4MB.');
+                input.value = '';
+                return;
             }
 
-            fetch('chatbot_member.php', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                typingContainer.style.display = 'none';
-                userInput.disabled = false;
-                btnSend.disabled = false;
-                userInput.focus();
-
-                if (data.status === 'success') {
-                    tambahBubble(data.message, 'vanda-ai');
-                } else {
-                    tambahBubble('❌ <strong style="color:var(--primary-red)">Terjadi Masalah:</strong><br>' + data.message, 'vanda-ai');
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    let width = img.width;
+                    let height = img.height;
+                    const MAX_WIDTH = 800;
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    base64ImageTemp = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    imgPreview.src = base64ImageTemp;
+                    previewContainer.style.display = 'block';
+                    attachMenu.style.display = 'none'; 
+                    userInput.focus(); 
                 }
-            })
-            .catch(error => {
-                typingContainer.style.display = 'none';
-                userInput.disabled = false;
-                btnSend.disabled = false;
-                tambahBubble('❌ <strong style="color:var(--primary-red)">Gagal terhubung ke Server.</strong> Pastikan koneksi internet Anda stabil dan coba lagi.', 'vanda-ai');
-            });
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        input.value = ''; 
+    }
+
+    function hapusPreview() {
+        base64ImageTemp = null;
+        imgPreview.src = "";
+        previewContainer.style.display = 'none';
+    }
+
+
+    // ==========================================
+    // 2. LOGIKA PENGIRIMAN & FITUR AUTO-RESTORE
+    // ==========================================
+    function kirimChat() {
+        const pesan = userInput.value.trim();
+        const imgKirim = base64ImageTemp; 
+        
+        if (pesan === "" && !imgKirim) return;
+
+        // Cek lagi sebelum ngirim, sedia payung sebelum hujan
+        if (!navigator.onLine) {
+            alert("Koneksi internet Anda terputus. Silakan periksa jaringan Anda.");
+            return;
         }
 
-        function tambahBubble(isiHTML, tipe) {
-            const div = document.createElement('div');
-            div.className = `bubble ${tipe}`;
-            div.innerHTML = isiHTML;
-            chatContent.appendChild(div);
-            chatContent.scrollTop = chatContent.scrollHeight;
+        // Simpan input ke draft, jaga-jaga kalau API error
+        draftPesanTerakhir = pesan;
+        draftGambarTerakhir = imgKirim;
+
+        let isiBubble = "";
+        if (imgKirim) {
+            isiBubble += `<img src="${imgKirim}" alt="Foto Upload">`;
+        }
+        if (pesan !== "") {
+            isiBubble += `<p>${pesan.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`; 
         }
 
-        userInput.addEventListener("keypress", function(event) {
-            if (event.key === "Enter" && !userInput.disabled) {
-                kirimChat();
-            }
-        });
+        tambahBubble(isiBubble, 'member');
+        
+        // Kosongkan form sementara
+        userInput.value = "";
+        hapusPreview();
+        attachMenu.style.display = 'none';
 
-        document.addEventListener('click', function(event) {
-            const isClickInside = attachMenu.contains(event.target) || event.target.closest('.btn-attach');
-            if (!isClickInside) {
-                attachMenu.style.display = 'none';
+        // Panggil API
+        prosesTanyaAPI(pesan, imgKirim);
+    }
+
+    // Fungsi untuk mengembalikan input ke form jika terjadi error
+    function kembalikanInputKeForm() {
+        if (draftPesanTerakhir) {
+            userInput.value = draftPesanTerakhir;
+        }
+        if (draftGambarTerakhir) {
+            base64ImageTemp = draftGambarTerakhir;
+            imgPreview.src = base64ImageTemp;
+            previewContainer.style.display = 'block';
+        }
+    }
+
+    function prosesTanyaAPI(pesanTeks, base64Data) {
+        typingContainer.style.display = 'block';
+        chatContent.scrollTop = chatContent.scrollHeight;
+        
+        userInput.disabled = true;
+        btnSend.disabled = true;
+
+        const formData = new FormData();
+        formData.append('action', 'chat_ai');
+        formData.append('pesan', pesanTeks);
+        if (base64Data) {
+            formData.append('gambar', base64Data);
+        }
+
+        fetch('chatbot_member.php', { // <-- Sesuaikan dengan nama file PHP kamu jika berubah
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            typingContainer.style.display = 'none';
+            userInput.disabled = false;
+            btnSend.disabled = false;
+            userInput.focus();
+
+            if (data.status === 'success') {
+                tambahBubble(data.message, 'vanda-ai');
+                // Bersihkan draft karena sudah sukses terkirim
+                draftPesanTerakhir = "";
+                draftGambarTerakhir = null;
+            } else {
+                tambahBubble('❌ <strong style="color:var(--primary-red)">Terjadi Masalah:</strong><br>' + data.message + '<br><br><em>⚠️ Pesan dan gambar Anda telah dikembalikan ke kolom ketik. Silakan coba kirim ulang.</em>', 'vanda-ai');
+                kembalikanInputKeForm(); // Panggil fungsi auto-restore
             }
+        })
+        .catch(error => {
+            typingContainer.style.display = 'none';
+            userInput.disabled = false;
+            btnSend.disabled = false;
+            tambahBubble('❌ <strong style="color:var(--primary-red)">Gagal terhubung ke Server AI.</strong><br>Pastikan koneksi internet Anda stabil.<br><br><em>⚠️ Pesan dan gambar Anda telah dikembalikan ke kolom ketik.</em>', 'vanda-ai');
+            kembalikanInputKeForm(); // Panggil fungsi auto-restore
         });
-    </script>
+    }
+
+    function tambahBubble(isiHTML, tipe) {
+        const div = document.createElement('div');
+        div.className = `bubble ${tipe}`;
+        div.innerHTML = isiHTML;
+        chatContent.appendChild(div);
+        chatContent.scrollTop = chatContent.scrollHeight;
+    }
+
+    userInput.addEventListener("keypress", function(event) {
+        if (event.key === "Enter" && !userInput.disabled) {
+            kirimChat();
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        const isClickInside = attachMenu.contains(event.target) || event.target.closest('.btn-attach');
+        if (!isClickInside) {
+            attachMenu.style.display = 'none';
+        }
+    });
+</script>
 </body>
 </html>
