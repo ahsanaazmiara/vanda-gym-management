@@ -129,57 +129,65 @@ function renderJam($jam_array, $sesi_key) {
             .footer-info p { font-size: 0.8rem !important; margin-bottom: 8px !important; }
             .footer-info svg { width: 16px !important; height: 16px !important; }
             
-            /* ---------- NAVIGASI BAWAH ---------- */
-            .bottom-nav-mobile {
-                display: flex !important;
-                position: fixed !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                width: 100vw !important;
-                height: 70px !important;
-                background-color: #0a0a0a !important;
-                border-top: 1px solid #333 !important;
-                justify-content: space-around !important;
-                align-items: center !important;
-                z-index: 2147483647 !important;
-                box-shadow: 0 -5px 15px rgba(0,0,0,0.9) !important;
-            }
+            /* =========================================
+   NAVIGASI BAWAH MOBILE (STANDAR KEDUA HALAMAN)
+   ========================================= */
+.bottom-nav-mobile {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 70px !important;
+    background-color: #0a0a0a !important;
+    border-top: 1px solid #333 !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    z-index: 2147483647 !important;
+    box-shadow: 0 -5px 15px rgba(0,0,0,0.9) !important;
+}
 
-            .bottom-nav-mobile .nav-item {
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important;
-                justify-content: center !important;
-                color: #ccc !important;
-                text-decoration: none !important;
-                font-size: 10px !important;
-                background: transparent !important;
-                border: none !important;
-                flex: 1 !important;
-                gap: 4px !important;
-                cursor: pointer !important;
-                padding: 5px 0 !important;
-            }
+.bottom-nav-mobile .nav-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #ccc !important;
+    text-decoration: none !important;
+    font-size: 10px !important;
+    background: transparent !important;
+    border: none !important;
+    flex: 1 !important;
+    gap: 4px !important;
+    cursor: pointer !important;
+    padding: 5px 0 !important;
+    transition: 0.3s;
+}
 
-            .bottom-nav-mobile .nav-item:hover, .bottom-nav-mobile .nav-item:active {
-                color: var(--accent-gold, #E8C999) !important;
-            }
+.bottom-nav-mobile .nav-item:hover, 
+.bottom-nav-mobile .nav-item:active {
+    color: var(--accent-gold, #E8C999) !important;
+}
 
-            .bottom-nav-mobile .nav-item svg {
-                width: 22px !important;
-                height: 22px !important;
-                stroke: currentColor !important;
-                fill: none !important;
-            }
+.bottom-nav-mobile .nav-item svg {
+    width: 22px !important;
+    height: 22px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+}
 
-            .bottom-nav-mobile .nav-item.highlight {
-                color: #ff4d4d !important;
-                font-weight: bold !important;
-            }
-            .bottom-nav-mobile .nav-item.highlight svg {
-                stroke: none !important;
-                fill: #ff4d4d !important;
-            }
+/* Menu Aktif / Highlight */
+.bottom-nav-mobile .nav-item.highlight {
+    color: var(--accent-gold, #E8C999) !important;
+    font-weight: bold !important;
+}
+.bottom-nav-mobile .nav-item.highlight svg {
+    stroke: var(--accent-gold, #E8C999) !important;
+    fill: none !important; 
+}
 
             /* Angkat dan perkecil sedikit tombol WA dan Chatbot */
             .wa-btn { bottom: 85px !important; width: 50px !important; height: 50px !important; left: 15px !important; }
@@ -377,7 +385,7 @@ function renderJam($jam_array, $sesi_key) {
         </div>
 
         <div style="text-align: center; margin-top: 40px;">
-            <a href="galeri_gym.php" class="btn-primary" style="padding: 10px 30px; font-size: 0.9rem;">Lihat Galeri Lengkap</a>
+            <a href="galeri_gym.php" class="btn-primary" style="padding: 10px 30px; font-size: 0.9rem;">Lihat Galeri & Tutorial Lengkap</a>
         </div>
     </section>
 
@@ -474,7 +482,7 @@ function renderJam($jam_array, $sesi_key) {
                     <line x1="8" y1="16" x2="8.01" y2="16"></line>
                     <line x1="16" y1="16" x2="16.01" y2="16"></line>
                 </svg>
-                Info Bot Vanda Gym
+                 ChatBot Vanda Gym
             </span>
             <button class="close-chat" onclick="toggleChat()" title="Tutup Chat">×</button>
         </div>
@@ -490,39 +498,44 @@ function renderJam($jam_array, $sesi_key) {
         <div class="chat-footer-menu">
             <div class="quick-replies">
                 <button class="btn-qr" onclick="kirimFaq('Apa saja peraturan gym?', 'Sip! Biar latihan makin nyaman, ini beberapa *rules* kita ya:<br><br>1️⃣ Jangan lupa bawa handuk sendiri (biar higienis bro!).<br>2️⃣ Rapikan & kembalikan alat (dumbell/plat) ke tempat semula setelah dipakai.<br>3️⃣ Area gym bebas asap rokok & vape ya.<br>4️⃣ Jaga kebersihan bareng-bareng.<br><br>Gampang kan? <i>Let\'s go!</i> 🔥')">📜 Peraturan</button>
+                <button class="btn-qr" onclick="kirimFaq('Bagaimana cara batalkan pendaftaran?', 'Gampang banget! Kalau status pendaftaranmu masih <strong>Menunggu Verifikasi</strong>, kamu cukup lakukan langkah ini:<br><br>1️⃣ Masukkan emailmu di kolom pencarian pada <a href=\'cek_status.php\' style=\'color:var(--accent-gold); font-weight:bold;\'>halaman Cek Status</a>.<br>2️⃣ Klik tombol <strong>Cari Data</strong>.<br>3️⃣ Nanti bakal muncul tombol <strong>Batalkan Pendaftaran</strong> warna merah di bawah keterangan status.<br><br>Klik aja tombol itu, dan data pengajuanmu bakal otomatis terhapus dari sistem deh. 🗑️✨<br><br><a href=\'cek_status.php\' style=\'display:inline-block; padding:8px 15px; background-color:var(--accent-gold); color:#000; text-decoration:none; border-radius:4px; font-weight:bold; font-size:0.8rem; margin-top:10px;\'>➡️ Ke Halaman Cek Status</a>')">❌ Batal Daftar</button>
+                
                 <button class="btn-qr" onclick="kirimFaq('Bagaimana cara menghubungi CS?', 'Butuh bantuan lebih lanjut? Tenang, langsung aja chat admin kita via WhatsApp di sini:<br><strong><a href=\'https://wa.me/<?= $wa_link ?>\' target=\'_blank\' style=\'color:var(--accent-gold);\'><?= htmlspecialchars($web_data['wa_cs'] ?? '0821-4855-6601') ?></a></strong><br><br>Bisa juga klik tombol WA hijau di pojok kiri layar. Admin kita *standby* kok! 📱')">📞 Hubungi CS</button>
+                
                 <button class="btn-qr" onclick="kirimFaq('Di mana lokasi Vanda Gym?', 'Vanda Gym Classic berlokasi strategis di <strong>Jl. Kapten Pierre Tendean No.17, Palangka Raya</strong>. 📍<br><br>Cek aja peta Google Maps di bagian paling bawah halaman ini kalau takut nyasar. Ditunggu kedatangannya ya! 🏋️‍♂️')">📍 Info Lokasi</button>
+                
                 <button class="btn-qr" onclick="kirimFaq('Berapa harga paket membership?', 'Wah, tertarik join ya? Mantap! 🤩<br><br>Untuk Gym Bulanan harganya cuma <strong>Rp <?= number_format($web_data['harga_bulanan'] ?? 175000, 0, ',', '.') ?></strong> (Udah bebas akses!).<br>Kalau mau nyoba dulu, bisa pilih 1x Visit (<strong>Rp <?= number_format($web_data['harga_harian'] ?? 25000, 0, ',', '.') ?></strong>).<br>Ada juga Kelas Senam seharga <strong>Rp <?= number_format($web_data['harga_senam'] ?? 25000, 0, ',', '.') ?>/datang</strong>.<br><br>Langsung aja klik Daftar di menu bawah biar gampang! 🚀')">💰 Harga Membership</button>
+                
             </div>
         </div>
     </div>
 
     <div class="bottom-nav-mobile">
-        <a href="#paket" class="nav-item">
-            <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span>Paket</span>
-        </a>
-        <a href="#jadwal" class="nav-item">
-            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-            <span>Jadwal</span>
-        </a>
-        <a href="#galeri" class="nav-item">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            <span>Galeri</span>
-        </a>
-        <a href="kalkulator.php" class="nav-item">
-            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="16" y1="18" x2="16.01" y2="18"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="8" y1="18" x2="8.01" y2="18"></line></svg>
-            <span>Gizi</span>
-        </a>
-        <a href="login.php" class="nav-item">
-            <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-            <span>Login</span>
-        </a>
-        <a href="daftar.php" class="nav-item highlight">
-            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-            <span>Daftar</span>
-        </a>
-    </div>
+    <a href="#paket" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+        <span>Paket</span>
+    </a>
+    <a href="#jadwal" class="nav-item">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span>Jadwal</span>
+    </a>
+    <a href="galeri_gym.php" class="nav-item">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+        <span>Galeri</span>
+    </a>
+    <a href="kalkulator.php" class="nav-item">
+        <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="16" y1="18" x2="16.01" y2="18"></line><line x1="12" y1="18" x2="12.01" y2="18"></line><line x1="8" y1="18" x2="8.01" y2="18"></line></svg>
+        <span>Gizi</span>
+    </a>
+    <a href="login.php" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+        <span>Login</span>
+    </a>
+    <a href="daftar.php" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+        <span>Daftar</span>
+    </a>
+</div>
 
     <script>
         // SCRIPT NAVIGASI DESKTOP

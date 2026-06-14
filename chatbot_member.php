@@ -14,6 +14,17 @@ if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'member') {
     exit;
 }
 
+// Ambil Data Pengaturan Web dari Database untuk nomor WA CS
+$q_pengaturan = mysqli_query($koneksi, "SELECT wa_cs FROM pengaturan_web WHERE id=1");
+$web_data = mysqli_fetch_assoc($q_pengaturan);
+$wa_db = $web_data['wa_cs'] ?? '082148556601';
+$wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
+
+// Cek status membership untuk proteksi tombol/menu terkunci di navigasi bawah
+$q_member = mysqli_query($koneksi, "SELECT status FROM membership WHERE id_user = {$_SESSION['id_user']} ORDER BY id_membership DESC LIMIT 1");
+$d_member = mysqli_fetch_assoc($q_member);
+$status_member = $d_member['status'] ?? 'belum_daftar';
+
 // =========================================================
 // BLOK PHP: HANDLING AJAX REQUEST KE API GEMINI
 // =========================================================
@@ -23,18 +34,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     $pesan = $_POST['pesan'] ?? '';
     $gambarBase64 = $_POST['gambar'] ?? '';
 
-    // 🔴 Ambil API Key dari file rahasia yang tidak di-push ke Git
+    // Ambil API Key dari file rahasia yang tidak di-push ke Git
     $api_key = $gemini_api_key; 
     $url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . $api_key;
     
     $parts = [];
 
     // 1. Instruksi Sistem (System Prompt) agar AI berperan sebagai Trainer Vanda Gym
-    $prompt_sistem = "Kamu adalah Vanda AI, asisten virtual dan personal trainer untuk Vanda Gym Classic di Palangka Raya. Jawablah dengan ramah, enerjik, dan gunakan bahasa Indonesia yang santai tapi profesional.
+    $prompt_sistem = "Kamu adalah Vanda AI, asisten virtual dan personal trainer untuk Vanda Gym Classic di Palangka Raya. Jawablah dengan ramah, enerjik, dan gunakan bahasa Indonesia yang santai tapi profesional. Susun jawabanmu serapi mungkin layaknya instruktur gym sungguhan (gunakan sapaan seperti 'Bro', 'Sis', 'Kak' jika cocok).
 
     ATURAN PENTING YANG WAJIB DIIKUTI:
-    1. BATASAN TOPIK: Kamu HANYA boleh membahas seputar gym, fitness, kebugaran, diet, dan nutrisi. Jika member bertanya di luar topik tersebut (misalnya tentang politik, coding, cuaca, film, dll), tolak dengan sopan dan ingatkan bahwa kamu hanya asisten khusus Vanda Gym. 
-       Contoh penolakan: 'Maaf ya, Vanda AI cuma bisa bantu jawab seputar gym, kebugaran, dan nutrisi aja nih. Ada pertanyaan soal latihan atau diet hari ini? 💪'
+    1. BATASAN TOPIK: Kamu HANYA boleh membahas seputar gym, fitness, kebugaran, diet, dan nutrisi. Jika member bertanya di luar topik tersebut, atau kamu TIDAK MEMAHAMI maksud pertanyaannya, tolak dengan sopan dan WAJIB tambahkan kata kunci [TOMBOL_ADMIN] di akhir jawabanmu. 
+       Contoh penolakan: 'Maaf ya Kak, Vanda AI cuma bisa bantu jawab seputar gym, kebugaran, dan nutrisi aja nih. Kalau butuh bantuan lebih lanjut atau pertanyaan lain, langsung hubungi admin kita aja ya! [TOMBOL_ADMIN]'
     
     2. ANALISIS MAKANAN & NUTRISI: Jika member bertanya tentang kalori atau mengirim foto makanan, kamu WAJIB memberikan estimasi dengan rincian berikut secara rapi:
        - 🍽️ Nama Makanan:
@@ -44,7 +55,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
        - 🍚 Karbohidrat: ... gram
        Berikan juga sedikit saran singkat apakah makanan tersebut cocok untuk bulking, cutting, atau maintenance.
 
-    3. ALAT GYM: Jika member mengirim foto alat gym, sebutkan namanya dan jelaskan cara pakainya secara singkat dan aman.
+    3. ALAT GYM: Jika member mengirim foto alat gym, sebutkan namanya dan jelaskan cara pakainya secara singkat, aman, dan memotivasi.
 
     Pertanyaan/Pernyataan member: " . $pesan;
     
@@ -56,9 +67,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
     // 2. Masukkan Gambar (Jika member mengunggah foto)
     if (!empty($gambarBase64)) {
-        // Ekstrak tipe file dan data mentah dari string base64 Javascript
         $image_parts = explode(";base64,", $gambarBase64);
-        $mime_type = explode("data:", $image_parts[0])[1]; // contoh: image/jpeg
+        $mime_type = explode("data:", $image_parts[0])[1]; 
         $base64_data = $image_parts[1];
 
         $parts[] = [
@@ -86,7 +96,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         'Content-Type: application/json'
     ]);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Matikan verifikasi SSL lokal XAMPP
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
 
     $response = curl_exec($ch);
     $err = curl_error($ch);
@@ -103,12 +113,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     if (isset($result['candidates'][0]['content']['parts'][0]['text'])) {
         $balasan = $result['candidates'][0]['content']['parts'][0]['text'];
         
-        // Bersihkan sedikit format Markdown bawaan AI agar rapi di HTML
+        // Bersihkan format Markdown bawaan AI agar rapi di HTML
         $balasanHTML = nl2br(htmlspecialchars($balasan));
-        // Ubah format **Teks** menjadi <strong>Teks</strong>
         $balasanHTML = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $balasanHTML);
-        // Ubah format *Teks* menjadi <em>Teks</em>
         $balasanHTML = preg_replace('/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/', '<em>$1</em>', $balasanHTML);
+
+        // Ganti trigger [TOMBOL_ADMIN] menjadi tombol HTML asli untuk WhatsApp
+        $btnAdminHTML = '<br><br><a href="https://wa.me/'.$wa_link.'" target="_blank" style="display:inline-flex; align-items:center; justify-content:center; background:#25D366; color:white; padding:8px 15px; border-radius:6px; text-decoration:none; font-weight:bold; font-size:0.85rem; border: 1px solid #1ebe57; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: 0.3s;">📞 Hubungi Admin Gym</a>';
+        $balasanHTML = str_replace('[TOMBOL_ADMIN]', $btnAdminHTML, $balasanHTML);
 
         echo json_encode(['status' => 'success', 'message' => $balasanHTML]);
     } else {
@@ -246,13 +258,110 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         .btn-send:disabled { background: #555; cursor: not-allowed; transform: none; }
 
         .disclaimer { font-size: 0.65rem; color: #555; text-align: center; }
+
+        /* =========================================
+           TOMBOL WHATSAPP MELAYANG KIRI BAWAH
+           ========================================= */
+        .wa-btn {
+            position: fixed; bottom: 20px; left: 20px; width: 50px; height: 50px;
+            background-color: #25D366; color: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 1000;
+            text-decoration: none; transition: transform 0.3s ease;
+        }
+        .wa-btn:hover { transform: scale(1.1); }
+        .wa-btn svg { width: 28px; height: 28px; fill: currentColor; }
+
+        /* Sembunyikan navigasi bawah di desktop */
+        .bottom-nav-mobile { display: none !important; }
+
+        /* =========================================
+           MOBILE RESPONSIVE
+           ========================================= */
+        @media (max-width: 768px) {
+            body { padding: 15px 10px 85px 10px !important; }
+            .chat-container { 
+                height: calc(100vh - 100px); /* Kurangi tinggi agar tidak tertutup nav bawah */
+                max-height: none; border-radius: 8px; 
+            }
+            
+            /* Penyesuaian Tombol WA agar tidak tertumpuk Navigasi */
+            .wa-btn { bottom: 85px !important; left: 15px !important; width: 45px !important; height: 45px !important; }
+            .wa-btn svg { width: 24px !important; height: 24px !important; }
+
+            /* =========================================
+               NAVIGASI BAWAH MOBILE (MEMBER STANDAR)
+               ========================================= */
+            .bottom-nav-mobile {
+                display: flex !important;
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 70px !important;
+                background-color: #0a0a0a !important;
+                border-top: 1px solid #333 !important;
+                justify-content: space-around !important;
+                align-items: center !important;
+                z-index: 2147483647 !important;
+                box-shadow: 0 -5px 15px rgba(0,0,0,0.9) !important;
+            }
+
+            .bottom-nav-mobile .nav-item {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                color: #ccc !important;
+                text-decoration: none !important;
+                font-size: 10px !important;
+                background: transparent !important;
+                border: none !important;
+                flex: 1 !important;
+                gap: 4px !important;
+                cursor: pointer !important;
+                padding: 5px 0 !important;
+                transition: 0.3s;
+            }
+
+            .bottom-nav-mobile .nav-item:hover, 
+            .bottom-nav-mobile .nav-item:active {
+                color: var(--accent-gold, #E8C999) !important;
+            }
+
+            .bottom-nav-mobile .nav-item svg {
+                width: 22px !important;
+                height: 22px !important;
+                stroke: currentColor !important;
+                fill: none !important;
+                stroke-width: 2 !important;
+                stroke-linecap: round !important;
+                stroke-linejoin: round !important;
+            }
+
+            /* Menu Aktif / Highlight */
+            .bottom-nav-mobile .nav-item.highlight {
+                color: var(--accent-gold, #E8C999) !important;
+                font-weight: bold !important;
+            }
+            .bottom-nav-mobile .nav-item.highlight svg {
+                stroke: var(--accent-gold, #E8C999) !important;
+                fill: none !important; 
+            }
+        }
     </style>
 </head>
 <body>
 
+    <a href="https://wa.me/<?= $wa_link ?>" target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+          <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+        </svg>
+    </a>
+
     <div class="chat-container">
         <header>
-            <a href="member_dasbor.php" class="btn-back">←</a>
+            <a href="member_dasbor.php" class="btn-back" title="Kembali ke Dasbor">←</a>
             <div class="ai-info">
                 <h2>Vanda AI Assistant</h2>
                 <p>Aktif • Didukung oleh Gemini AI</p>
@@ -261,12 +370,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
         <div id="chatContent">
             <div class="bubble vanda-ai">
-                Halo Ahsana! Saya Vanda AI. Anda bisa bertanya tentang nutrisi, mengirim foto makanan untuk cek kalori, atau mengirim foto alat gym untuk tau cara pakainya. Ada yang bisa saya bantu hari ini? 💪
+                Halo Bro/Sis! 👋 Saya Vanda AI, instruktur virtual kamu. Mau tanya soal nutrisi, cek kalori makanan dari foto, atau pelajari form alat gym yang benar? Yuk, tanya aku sekarang! 💪🔥
             </div>
         </div>
 
         <div id="typingContainer" class="typing-container">
-            <div class="typing">Vanda AI sedang memikirkan jawaban...</div>
+            <div class="typing">Vanda AI sedang mengetik balasan...</div>
         </div>
 
         <div class="chat-footer">
@@ -280,7 +389,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                 </button>
             </div>
 
-            <!-- Batasi ukuran file max 4MB untuk mencegah API timeout -->
             <input type="file" id="fileCamera" accept="image/*" capture="environment" style="display: none;" onchange="previewGambar(this)">
             <input type="file" id="fileGallery" accept="image/*" style="display: none;" onchange="previewGambar(this)">
             
@@ -306,6 +414,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         </div>
     </div>
 
+    <div class="bottom-nav-mobile">
+        <a href="member_dasbor.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span>Dasbor</span>
+        </a>
+        <a href="kalkulator.php?source=dasbor" class="nav-item">
+            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
+            <span>Gizi</span>
+        </a>
+        <a href="galeri_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Tutorial</span>
+        </a>
+        <a href="chatbot_member.php" class="nav-item highlight">
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg>
+            <span>AI Bot</span>
+        </a>
+        <a href="profil_member.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Profil</span>
+        </a>
+    </div>
+
     <script>
     const chatContent = document.getElementById('chatContent');
     const userInput = document.getElementById('userInput');
@@ -317,12 +448,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
     let base64ImageTemp = null;
     
-    // Variabel untuk menyimpan input terakhir (buat jaga-jaga kalau error)
+    // Variabel untuk menyimpan input terakhir
     let draftPesanTerakhir = "";
     let draftGambarTerakhir = null;
 
     // ==========================================
-    // 1. FITUR CEK KONEKSI INTERNET (SEBELUM KIRIM)
+    // 1. FITUR CEK KONEKSI INTERNET
     // ==========================================
     function updateOnlineStatus() {
         if (!navigator.onLine) {
@@ -337,11 +468,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     }
     window.addEventListener('online', updateOnlineStatus);
     window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus(); // Cek saat halaman pertama kali dimuat
-
+    updateOnlineStatus(); 
 
     // ==========================================
-    // FUNGSI MENU & GAMBAR (Tetap Sama)
+    // FUNGSI MENU & GAMBAR
     // ==========================================
     function toggleAttachMenu() {
         attachMenu.style.display = attachMenu.style.display === 'block' ? 'none' : 'block';
@@ -395,9 +525,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         previewContainer.style.display = 'none';
     }
 
-
     // ==========================================
-    // 2. LOGIKA PENGIRIMAN & FITUR AUTO-RESTORE
+    // 2. LOGIKA PENGIRIMAN & AUTO-RESTORE
     // ==========================================
     function kirimChat() {
         const pesan = userInput.value.trim();
@@ -405,13 +534,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         
         if (pesan === "" && !imgKirim) return;
 
-        // Cek lagi sebelum ngirim, sedia payung sebelum hujan
         if (!navigator.onLine) {
             alert("Koneksi internet Anda terputus. Silakan periksa jaringan Anda.");
             return;
         }
 
-        // Simpan input ke draft, jaga-jaga kalau API error
+        // Simpan input ke draft
         draftPesanTerakhir = pesan;
         draftGambarTerakhir = imgKirim;
 
@@ -425,16 +553,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
         tambahBubble(isiBubble, 'member');
         
-        // Kosongkan form sementara
         userInput.value = "";
         hapusPreview();
         attachMenu.style.display = 'none';
 
-        // Panggil API
         prosesTanyaAPI(pesan, imgKirim);
     }
 
-    // Fungsi untuk mengembalikan input ke form jika terjadi error
     function kembalikanInputKeForm() {
         if (draftPesanTerakhir) {
             userInput.value = draftPesanTerakhir;
@@ -460,7 +585,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             formData.append('gambar', base64Data);
         }
 
-        fetch('chatbot_member.php', { // <-- Sesuaikan dengan nama file PHP kamu jika berubah
+        fetch('chatbot_member.php', {
             method: 'POST',
             body: formData
         })
@@ -473,12 +598,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
             if (data.status === 'success') {
                 tambahBubble(data.message, 'vanda-ai');
-                // Bersihkan draft karena sudah sukses terkirim
                 draftPesanTerakhir = "";
                 draftGambarTerakhir = null;
             } else {
                 tambahBubble('❌ <strong style="color:var(--primary-red)">Terjadi Masalah:</strong><br>' + data.message + '<br><br><em>⚠️ Pesan dan gambar Anda telah dikembalikan ke kolom ketik. Silakan coba kirim ulang.</em>', 'vanda-ai');
-                kembalikanInputKeForm(); // Panggil fungsi auto-restore
+                kembalikanInputKeForm(); 
             }
         })
         .catch(error => {
@@ -486,7 +610,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             userInput.disabled = false;
             btnSend.disabled = false;
             tambahBubble('❌ <strong style="color:var(--primary-red)">Gagal terhubung ke Server AI.</strong><br>Pastikan koneksi internet Anda stabil.<br><br><em>⚠️ Pesan dan gambar Anda telah dikembalikan ke kolom ketik.</em>', 'vanda-ai');
-            kembalikanInputKeForm(); // Panggil fungsi auto-restore
+            kembalikanInputKeForm(); 
         });
     }
 
@@ -510,6 +634,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             attachMenu.style.display = 'none';
         }
     });
-</script>
+    </script>
 </body>
 </html>

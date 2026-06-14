@@ -125,6 +125,9 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         .lightbox-close { position: absolute; top: 10px; right: 15px; color: white; font-size: 30px; font-weight: bold; cursor: pointer; transition: 0.3s; z-index: 10000; text-shadow: 0 0 5px black; }
         .lightbox-close:hover { color: var(--primary-red); transform: scale(1.1); }
 
+        /* Sembunyikan navigasi bawah di desktop */
+        .bottom-nav-mobile { display: none !important; }
+
         /* =========================================
            TOMBOL WA & CHATBOT MENGAMBANG
            ========================================= */
@@ -187,7 +190,7 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         
         /* RESPONSIVE UNTUK HP */
         @media (max-width: 768px) {
-            body { padding: 15px 10px; }
+            body { padding: 15px 10px 85px 10px; } /* 85px memberi jarak aman agar tidak tertutup nav bawah */
             .galeri-container { padding: 15px; }
             .btn-back-square { width: 32px; height: 32px; font-size: 1rem; }
             .form-header h2 { font-size: 1.2rem; }
@@ -214,12 +217,74 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             .lightbox-caption { font-size: 0.75rem; line-height: 1.4; }
             .lightbox-close { top: 5px; right: 10px; font-size: 24px; }
 
-            /* Tombol Mengambang HP */
-            .wa-btn { bottom: 20px; left: 15px; width: 45px; height: 45px; }
-            .wa-btn svg { width: 22px; height: 22px; }
-            .chatbot-btn { bottom: 20px; right: 15px; width: 45px; height: 45px; }
-            .chatbot-btn svg { width: 22px; height: 22px; }
-            .chatbot-window { bottom: 75px; right: 15px; left: 15px; width: auto; max-height: 60vh; }
+            /* Penyesuaian Tombol Mengambang HP agar tidak menabrak Navigasi Bawah */
+            .wa-btn { bottom: 85px !important; left: 15px !important; width: 45px !important; height: 45px !important; }
+            .wa-btn svg { width: 22px !important; height: 22px !important; }
+            
+            .chatbot-btn { bottom: 85px !important; right: 15px !important; width: 45px !important; height: 45px !important; }
+            .chatbot-btn svg { width: 22px !important; height: 22px !important; }
+            
+            .chatbot-window { bottom: 140px !important; right: 15px !important; left: 15px !important; width: auto !important; max-height: 60vh !important; }
+
+            /* =========================================
+               NAVIGASI BAWAH MOBILE (STANDAR)
+               ========================================= */
+            .bottom-nav-mobile {
+                display: flex !important;
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 70px !important;
+                background-color: #0a0a0a !important;
+                border-top: 1px solid #333 !important;
+                justify-content: space-around !important;
+                align-items: center !important;
+                z-index: 2147483647 !important;
+                box-shadow: 0 -5px 15px rgba(0,0,0,0.9) !important;
+            }
+
+            .bottom-nav-mobile .nav-item {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                color: #ccc !important;
+                text-decoration: none !important;
+                font-size: 10px !important;
+                background: transparent !important;
+                border: none !important;
+                flex: 1 !important;
+                gap: 4px !important;
+                cursor: pointer !important;
+                padding: 5px 0 !important;
+                transition: 0.3s;
+            }
+
+            .bottom-nav-mobile .nav-item:hover, 
+            .bottom-nav-mobile .nav-item:active {
+                color: var(--accent-gold, #E8C999) !important;
+            }
+
+            .bottom-nav-mobile .nav-item svg {
+                width: 22px !important;
+                height: 22px !important;
+                stroke: currentColor !important;
+                fill: none !important;
+                stroke-width: 2 !important;
+                stroke-linecap: round !important;
+                stroke-linejoin: round !important;
+            }
+
+            /* Menu Aktif / Highlight */
+            .bottom-nav-mobile .nav-item.highlight {
+                color: var(--accent-gold, #E8C999) !important;
+                font-weight: bold !important;
+            }
+            .bottom-nav-mobile .nav-item.highlight svg {
+                stroke: var(--accent-gold, #E8C999) !important;
+                fill: none !important; 
+            }
         }
     </style>
 </head>
@@ -241,7 +306,6 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             <input type="text" id="searchInput" placeholder="Cari alat atau gerakan..." onkeyup="jalankanFilter()">
         </div>
 
-        <!-- TOMBOL FILTER KATEGORI -->
         <div class="category-filter">
             <button class="filter-btn active" onclick="pilihKategori('semua', this)">Semua Kategori</button>
             <button class="filter-btn" onclick="pilihKategori('alat', this)">Alat Gym</button>
@@ -249,7 +313,6 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             <button class="filter-btn" onclick="pilihKategori('lower', this)">Lower Body</button>
         </div>
 
-        <!-- SECTION ALAT GYM -->
         <div class="category-section" id="sec-alat">
             <h3 class="category-title">Fasilitas & Alat Gym</h3>
             <?php if(empty($kategori_media['alat'])): ?>
@@ -261,7 +324,6 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             <?php endif; ?>
         </div>
 
-        <!-- SECTION UPPER BODY -->
         <div class="category-section" id="sec-upper">
             <h3 class="category-title">Tutorial Upper Body</h3>
             <?php if(empty($kategori_media['upper'])): ?>
@@ -273,7 +335,6 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             <?php endif; ?>
         </div>
 
-        <!-- SECTION LOWER BODY -->
         <div class="category-section" id="sec-lower">
             <h3 class="category-title">Tutorial Lower Body</h3>
             <?php if(empty($kategori_media['lower'])): ?>
@@ -287,7 +348,6 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
 
     </div>
 
-    <!-- MODAL LIGHTBOX -->
     <div id="mediaLightbox" class="lightbox" onclick="tutupMedia(event)">
         <div class="lightbox-inner" id="lightboxInner">
             <span class="lightbox-close" title="Tutup" onclick="tutupLewatTombol()">&times;</span>
@@ -301,14 +361,12 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         </div>
     </div>
 
-    <!-- TOMBOL WHATSAPP KIRI BAWAH -->
     <a href="https://wa.me/<?= $wa_link ?>" target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 16 16">
           <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
         </svg>
     </a>
 
-    <!-- TOMBOL CHATBOT KANAN BAWAH -->
     <button class="chatbot-btn" onclick="toggleChat()" title="Tanya Asisten Galeri">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="11" width="18" height="10" rx="2"></rect>
@@ -319,7 +377,6 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         </svg>
     </button>
     
-    <!-- WINDOW CHATBOT -->
     <div class="chatbot-window" id="chatWindow">
         <div class="chat-header">
             <span style="display: flex; align-items: center; gap: 8px;">
@@ -350,6 +407,33 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
                 <button class="btn-qr" onclick="kirimFaq('Bisa minta diajarin langsung?', 'Tentu dong! Kalau kamu masih ragu sama <i>form</i> (posisi tubuh) alat tertentu, jangan segan buat panggil instruktur/admin yang lagi jaga di Gym ya.<br><br>Atau mau tanya-tanya CS via WhatsApp sekarang? Klik aja tombol hijau di pojok kiri bawah layar! 📱')">🗣️ Minta Bimbingan Langsung</button>
             </div>
         </div>
+    </div>
+
+    <div class="bottom-nav-mobile">
+        <a href="index.php#paket" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <span>Paket</span>
+        </a>
+        <a href="index.php#jadwal" class="nav-item">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span>Jadwal</span>
+        </a>
+        <a href="galeri_gym.php" class="nav-item highlight">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Galeri</span>
+        </a>
+        <a href="kalkulator.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
+            <span>Gizi</span>
+        </a>
+        <a href="login.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
+            <span>Login</span>
+        </a>
+        <a href="daftar.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
+            <span>Daftar</span>
+        </a>
     </div>
 
     <?php 
@@ -571,7 +655,7 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
 
         function tutupMedia(e) {
             const modal = document.getElementById('mediaLightbox');
-            // Mencegah modal tertutup jika pengguna mengklik area chat
+            // Mencegah modal tertutup jika pengguna mengklik area teks atau media
             if (e.target.id === 'mediaLightbox') {
                 tutupProses(modal);
             }

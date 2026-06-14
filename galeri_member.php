@@ -10,11 +10,32 @@ if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'member') {
 
 $id_user = str_pad($_SESSION['id_user'], 4, '0', STR_PAD_LEFT); // Format ID jadi 0001
 
+// Ambil Data Pengaturan Web dari Database untuk nomor WA CS
+$q_pengaturan = mysqli_query($koneksi, "SELECT wa_cs FROM pengaturan_web WHERE id=1");
+$web_data = mysqli_fetch_assoc($q_pengaturan);
+$wa_db = $web_data['wa_cs'] ?? '082148556601';
+$wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
+
+// Cek status membership untuk proteksi tombol/menu terkunci
+$q_member = mysqli_query($koneksi, "SELECT status FROM membership WHERE id_user = {$_SESSION['id_user']} ORDER BY id_membership DESC LIMIT 1");
+$d_member = mysqli_fetch_assoc($q_member);
+$status_member = $d_member['status'] ?? 'belum_daftar';
+
 // Ambil semua data galeri dari database
 $q_galeri = mysqli_query($koneksi, "SELECT * FROM galeri_gym ORDER BY id_media DESC");
-$semua_media = [];
+
+// Kelompokkan data berdasarkan kategori
+$kategori_media = [
+    'alat' => [],
+    'upper' => [],
+    'lower' => []
+];
+
 while ($row = mysqli_fetch_assoc($q_galeri)) {
-    $semua_media[] = $row;
+    $kat = $row['kategori'];
+    if (array_key_exists($kat, $kategori_media)) {
+        $kategori_media[$kat][] = $row;
+    }
 }
 ?>
 
@@ -35,181 +56,245 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
 
         .galeri-container { background-color: #0a0a0a; border: 1px solid #333; border-top: 4px solid var(--primary-red); border-radius: 8px; padding: 30px; width: 100%; max-width: 1000px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
 
-        .nav-top { margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
-        .btn-back-square { width: 44px; height: 44px; background-color: #1a1a1a; border: 1px solid #333; color: var(--accent-gold); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-weight: bold; font-size: 1.2rem; transition: 0.3s; }
+        .nav-top { margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .btn-back-square { width: 40px; height: 40px; background-color: #1a1a1a; border: 1px solid #333; color: var(--accent-gold); border-radius: 4px; display: flex; align-items: center; justify-content: center; text-decoration: none; font-weight: bold; font-size: 1.2rem; transition: 0.3s; }
         .btn-back-square:hover { background-color: var(--primary-red); color: white; border-color: var(--primary-red); }
 
-        .form-header { text-align: center; margin-bottom: 30px; }
+        .form-header { text-align: center; margin-bottom: 25px; }
         .form-header h2 { color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; font-size: 1.5rem; margin-bottom: 5px; }
         .form-header p { color: #888; font-size: 0.9rem; }
 
-        .controls-wrapper { display: flex; flex-direction: column; gap: 20px; margin-bottom: 30px; background: #151515; padding: 20px; border-radius: 8px; border: 1px solid #222; }
-        
-        .search-box { width: 100%; position: relative; }
-        .search-box input { width: 100%; padding: 12px 15px 12px 40px; background: #0a0a0a; border: 1px solid #333; border-radius: 4px; color: white; outline: none; transition: 0.3s; font-size: 0.95rem; }
+        .search-box { width: 100%; position: relative; margin-bottom: 20px; }
+        .search-box input { width: 100%; padding: 12px 15px 12px 40px; background: #151515; border: 1px solid #333; border-radius: 6px; color: white; outline: none; transition: 0.3s; font-size: 0.95rem; }
         .search-box input:focus { border-color: var(--accent-gold); }
         .search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; fill: #666; }
+
+        /* FILTER KATEGORI */
+        .category-filter { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+        .filter-btn { background: #111; color: #888; border: 1px solid #333; padding: 10px 20px; border-radius: 30px; cursor: pointer; transition: 0.3s; font-weight: bold; font-size: 0.9rem; }
+        .filter-btn:hover { border-color: var(--accent-gold); color: var(--text-light); }
+        .filter-btn.active { background: var(--accent-gold); color: #000; border-color: var(--accent-gold); }
+
+        /* KATEGORI & GRID */
+        .category-section { margin-bottom: 35px; }
+        .category-title { color: var(--accent-gold); font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 8px; }
         
-        .category-tabs { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-        .tab-btn { background: #0a0a0a; color: #888; border: 1px solid #333; padding: 10px 20px; border-radius: 30px; cursor: pointer; transition: 0.3s; font-weight: bold; font-size: 0.9rem; }
-        .tab-btn:hover { border-color: var(--accent-gold); color: var(--text-light); }
-        .tab-btn.active { background: var(--accent-gold); color: #000; border-color: var(--accent-gold); }
+        .horizontal-scroll { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px; 
+            padding-bottom: 5px;
+        }
 
-        .dynamic-title-container { border-bottom: 1px solid #222; margin-bottom: 20px; padding-bottom: 10px; }
-        .dynamic-title { color: var(--accent-gold); font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
-
-        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
-        .gallery-item { position: relative; border-radius: 8px; overflow: hidden; background-color: var(--card-bg); border: 1px solid #222; cursor: pointer; aspect-ratio: 4/3; transition: 0.3s; display: none; }
-        .gallery-item.active { display: block; animation: fadeIn 0.4s ease; }
-        
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-
-        .gallery-item:hover { transform: translateY(-5px); border-color: var(--accent-gold); box-shadow: 0 5px 15px rgba(232, 201, 153, 0.2); }
+        .gallery-item { 
+            width: 100%;
+            position: relative; 
+            border-radius: 8px; 
+            overflow: hidden; 
+            background-color: var(--card-bg); 
+            border: 1px solid #222; 
+            cursor: pointer; 
+            aspect-ratio: 4/3; 
+            transition: 0.3s; 
+        }
+        .gallery-item:hover { border-color: var(--accent-gold); transform: translateY(-3px); box-shadow: 0 5px 15px rgba(232, 201, 153, 0.15); }
         .gallery-item img, .gallery-item video { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; pointer-events: none; }
         .gallery-item:hover img, .gallery-item:hover video { transform: scale(1.05); }
 
-        .item-info { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.95)); padding: 25px 15px 12px; display: flex; flex-direction: column; gap: 4px; }
-        .item-title { font-size: 0.95rem; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .item-category { font-size: 0.75rem; color: var(--accent-gold); text-transform: uppercase; }
+        .item-info { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.95)); padding: 25px 12px 10px; display: flex; flex-direction: column; gap: 3px; }
+        .item-title { font-size: 0.9rem; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .item-caption-short { font-size: 0.8rem; color: #ccc; margin-top: 5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
-
-        .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 45px; height: 45px; background: rgba(142, 22, 22, 0.8); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid var(--text-light); transition: 0.3s; box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index: 2;}
+        .play-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 40px; height: 40px; background: rgba(142, 22, 22, 0.8); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid var(--text-light); transition: 0.3s; z-index: 2;}
         .gallery-item:hover .play-icon { background: var(--primary-red); transform: translate(-50%, -50%) scale(1.1); }
-        .play-icon svg { width: 20px; height: 20px; fill: white; margin-left: 3px; }
+        .play-icon svg { width: 18px; height: 18px; fill: white; margin-left: 2px; }
 
-        .empty-state { text-align: center; padding: 40px; color: #666; font-style: italic; background: #111; border: 1px dashed #333; border-radius: 8px; width: 100%; display: none; }
+        .empty-state { text-align: center; padding: 20px; color: #666; font-style: italic; background: #111; border: 1px dashed #333; border-radius: 8px; width: 100%; display: none; }
 
-        .pagination-container { display: flex; justify-content: center; gap: 8px; margin-top: 40px; flex-wrap: wrap; }
-        .btn-page { background: #111; border: 1px solid #333; color: var(--text-light); padding: 8px 14px; border-radius: 4px; cursor: pointer; transition: 0.3s; font-size: 0.9rem; font-weight: bold; }
-        .btn-page:hover { background: #222; border-color: var(--accent-gold); }
-        .btn-page.active { background: var(--accent-gold); color: #000; border-color: var(--accent-gold); }
-
-        /* =========================================
-           MODAL LIGHTBOX (DESAIN PC: KIRI KANAN)
-           ========================================= */
-        .lightbox { 
-            display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: rgba(0,0,0,0.92); justify-content: center; align-items: center; padding: 20px; 
+        /* TOMBOL LIHAT SELENGKAPNYA */
+        .btn-show-more {
+            background: #111; color: var(--accent-gold); border: 1px solid #333;
+            padding: 8px 20px; border-radius: 30px; cursor: pointer; transition: 0.3s;
+            font-weight: bold; font-size: 0.85rem; display: block; margin: 20px auto 0;
+            text-transform: uppercase; letter-spacing: 0.5px;
         }
+        .btn-show-more:hover { background: #1a1a1a; border-color: var(--accent-gold); color: #fff; }
+
+        /* MODAL LIGHTBOX */
+        .lightbox { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.92); justify-content: center; align-items: center; padding: 20px; }
         .lightbox.show { display: flex; }
         
-        .lightbox-inner {
-            display: flex; flex-direction: row;
-            background: #0a0a0a; border: 1px solid #333; border-radius: 12px; overflow: hidden;
-            width: 100%; max-width: 1000px; height: 85vh;
-            box-shadow: 0 0 40px rgba(0,0,0,0.8);
-            position: relative;
-        }
+        .lightbox-inner { display: flex; flex-direction: row; background: #0a0a0a; border: 1px solid #333; border-radius: 12px; overflow: hidden; width: 100%; max-width: 900px; height: 75vh; position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        
+        .lightbox-media-area { flex: 1.5; background: #000; display: flex; justify-content: center; align-items: center; border-right: 1px solid #222; overflow: hidden; position: relative; }
+        .lightbox-content { width: 100%; height: 100%; object-fit: contain; }
 
-        .lightbox-media-area {
-            flex: 1.5; background: #000; display: flex; justify-content: center; align-items: center;
-            border-right: 1px solid #222; overflow: hidden;
-        }
-
-        .lightbox-content { 
-            width: 100%; height: 100%; object-fit: contain; 
-        }
-
-        .lightbox-text-container {
-            flex: 1; padding: 30px; display: flex; flex-direction: column;
-            overflow-y: auto; background: #111;
-        }
-
-        .lightbox-text-container::-webkit-scrollbar { width: 6px; }
-        .lightbox-text-container::-webkit-scrollbar-track { background: #111; }
+        .lightbox-text-container { flex: 1; padding: 25px; display: flex; flex-direction: column; overflow-y: auto; background: #111; }
+        .lightbox-text-container::-webkit-scrollbar { width: 5px; }
         .lightbox-text-container::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
 
-        .lightbox-title { 
-            color: var(--accent-gold); margin-top: 0; font-size: 1.4rem; font-weight: bold; 
-            text-transform: uppercase; margin-bottom: 15px; border-bottom: 1px dashed #333; padding-bottom: 15px; 
-        }
+        .lightbox-title { color: var(--accent-gold); margin-top: 0; font-size: 1.2rem; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; border-bottom: 1px dashed #333; padding-bottom: 12px; }
+        .lightbox-caption { color: #ddd; font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; }
 
-        .lightbox-caption { 
-            color: #ddd; font-size: 0.95rem; line-height: 1.6; 
-            white-space: pre-wrap; word-wrap: break-word;
-        }
-
-        .lightbox-close { 
-            position: fixed; top: 15px; right: 25px; color: white; font-size: 40px; font-weight: bold; 
-            cursor: pointer; transition: 0.3s; z-index: 10000; line-height: 1; text-shadow: 0 0 10px black;
-        }
+        .lightbox-close { position: absolute; top: 10px; right: 15px; color: white; font-size: 30px; font-weight: bold; cursor: pointer; transition: 0.3s; z-index: 10000; text-shadow: 0 0 5px black; }
         .lightbox-close:hover { color: var(--primary-red); transform: scale(1.1); }
+
+        /* Sembunyikan navigasi bawah di desktop */
+        .bottom-nav-mobile { display: none !important; }
+
+        /* TOMBOL WA & CHATBOT MENGAMBANG */
+        .wa-btn {
+            position: fixed; bottom: 30px; left: 30px; width: 55px; height: 55px;
+            background-color: #25D366; color: white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 9000; transition: 0.3s; text-decoration: none;
+        }
+        .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; color: white; }
+
+        .chatbot-btn {
+            position: fixed; bottom: 30px; right: 30px; width: 55px; height: 55px;
+            background-color: var(--primary-red); color: white; border-radius: 50%; border: none;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 9000; cursor: pointer; transition: 0.3s;
+        }
+        .chatbot-btn:hover { transform: scale(1.1); background-color: #b01c1c; }
+
+        .chatbot-window {
+            position: fixed; bottom: 95px; right: 30px; width: 330px; max-height: 450px;
+            background-color: #0a0a0a; border: 1px solid #333; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: none; flex-direction: column; z-index: 9000;
+            overflow: hidden;
+        }
+        .chat-header {
+            background-color: var(--primary-red); color: white; padding: 12px 15px;
+            font-weight: bold; display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.95rem; border-bottom: 1px solid #333;
+        }
+        .close-chat {
+            background: none; border: none; color: white; font-size: 1.5rem; line-height: 1;
+            cursor: pointer; transition: 0.3s;
+        }
+        .close-chat:hover { color: var(--accent-gold); }
+        .chat-body {
+            padding: 15px; height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-color: #111;
+        }
+        .chat-body::-webkit-scrollbar { width: 4px; }
+        .chat-body::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
         
-        /* =========================================
-           RESPONSIVE UNTUK HP
-           ========================================= */
+        .chat-msg {
+            background-color: #1a1a1a; color: #fff; padding: 10px 14px; border-radius: 8px;
+            font-size: 0.85rem; line-height: 1.5; max-width: 85%; align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+        .chat-msg.user {
+            background-color: var(--accent-gold); color: #000; align-self: flex-end;
+            border-bottom-left-radius: 8px; border-bottom-right-radius: 0; font-weight: bold;
+        }
+        .chat-footer-menu {
+            padding: 15px; background-color: #0a0a0a; border-top: 1px solid #222;
+        }
+        .quick-replies { display: flex; flex-wrap: wrap; gap: 6px; }
+        .btn-qr {
+            background-color: #1a1a1a; color: var(--accent-gold); border: 1px solid #333;
+            padding: 8px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: 0.3s; text-align: left;
+        }
+        .btn-qr:hover { background-color: var(--accent-gold); color: #000; border-color: var(--accent-gold); }
+        
+        /* RESPONSIVE UNTUK HP */
         @media (max-width: 768px) {
-            body { padding: 15px 10px; font-size: 0.9rem; }
-            .galeri-container { padding: 15px; border-radius: 6px; }
-            
-            .btn-back-square { width: 36px; height: 36px; font-size: 1rem; }
-            
-            .form-header h2 { font-size: 1.25rem; }
+            body { padding: 15px 10px 85px 10px; } /* 85px memberi jarak aman agar tidak tertutup nav bawah */
+            .galeri-container { padding: 15px; }
+            .btn-back-square { width: 32px; height: 32px; font-size: 1rem; }
+            .form-header h2 { font-size: 1.2rem; }
             .form-header p { font-size: 0.8rem; }
             
-            .controls-wrapper { padding: 15px; gap: 15px; margin-bottom: 20px; }
             .search-box input { padding: 10px 15px 10px 35px; font-size: 0.85rem; }
-            .search-box svg { left: 10px; width: 16px; height: 16px; }
             
-            .category-tabs { gap: 6px; }
-            .tab-btn { padding: 8px 12px; font-size: 0.75rem; }
+            .category-filter { gap: 6px; margin-bottom: 20px; }
+            .filter-btn { padding: 8px 12px; font-size: 0.75rem; }
+
+            .category-title { font-size: 0.95rem; margin-bottom: 10px; }
             
-            .dynamic-title { font-size: 1.05rem; }
-            
-            .gallery-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            
-            .item-info { padding: 15px 10px 8px; }
+            .horizontal-scroll { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .item-info { padding: 15px 8px 8px; }
             .item-title { font-size: 0.75rem; }
-            .item-category { font-size: 0.65rem; }
-            .item-caption-short { display: none; }
+            .play-icon { width: 30px; height: 30px; }
+            .play-icon svg { width: 14px; height: 14px; }
+
+            .lightbox { padding: 10px; }
+            .lightbox-inner { flex-direction: row; height: 60vh; border-radius: 8px; }
+            .lightbox-media-area { flex: 1.2; border-right: 1px solid #222; }
+            .lightbox-text-container { flex: 1; padding: 12px; }
+            .lightbox-title { font-size: 0.9rem; margin-bottom: 8px; padding-bottom: 8px; }
+            .lightbox-caption { font-size: 0.75rem; line-height: 1.4; }
+            .lightbox-close { top: 5px; right: 10px; font-size: 24px; }
+
+            /* Penyesuaian Tombol Mengambang HP agar tidak menabrak Navigasi Bawah */
+            .wa-btn { bottom: 85px !important; left: 15px !important; width: 45px !important; height: 45px !important; }
+            .wa-btn svg { width: 22px !important; height: 22px !important; }
             
-            .play-icon { width: 35px; height: 35px; }
-            .play-icon svg { width: 15px; height: 15px; }
+            .chatbot-btn { bottom: 85px !important; right: 15px !important; width: 45px !important; height: 45px !important; }
+            .chatbot-btn svg { width: 22px !important; height: 22px !important; }
             
-            .btn-page { padding: 6px 10px; font-size: 0.8rem; }
+            .chatbot-window { bottom: 140px !important; right: 15px !important; left: 15px !important; width: auto !important; max-height: 60vh !important; }
 
-            /* PERBAIKAN LIGHTBOX HP */
-            .lightbox.show { display: block; }
-            .lightbox { 
-                align-items: flex-start; 
-                padding: 10px; overflow-y: auto; 
-            }
-            
-            .lightbox-inner {
-                flex-direction: column; 
-                height: auto; min-height: unset; 
-                border-radius: 8px; margin-top: 15px; margin-bottom: 20px;
-                border: 1px solid #333;
-            }
-
-            .lightbox-media-area {
-                height: 30vh; min-height: 200px; 
-                border-right: none; border-bottom: 1px solid #222;
-            }
-
-            .lightbox-text-container {
-                overflow-y: visible; 
-                padding: 15px;
+            /* =========================================
+               NAVIGASI BAWAH MOBILE (MEMBER)
+               ========================================= */
+            .bottom-nav-mobile {
+                display: flex !important;
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 70px !important;
+                background-color: #0a0a0a !important;
+                border-top: 1px solid #333 !important;
+                justify-content: space-around !important;
+                align-items: center !important;
+                z-index: 2147483647 !important;
+                box-shadow: 0 -5px 15px rgba(0,0,0,0.9) !important;
             }
 
-            .lightbox-title { 
-                font-size: 1.1rem; 
-                margin-bottom: 10px; padding-bottom: 10px; 
+            .bottom-nav-mobile .nav-item {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                color: #ccc !important;
+                text-decoration: none !important;
+                font-size: 10px !important;
+                background: transparent !important;
+                border: none !important;
+                flex: 1 !important;
+                gap: 4px !important;
+                cursor: pointer !important;
+                padding: 5px 0 !important;
+                transition: 0.3s;
             }
 
-            .lightbox-caption { 
-                font-size: 0.85rem; 
-                line-height: 1.5; 
+            .bottom-nav-mobile .nav-item:hover, 
+            .bottom-nav-mobile .nav-item:active {
+                color: var(--accent-gold, #E8C999) !important;
             }
 
-            .lightbox-close { 
-                position: absolute;
-                top: -10px; right: -5px; font-size: 26px; 
-                background: var(--primary-red); border-radius: 50%; 
-                width: 35px; height: 35px; 
-                display: flex; justify-content: center; align-items: center; 
-                text-align: center; border: 2px solid var(--text-light);
+            .bottom-nav-mobile .nav-item svg {
+                width: 22px !important;
+                height: 22px !important;
+                stroke: currentColor !important;
+                fill: none !important;
+                stroke-width: 2 !important;
+                stroke-linecap: round !important;
+                stroke-linejoin: round !important;
+            }
+
+            /* Menu Aktif / Highlight */
+            .bottom-nav-mobile .nav-item.highlight {
+                color: var(--accent-gold, #E8C999) !important;
+                font-weight: bold !important;
+            }
+            .bottom-nav-mobile .nav-item.highlight svg {
+                stroke: var(--accent-gold, #E8C999) !important;
+                fill: none !important; 
             }
         }
     </style>
@@ -219,78 +304,65 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
     <div class="galeri-container">
         <div class="nav-top">
             <a href="member_dasbor.php" class="btn-back-square" title="Kembali ke Dasbor">←</a>
+            <span style="color: #666; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">Galeri Vanda Gym</span>
         </div>
 
         <div class="form-header">
             <h2>Galeri <span style="color:var(--accent-gold)">&</span> Tutorial</h2>
-            <p>Kenali fasilitas alat & pelajari gerakannya</p>
+            <p>Kenali fasilitas alat & pelajari posisi otot yang benar</p>
         </div>
 
-        <div class="controls-wrapper">
-            <div class="search-box">
-                <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                <input type="text" id="searchInput" placeholder="Cari alat atau nama gerakan..." onkeyup="filterPencarian()">
-            </div>
-            
-            <div class="category-tabs">
-                <button class="tab-btn active" onclick="setKategori('semua', 'Semua Media & Tutorial')">Semua Media</button>
-                <button class="tab-btn" onclick="setKategori('alat', 'Fasilitas & Alat Gym')">Alat Gym</button>
-                <button class="tab-btn" onclick="setKategori('upper', 'Tutorial Upper Body')">Tutorial Upper Body</button>
-                <button class="tab-btn" onclick="setKategori('lower', 'Tutorial Lower Body')">Tutorial Lower Body</button>
-            </div>
+        <div class="search-box">
+            <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+            <input type="text" id="searchInput" placeholder="Cari alat atau gerakan..." onkeyup="jalankanFilter()">
         </div>
 
-        <div class="dynamic-title-container">
-            <h3 id="categoryTitle" class="dynamic-title">Semua Media & Tutorial</h3>
+        <div class="category-filter">
+            <button class="filter-btn active" onclick="pilihKategori('semua', this)">Semua Kategori</button>
+            <button class="filter-btn" onclick="pilihKategori('alat', this)">Alat Gym</button>
+            <button class="filter-btn" onclick="pilihKategori('upper', this)">Upper Body</button>
+            <button class="filter-btn" onclick="pilihKategori('lower', this)">Lower Body</button>
         </div>
 
-        <div class="gallery-grid" id="mainGalleryGrid">
-            <?php if(!empty($semua_media)): foreach($semua_media as $m): ?>
-                <div class="gallery-item" 
-                     data-kategori="<?= htmlspecialchars($m['kategori']) ?>" 
-                     data-judul="<?= strtolower(htmlspecialchars($m['judul'])) ?>"
-                     data-judul-asli="<?= htmlspecialchars($m['judul']) ?>"
-                     data-path="<?= $m['file_path'] ?>"
-                     data-tipe="<?= $m['tipe_media'] ?>"
-                     data-caption="<?= htmlspecialchars($m['caption'] ?? '') ?>"
-                     onclick="bukaMedia(this)">
-                     
-                    <?php if($m['tipe_media'] == 'video'): ?>
-                        <video src="<?= $m['file_path'] ?>#t=0.1" preload="metadata" muted></video>
-                        <div class="play-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
-                    <?php else: ?>
-                        <img src="<?= $m['file_path'] ?>" loading="lazy" alt="<?= htmlspecialchars($m['judul']) ?>">
-                    <?php endif; ?>
-                    
-                    <div class="item-info">
-                        <span class="item-title" title="<?= htmlspecialchars($m['judul']) ?>"><?= htmlspecialchars($m['judul']) ?></span>
-                        <span class="item-category">
-                            <?php 
-                            if($m['kategori'] == 'alat') echo "Alat Gym";
-                            else if($m['kategori'] == 'upper') echo "Upper Body";
-                            else if($m['kategori'] == 'lower') echo "Lower Body";
-                            ?>
-                        </span>
-                        
-                        <?php if(!empty($m['caption'])): ?>
-                            <span class="item-caption-short"><?= htmlspecialchars($m['caption']) ?></span>
-                        <?php endif; ?>
-                    </div>
+        <div class="category-section" id="sec-alat">
+            <h3 class="category-title">Fasilitas & Alat Gym</h3>
+            <?php if(empty($kategori_media['alat'])): ?>
+                <div class="empty-state" style="display:block;">Belum ada data alat.</div>
+            <?php else: ?>
+                <div class="horizontal-scroll">
+                    <?php foreach($kategori_media['alat'] as $m): renderGalleryItem($m); endforeach; ?>
                 </div>
-            <?php endforeach; endif; ?>
+            <?php endif; ?>
         </div>
 
-        <div id="emptyStateMsg" class="empty-state">
-            <?= empty($semua_media) ? "Belum ada media yang diupload oleh Admin." : "Media yang kamu cari tidak ditemukan." ?>
+        <div class="category-section" id="sec-upper">
+            <h3 class="category-title">Tutorial Upper Body</h3>
+            <?php if(empty($kategori_media['upper'])): ?>
+                <div class="empty-state" style="display:block;">Belum ada tutorial upper body.</div>
+            <?php else: ?>
+                <div class="horizontal-scroll">
+                    <?php foreach($kategori_media['upper'] as $m): renderGalleryItem($m); endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
-        <div id="paginationContainer" class="pagination-container"></div>
+        <div class="category-section" id="sec-lower">
+            <h3 class="category-title">Tutorial Lower Body</h3>
+            <?php if(empty($kategori_media['lower'])): ?>
+                <div class="empty-state" style="display:block;">Belum ada tutorial lower body.</div>
+            <?php else: ?>
+                <div class="horizontal-scroll">
+                    <?php foreach($kategori_media['lower'] as $m): renderGalleryItem($m); endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
     </div>
 
     <div id="mediaLightbox" class="lightbox" onclick="tutupMedia(event)">
-        <span class="lightbox-close" title="Tutup" onclick="tutupLewatTombol()">&times;</span>
-        
         <div class="lightbox-inner" id="lightboxInner">
+            <span class="lightbox-close" title="Tutup" onclick="tutupLewatTombol()">&times;</span>
+            
             <div class="lightbox-media-area" id="lightboxContainer"></div>
             
             <div class="lightbox-text-container" id="lightboxTextContainer">
@@ -300,80 +372,262 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         </div>
     </div>
 
+    <a href="https://wa.me/<?= $wa_link ?>" target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
+        <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
+        </svg>
+    </a>
+
+    <button class="chatbot-btn" onclick="toggleChat()" title="Tanya Asisten Galeri">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+            <circle cx="12" cy="5" r="2"></circle>
+            <path d="M12 7v4"></path>
+            <line x1="8" y1="16" x2="8.01" y2="16"></line>
+            <line x1="16" y1="16" x2="16.01" y2="16"></line>
+        </svg>
+    </button>
+    
+    <div class="chatbot-window" id="chatWindow">
+        <div class="chat-header">
+            <span style="display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                    <circle cx="12" cy="5" r="2"></circle>
+                    <path d="M12 7v4"></path>
+                    <line x1="8" y1="16" x2="8.01" y2="16"></line>
+                    <line x1="16" y1="16" x2="16.01" y2="16"></line>
+                </svg>
+                Asisten Galeri Gym
+            </span>
+            <button class="close-chat" onclick="toggleChat()" title="Tutup Chat">×</button>
+        </div>
+        <div class="chat-body" id="chatBody">
+            <div class="chat-msg">
+                Halo Member! 👋 Selamat datang di halaman Galeri & Tutorial.<br><br>Pasti bingung ya mau lihat bagian mana dulu? Yuk, pilih info yang kamu butuhkan di bawah ini! 💪
+            </div>
+        </div>
+        <div class="chat-footer-menu">
+            <div class="quick-replies">
+                <button class="btn-qr" onclick="kirimFaq('Bagaimana cara pakai alat gym?', 'Gampang banget! Kamu bisa cari alat yang pengen kamu pakai di kotak pencarian atas, atau klik tombol filter kategori <b>Alat Gym</b>.<br><br>Klik foto/videonya untuk melihat detail dan fungsinya ya! 🏋️‍♂️')">🏋️ Cara Pakai Alat</button>
+                
+                <button class="btn-qr" onclick="kirimFaq('Apa bedanya Upper & Lower Body?', 'Biar jadwal latihanmu terstruktur, tutorialnya kita bagi dua nih:<br><br>🔹 <b>Upper Body:</b> Untuk melatih otot atas (Dada, Punggung, Bahu, Tangan).<br>🔹 <b>Lower Body:</b> Untuk melatih kaki (Paha, Betis, Bokong).<br><br>Sesuaikan sama jadwal harianmu ya! 🔥')">🦾 Upper vs Lower Body</button>
+                
+                <button class="btn-qr" onclick="kirimFaq('Keterangan target otot di mana?', 'Coba deh kamu klik salah satu video tutorial di layar! Nanti videonya akan membesar, nah keterangan target otot dan cara ambil nafas yang benar ada di bagian teks sebelah kanannya. 💡')">🎯 Keterangan Target Otot</button>
+                
+                <button class="btn-qr" onclick="kirimFaq('Bisa minta diajarin langsung?', 'Tentu dong! Kalau kamu masih ragu sama <i>form</i> (posisi tubuh) alat tertentu, jangan segan buat panggil instruktur/admin yang lagi jaga di Gym ya.<br><br>Atau mau tanya-tanya CS via WhatsApp sekarang? Klik aja tombol hijau di pojok kiri bawah layar! 📱')">🗣️ Minta Bimbingan Langsung</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav-mobile">
+        <a href="member_dasbor.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span>Dasbor</span>
+        </a>
+        <a href="kalkulator.php?source=dasbor" class="nav-item">
+            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
+            <span>Gizi</span>
+        </a>
+        <a href="galeri_member.php" class="nav-item highlight" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Tutorial</span>
+        </a>
+        <a href="chatbot_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg>
+            <span>AI Bot</span>
+        </a>
+        <a href="profil_member.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Profil</span>
+        </a>
+    </div>
+
+    <?php 
+    function renderGalleryItem($m) { 
+    ?>
+        <div class="gallery-item" 
+             data-judul="<?= strtolower(htmlspecialchars($m['judul'])) ?>"
+             data-judul-asli="<?= htmlspecialchars($m['judul']) ?>"
+             data-path="<?= $m['file_path'] ?>"
+             data-tipe="<?= $m['tipe_media'] ?>"
+             data-caption="<?= htmlspecialchars($m['caption'] ?? '') ?>"
+             onclick="bukaMedia(this)">
+             
+            <?php if($m['tipe_media'] == 'video'): ?>
+                <video src="<?= $m['file_path'] ?>#t=0.1" preload="metadata" muted playsinline></video>
+                <div class="play-icon"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></div>
+            <?php else: ?>
+                <img src="<?= $m['file_path'] ?>" loading="lazy" alt="<?= htmlspecialchars($m['judul']) ?>">
+            <?php endif; ?>
+            
+            <div class="item-info">
+                <span class="item-title" title="<?= htmlspecialchars($m['judul']) ?>"><?= htmlspecialchars($m['judul']) ?></span>
+            </div>
+        </div>
+    <?php } ?>
+
     <script>
-        let currentPage = 1;
-        const itemsPerPage = 12; 
-        let currentKategori = 'semua';
-
-        function setKategori(kat, judulHeader) {
-            currentKategori = kat;
-            currentPage = 1; 
-            
-            document.getElementById('categoryTitle').innerText = judulHeader;
-
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelector(`.tab-btn[onclick*="'${kat}'"]`).classList.add('active');
-
-            renderGaleri();
-        }
-
-        function filterPencarian() {
-            currentPage = 1;
-            renderGaleri();
-        }
-
-        function renderGaleri() {
-            const searchText = document.getElementById('searchInput').value.toLowerCase();
-            const items = Array.from(document.querySelectorAll('.gallery-item'));
-            
-            let filteredItems = items.filter(item => {
-                const judul = item.getAttribute('data-judul');
-                const kategori = item.getAttribute('data-kategori');
-                const matchSearch = judul.includes(searchText);
-                const matchKategori = (currentKategori === 'semua' || currentKategori === kategori);
-                return matchSearch && matchKategori;
-            });
-
-            const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-            if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
-            if (currentPage < 1) currentPage = 1;
-
-            const start = (currentPage - 1) * itemsPerPage;
-            const end = start + itemsPerPage;
-
-            items.forEach(item => item.classList.remove('active')); 
-            
-            if (filteredItems.length === 0) {
-                document.getElementById('emptyStateMsg').style.display = 'block';
-                document.getElementById('paginationContainer').innerHTML = '';
-            } else {
-                document.getElementById('emptyStateMsg').style.display = 'none';
-                filteredItems.slice(start, end).forEach(item => item.classList.add('active'));
-
-                const pagContainer = document.getElementById('paginationContainer');
-                pagContainer.innerHTML = '';
-                if (totalPages > 1) {
-                    for (let i = 1; i <= totalPages; i++) {
-                        const btn = document.createElement('button');
-                        btn.innerText = i;
-                        btn.className = `btn-page ${i === currentPage ? 'active' : ''}`;
-                        btn.onclick = () => {
-                            currentPage = i;
-                            renderGaleri();
-                            document.getElementById('categoryTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        };
-                        pagContainer.appendChild(btn);
-                    }
-                }
-            }
-        }
+        const maxItems = 8; 
+        let filterKategoriSaatIni = 'semua'; 
 
         document.addEventListener('DOMContentLoaded', () => {
-            renderGaleri();
+            initShowMore(); 
         });
 
         // ===============================================
-        // FUNGSI MEMBUKA LIGHTBOX (Bebas Bug!)
+        // FUNGSI CHATBOT
+        // ===============================================
+        function toggleChat() {
+            const chat = document.getElementById("chatWindow");
+            chat.style.display = (chat.style.display === "flex") ? "none" : "flex";
+        }
+
+        function kirimFaq(pertanyaan, jawaban) {
+            const body = document.getElementById("chatBody");
+
+            body.innerHTML += '<div class="chat-msg user">' + pertanyaan + '</div>';
+            body.scrollTop = body.scrollHeight;
+
+            setTimeout(function() {
+                body.innerHTML += '<div class="chat-msg" style="border-left: 3px solid var(--accent-gold);">' + jawaban + '</div>';
+                body.scrollTop = body.scrollHeight;
+            }, 600);
+        }
+
+        // ===============================================
+        // FUNGSI FILTER KATEGORI & SHOW MORE
+        // ===============================================
+        function pilihKategori(kat, btnElement) {
+            filterKategoriSaatIni = kat;
+            
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            jalankanFilter(); 
+        }
+
+        function jalankanFilter() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const sections = document.querySelectorAll('.category-section');
+            const isSearching = searchText.trim() !== '';
+            
+            sections.forEach(section => {
+                const sectionId = section.id;
+                const isMatchCategory = (filterKategoriSaatIni === 'semua' || sectionId === 'sec-' + filterKategoriSaatIni);
+                
+                if (!isMatchCategory) {
+                    section.style.display = 'none';
+                    return; 
+                }
+                
+                section.style.display = 'block'; 
+
+                if (isSearching) {
+                    let hasVisibleItems = false;
+                    const items = section.querySelectorAll('.gallery-item');
+                    
+                    const btnMore = section.querySelector('.btn-show-more');
+                    if (btnMore) btnMore.style.display = 'none';
+                    
+                    items.forEach(item => {
+                        const judul = item.getAttribute('data-judul');
+                        if (judul.includes(searchText)) {
+                            item.style.display = 'block';
+                            hasVisibleItems = true;
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    
+                    const emptyState = section.querySelector('.empty-state');
+                    const scrollArea = section.querySelector('.horizontal-scroll');
+                    
+                    if (scrollArea) {
+                        if (hasVisibleItems) {
+                            scrollArea.style.display = 'grid'; 
+                            if(emptyState) emptyState.style.display = 'none';
+                        } else {
+                            scrollArea.style.display = 'none';
+                            if(emptyState) {
+                                emptyState.innerText = "Tidak ditemukan pencarian di kategori ini.";
+                                emptyState.style.display = 'block';
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (!isSearching) {
+                initShowMore();
+                
+                sections.forEach(section => {
+                    const emptyState = section.querySelector('.empty-state');
+                    const scrollArea = section.querySelector('.horizontal-scroll');
+                    const items = section.querySelectorAll('.gallery-item');
+                    
+                    if (items.length === 0 && emptyState) {
+                        emptyState.innerText = "Belum ada data di kategori ini.";
+                        emptyState.style.display = 'block';
+                        if (scrollArea) scrollArea.style.display = 'none';
+                    } else if (items.length > 0 && emptyState) {
+                        emptyState.style.display = 'none';
+                        if (scrollArea) scrollArea.style.display = 'grid';
+                    }
+                });
+            }
+        }
+
+        function initShowMore() {
+            const sections = document.querySelectorAll('.category-section');
+            
+            sections.forEach(section => {
+                const items = section.querySelectorAll('.gallery-item');
+                
+                const oldBtn = section.querySelector('.btn-show-more');
+                if (oldBtn) oldBtn.remove();
+
+                if (items.length > maxItems) {
+                    items.forEach((item, index) => {
+                        if (index >= maxItems) {
+                            item.style.display = 'none';
+                        } else {
+                            item.style.display = 'block';
+                        }
+                    });
+
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-show-more';
+                    btn.innerText = 'Lihat Selengkapnya ▼';
+                    
+                    let isExpanded = false; 
+                    
+                    btn.onclick = () => {
+                        isExpanded = !isExpanded;
+                        
+                        items.forEach((item, index) => {
+                            if (index >= maxItems) {
+                                item.style.display = isExpanded ? 'block' : 'none';
+                            }
+                        });
+
+                        if (isExpanded) {
+                            btn.innerText = 'Lebih Sedikit ▲';
+                        } else {
+                            btn.innerText = 'Lihat Selengkapnya ▼';
+                            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    };
+                    
+                    section.appendChild(btn);
+                } else {
+                    items.forEach(item => item.style.display = 'block');
+                }
+            });
+        }
+
+        // ===============================================
+        // FUNGSI LIGHTBOX
         // ===============================================
         function bukaMedia(element) {
             const path = element.getAttribute('data-path');
@@ -384,52 +638,40 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             const container = document.getElementById('lightboxContainer');
             const textContainer = document.getElementById('lightboxTextContainer');
             
-            // Set Judul
             document.getElementById('lightboxTitle').innerText = judul;
             
-            // Set Caption
             const captionBox = document.getElementById('lightboxCaption');
             if(caption && caption.trim() !== '') {
                 captionBox.innerText = caption;
-                captionBox.style.display = 'block';
                 textContainer.style.display = 'flex';
             } else {
-                captionBox.innerText = '';
-                textContainer.style.display = 'none'; 
+                captionBox.innerText = 'Belum ada keterangan target otot atau posisi gerakan.';
+                textContainer.style.display = 'flex'; 
             }
             
-            // Render Gambar/Video
             if(tipe === 'video') {
-                container.innerHTML = `<video src="${path}" class="lightbox-content" controls autoplay muted></video>`;
+                container.innerHTML = `<video src="${path}" class="lightbox-content" controls autoplay muted playsinline></video>`;
             } else {
                 container.innerHTML = `<img src="${path}" class="lightbox-content">`;
             }
             
-            // Tampilkan Modal PAKE CLASS agar tidak error (Timpa inline display)
-            const modal = document.getElementById('mediaLightbox');
-            modal.classList.add('show');
-            modal.scrollTop = 0; // Kembalikan scroll ke paling atas
+            document.getElementById('mediaLightbox').classList.add('show');
         }
 
-        // ===============================================
-        // FUNGSI MENUTUP LIGHTBOX (Bebas Bug!)
-        // ===============================================
         function tutupMedia(e) {
             const modal = document.getElementById('mediaLightbox');
-            // Tutup jika area luar (hitam), wrapper dalam, atau tombol X diklik
-            if (e.target.id === 'mediaLightbox' || e.target.classList.contains('lightbox-close') || e.target.id === 'lightboxInner') {
+            if (e.target.id === 'mediaLightbox') {
                 tutupProses(modal);
             }
         }
-        
+
         function tutupLewatTombol() {
-            const modal = document.getElementById('mediaLightbox');
-            tutupProses(modal);
+            tutupProses(document.getElementById('mediaLightbox'));
         }
-        
+
         function tutupProses(modal) {
             modal.classList.remove('show');
-            document.getElementById('lightboxContainer').innerHTML = ''; // Hapus elemen agar video stop
+            document.getElementById('lightboxContainer').innerHTML = '';
         }
     </script>
 </body>
