@@ -230,42 +230,45 @@ if (isset($_GET['token'])) {
             border-radius: 8px; padding: 30px 25px; max-width: 400px; width: 100%; text-align: center;
         }
 
-        /* TOMBOL WA KIRI BAWAH */
-        .wa-btn {
-            position: fixed; bottom: 30px; left: 30px; 
-            background-color: #25D366; color: white; 
-            border-radius: 50%; width: 60px; height: 60px; 
-            display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s;
-            text-decoration: none;
-        }
-        .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
-        .wa-btn svg { width: 35px; height: 35px; fill: currentColor; }
-
-        /* PEMADATAN LAYOUT MOBILE LOGIN */
+       /* PEMADATAN LAYOUT MOBILE LOGIN */
         @media screen and (max-width: 768px) {
-            body { padding: 10px !important; display: flex !important; align-items: center !important; justify-content: center !important; min-height: 100vh !important; }
+            body { padding: 5px !important; display: flex !important; align-items: center !important; justify-content: center !important; min-height: 100vh !important; }
+            
             .form-container { 
-                padding: 20px 15px !important; width: 95% !important; max-width: 360px !important; 
+                padding: 15px 15px !important; /* Padding kotak diperkecil */
+                width: 92% !important; 
+                max-width: 300px !important; /* Lebar maksimal kotak diperkecil dari 360px jadi 300px */
                 margin: 0 auto !important; box-sizing: border-box !important; border-radius: 8px !important;
                 box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important;
             }
-            .nav-top { margin-bottom: 10px !important; }
-            .btn-back-square { width: 32px !important; height: 32px !important; font-size: 0.9rem !important; }
-            .form-header h2 { font-size: 1.25rem !important; margin-bottom: 3px !important; }
-            .form-header p { font-size: 0.75rem !important; margin-bottom: 12px !important; line-height: 1.3 !important; }
-            .form-group { margin-bottom: 12px !important; }
-            .form-group label { font-size: 0.75rem !important; margin-bottom: 4px !important; }
-            .form-control { padding: 8px 10px !important; min-height: 38px !important; font-size: 0.8rem !important; }
-            .btn-submit, .btn-negative { min-height: 38px !important; padding: 8px !important; font-size: 0.85rem !important; margin-top: 5px !important; }
-            .icon-lock { font-size: 2rem !important; margin-bottom: 5px !important; }
-            .login-footer { margin-top: 12px !important; font-size: 0.75rem !important; }
-            .info-box { padding: 8px 10px !important; font-size: 0.75rem !important; margin-top: 12px !important; line-height: 1.3 !important; }
-            .error-msg, .field-error-text { font-size: 0.7rem !important; }
             
-            /* WA button mobile */
-            .wa-btn { width: 45px !important; height: 45px !important; bottom: 15px !important; left: 15px !important; }
-            .wa-btn svg { width: 22px !important; height: 22px !important; }
+            .nav-top { margin-bottom: 8px !important; }
+            .btn-back-square { width: 28px !important; height: 28px !important; font-size: 0.8rem !important; border-radius: 4px !important;}
+            
+            .form-header h2 { font-size: 1.1rem !important; margin-bottom: 2px !important; }
+            .form-header p { font-size: 0.65rem !important; margin-bottom: 10px !important; line-height: 1.2 !important; }
+            
+            .form-group { margin-bottom: 8px !important; }
+            .form-group label { font-size: 0.65rem !important; margin-bottom: 2px !important; }
+            
+            /* Tinggi dan padding input diperkecil */
+            .form-control { padding: 6px 10px !important; min-height: 32px !important; font-size: 0.75rem !important; border-radius: 4px !important;}
+            
+            /* Penyesuaian ukuran dan posisi icon mata (Show/Hide Password) */
+            .form-group span[onclick^="toggleVisibility"] { min-height: 32px !important; min-width: 32px !important; right: 2px !important;}
+            .form-group span[onclick^="toggleVisibility"] svg { width: 14px !important; height: 14px !important; }
+            
+            /* Tombol utama diperkecil */
+            .btn-submit, .btn-negative { min-height: 32px !important; padding: 6px !important; font-size: 0.75rem !important; margin-top: 4px !important; border-radius: 4px !important;}
+            
+            .icon-lock { font-size: 1.5rem !important; margin-bottom: 2px !important; }
+            .login-footer { margin-top: 10px !important; font-size: 0.7rem !important; }
+            .info-box { padding: 6px 8px !important; font-size: 0.65rem !important; margin-top: 10px !important; line-height: 1.2 !important; }
+            .error-msg, .field-error-text { font-size: 0.6rem !important; margin-top: 2px !important; padding: 4px 6px !important;}
+            
+            /* Tombol WA mengambang diperkecil */
+            .wa-btn { width: 38px !important; height: 38px !important; bottom: 12px !important; left: 12px !important; padding: 8px !important; }
+            .wa-btn svg { width: 18px !important; height: 18px !important; }
         }
     </style>
 </head>
@@ -398,15 +401,12 @@ if (isset($_GET['token'])) {
         </div>
     </div>
 
-    <?php
-    $q_wa = mysqli_query($koneksi, "SELECT wa_cs FROM pengaturan_web WHERE id=1");
-    $wa_data = mysqli_fetch_assoc($q_wa);
-    $wa_db = $wa_data['wa_cs'] ?? '082148556601';
-    $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
-    ?>
-    <a href="https://wa.me/<?= $wa_link ?>" target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>
-    </a>
+    <a href="https://instagram.com/vandagympky_classic" target="_blank" class="wa-btn" title="Hubungi CS via Instagram" style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; color: #ffffff; background: var(--primary-red, #ff4d4d); border-radius: 50%; padding: 12px; box-shadow: 0 4px 15px rgba(255, 77, 77, 0.4); border: 2px solid #E8C999; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+</a>
 
     <div id="boxErrorKoneksi" class="connection-error-box">
         <div class="error-card-center">

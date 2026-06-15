@@ -8,18 +8,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
     if ($_POST['action'] == 'batalkan_pendaftaran') {
         $email = mysqli_real_escape_string($koneksi, $_POST['email']);
         
-        $q_user = mysqli_query($koneksi, "SELECT id_user FROM users WHERE email = '$email' LIMIT 1");
+        $q_user = mysqli_query($koneksi, "SELECT id_user, role FROM users WHERE email = '$email' LIMIT 1");
         if (mysqli_num_rows($q_user) > 0) {
             $user_row = mysqli_fetch_assoc($q_user);
             $id_user = $user_row['id_user'];
+            $role_user = $user_row['role'];
             
-            // Hapus data membership yang statusnya masih pending
+            // 1. Hapus pengajuan membership yang statusnya 'pending'
             $q_batal = mysqli_query($koneksi, "DELETE FROM membership WHERE id_user = '$id_user' AND status = 'pending' AND jenis_pengajuan = 'daftar'");
             
             if ($q_batal && mysqli_affected_rows($koneksi) > 0) {
-                echo json_encode(['status' => 'success', 'message' => 'Pendaftaran berhasil dibatalkan.']);
+                // 2. Jika dia adalah calon_member murni (belum pernah aktif) dan tidak punya riwayat lain
+                // Maka lebih baik kita hapus juga akun sementaranya di tabel users agar bisa daftar ulang
+                $q_sisa_riwayat = mysqli_query($koneksi, "SELECT id_membership FROM membership WHERE id_user = '$id_user'");
+                if (mysqli_num_rows($q_sisa_riwayat) == 0 && $role_user == 'calon_member') {
+                    mysqli_query($koneksi, "DELETE FROM users WHERE id_user = '$id_user'");
+                }
+
+                echo json_encode(['status' => 'success', 'message' => 'Pendaftaran berhasil dibatalkan. Anda dapat mendaftar ulang kapan saja.']);
             } else {
-                echo json_encode(['status' => 'error', 'message' => 'Gagal membatalkan. Status mungkin sudah berubah.']);
+                echo json_encode(['status' => 'error', 'message' => 'Gagal membatalkan. Status pengajuan mungkin sudah disetujui atau ditolak admin.']);
             }
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Data tidak ditemukan.']);
@@ -37,10 +45,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
             $user_row = mysqli_fetch_assoc($query_user);
             $id_user = $user_row['id_user'];
             
+            // Cek apakah dia punya riwayat membership
             $query_history = "SELECT jenis_pengajuan, paket_bulan, total_harga, tgl_mulai, tgl_berakhir, status, alasan_tolak 
                               FROM membership WHERE id_user = '$id_user' ORDER BY id_membership DESC";
             $res_history = mysqli_query($koneksi, $query_history);
             
+            // PERBAIKAN: Jika user ada tapi TIDAK punya riwayat membership sama sekali (misal batal), anggap tidak ditemukan
+            if (mysqli_num_rows($res_history) == 0) {
+                echo json_encode(['status_code' => 'tidak_ditemukan']);
+                exit;
+            }
+
             $riwayat = [];
             while ($row = mysqli_fetch_assoc($res_history)) {
                 $riwayat[] = [
@@ -96,7 +111,7 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
             --warning-yellow: #ffc107;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-dark); color: var(--text-light); display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 40px 20px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-dark); color: var(--text-light); display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 40px 150px; }
         
         .status-container { background-color: #0a0a0a; border: 1px solid #333; border-top: 4px solid var(--accent-gold); border-radius: 8px; padding: 30px; width: 100%; max-width: 800px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); position: relative; margin-bottom: 80px; }
         
@@ -169,12 +184,12 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         /* TOMBOL WA MELAYANG */
         .wa-btn { position: fixed; bottom: 30px; left: 30px; background-color: #25D366; color: white; border-radius: 50%; width: 55px; height: 55px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s; text-decoration: none; }
         .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
-        .wa-btn svg { width: 30px; height: 30px; fill: currentColor; }
+        .wa-btn svg { width: 30px; height: 30px; }
 
         @media (max-width: 768px) {
-            body { padding: 15px 10px 75px; }
+            body { padding: 40px 45px 75px; }
             .status-container { padding: 20px 15px; margin-bottom: 20px; }
-            .wa-btn { bottom: 20px !important; left: 15px; width: 45px; height: 45px; }
+            .wa-btn { bottom: 20px !important; left: 15px; width: 44px; height: 44px; }
             .wa-btn svg { width: 24px; height: 24px; }
             
             .nav-top { margin-bottom: 15px; }
@@ -283,9 +298,12 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         </div>
     </div>
 
-    <a href="https://wa.me/<?= $wa_link ?>?text=Halo%20Admin%20Vanda%20Gym,%20saya%20ingin%20bertanya%20terkait%20status%20pendaftaran%20saya." target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
-        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
-    </a>
+    <a href="https://instagram.com/vandagympky_classic" target="_blank" class="wa-btn" title="Hubungi CS via Instagram" style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; color: #ffffff; background: var(--primary-red, #ff4d4d); border-radius: 50%; padding: 12px; box-shadow: 0 4px 15px rgba(255, 77, 77, 0.4); border: 2px solid #E8C999; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+</a>
 
     <script>
         function cekFormatEmail(input) {

@@ -154,81 +154,88 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         .login-footer { margin-top: 25px; text-align: center; font-size: 0.85rem; display: flex; flex-direction: column; gap: 10px; }
         .login-footer a { color: var(--accent-gold); text-decoration: none; font-weight: bold; }
 
-        .wa-btn { position: fixed; bottom: 30px; left: 30px; width: 55px; height: 55px; background-color: #25D366; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 1000; text-decoration: none; transition: 0.3s; }
-        .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
-        .wa-btn svg { width: 30px; height: 30px; fill: currentColor; }
+        .wa-btn { position: fixed; bottom: 30px; left: 30px; width: 55px; height: 55px;  color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 1000; text-decoration: none; transition: 0.3s; }
+        .wa-btn:hover { transform: scale(1.1) }
+        .wa-btn svg { width: 30px; height: 30px; }
 
         /* ====================================================
            OPTIMASI TAMPILAN MOBILE (LAYAR KECIL)
            ==================================================== */
+        /* ====================================================
+           OPTIMASI TAMPILAN MOBILE (SUPER PADAT SEPERTI LOGIN)
+           ==================================================== */
         @media (max-width: 768px) {
             body { 
-                padding: 15px 10px; /* Jarak halaman lebih kecil */
-                align-items: flex-start; /* Pastikan tidak terpotong di atas */
+                padding: 5px !important; 
+                align-items: flex-start !important; /* Biarkan form mulai dari atas agar bisa di-scroll */
+                min-height: 100vh !important;
             }
             
             .pay-container { 
-                padding: 20px 15px; /* Padding dalam kontainer lebih kecil */
-                margin-bottom: 70px; /* Ruang untuk tombol WA */
-                max-width: 400px; /* Batasi lebar maksimal di mobile */
+                padding: 15px 15px !important; 
+                margin: 10px auto 70px auto !important; 
+                width: 92% !important; 
+                max-width: 300px !important; /* Disamakan persis dengan form login */
+                border-top-width: 3px !important;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important;
             }
             
             /* Navigasi & Header */
-            .nav-top { margin-bottom: 15px; }
-            .btn-back-square { width: 35px; height: 35px; font-size: 1rem; }
+            .nav-top { margin-bottom: 8px !important; }
+            .btn-back-square { width: 28px !important; height: 28px !important; font-size: 0.8rem !important; border-radius: 4px !important; }
             
-            .form-header { margin-bottom: 20px; }
-            .form-header h2 { font-size: 1.25rem; margin-bottom: 3px; }
-            .form-header p { font-size: 0.75rem; }
+            .form-header { margin-bottom: 15px !important; }
+            .form-header h2 { font-size: 1.1rem !important; margin-bottom: 2px !important; }
+            .form-header p { font-size: 0.65rem !important; line-height: 1.2 !important; }
             
             /* Section Divider */
-            .section-divider { 
-                margin: 20px 0 10px; 
-                padding-bottom: 5px; 
-                font-size: 0.8rem; 
-            }
+            .section-divider { margin: 15px 0 8px 0 !important; padding-bottom: 4px !important; font-size: 0.7rem !important; }
             
             /* Form Input */
-            .grid-2 { grid-template-columns: 1fr; gap: 10px; } /* Jadikan 1 kolom */
-            .form-group { margin-bottom: 12px; }
-            .form-group label { font-size: 0.75rem; margin-bottom: 4px; }
-            .form-control { 
-                padding: 8px 10px; 
-                font-size: 0.85rem; 
-                min-height: 38px; /* Lebih pendek */
-            }
+            .grid-2 { grid-template-columns: 1fr !important; gap: 8px !important; } /* 1 kolom dengan gap kecil */
+            .form-group { margin-bottom: 8px !important; }
+            .form-group label { font-size: 0.65rem !important; margin-bottom: 2px !important; }
+            
+            /* Tinggi form disamakan 32px */
+            .form-control { padding: 6px 10px !important; font-size: 0.75rem !important; min-height: 32px !important; border-radius: 4px !important; }
             
             /* Toggle Password */
-            #togglePassword { min-height: 38px !important; min-width: 38px !important; }
-            #eyeIcon { width: 16px; height: 16px; }
+            #togglePassword { min-height: 32px !important; min-width: 32px !important; right: 2px !important; }
+            #eyeIcon { width: 14px !important; height: 14px !important; }
+            
+            /* Error text */
+            .error-msg, .field-error-text { font-size: 0.6rem !important; margin-top: 2px !important; }
             
             /* Box Nominal & Pembayaran */
-            #boxNominal { padding: 10px; margin-bottom: 12px; }
-            #boxNominal span { font-size: 0.8rem; }
-            #textNominal { font-size: 1rem !important; }
+            #boxNominal { padding: 8px !important; margin-bottom: 8px !important; }
+            #boxNominal span { font-size: 0.7rem !important; }
+            #textNominal { font-size: 0.85rem !important; }
             
-            .payment-methods { gap: 8px; margin-bottom: 12px; }
-            .pay-method { padding: 10px 8px; }
-            .pay-method span { font-size: 0.75rem; }
+            .payment-methods { gap: 6px !important; margin-bottom: 8px !important; flex-direction: row !important; }
+            .pay-method { padding: 8px 4px !important; flex: 1 !important; }
+            .pay-method span { font-size: 0.65rem !important; white-space: nowrap !important; }
             
-            .pay-details { padding: 15px; margin-bottom: 15px; }
-            .btn-upload { padding: 8px; font-size: 0.8rem; }
+            .pay-details { padding: 10px !important; margin-bottom: 10px !important; font-size: 0.65rem !important; line-height: 1.3 !important; }
+            .qris-box img { max-width: 120px !important; }
+            .btn-upload { padding: 6px !important; font-size: 0.7rem !important; min-height: 32px !important; }
             
             /* Tombol Aksi */
-            .btn-action { min-height: 40px; font-size: 0.85rem; margin-top: 10px; }
+            .btn-action { min-height: 32px !important; font-size: 0.75rem !important; margin-top: 8px !important; padding: 6px !important; border-radius: 4px !important; }
             
             /* Footer Login */
-            .login-footer { margin-top: 20px; font-size: 0.75rem; gap: 8px; }
+            .login-footer { margin-top: 15px !important; font-size: 0.7rem !important; gap: 8px !important; flex-direction: column !important; }
+            .login-footer a { padding: 4px 10px !important; font-size: 0.7rem !important; }
             
             /* Tombol WA Melayang */
-            .wa-btn { bottom: 15px; left: 15px; width: 45px; height: 45px; }
-            .wa-btn svg { width: 24px; height: 24px; }
+            .wa-btn { bottom: 12px !important; left: 12px !important; width: 38px !important; height: 38px !important; padding: 8px !important; }
+            .wa-btn svg { width: 18px !important; height: 18px !important; }
             
-            /* Modal / Draf */
-            .modal-box { padding: 20px 15px; }
-            .draf-item { font-size: 0.8rem; }
-            .checkbox-container { padding: 10px; margin: 15px 0; }
-            .checkbox-container label { font-size: 0.75rem; }
+            /* Modal / Draf Konfirmasi */
+            .modal-box { padding: 15px !important; width: 92% !important; max-width: 300px !important; }
+            .draf-item { font-size: 0.7rem !important; margin-bottom: 4px !important; }
+            .checkbox-container { padding: 8px !important; margin: 10px 0 !important; gap: 6px !important; }
+            .checkbox-container input { width: 12px !important; height: 12px !important; margin-top: 2px !important; }
+            .checkbox-container label { font-size: 0.65rem !important; line-height: 1.2 !important; }
         }
     </style>
 </head>
@@ -345,15 +352,43 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
             <button type="submit" class="btn-action btn-success">Kirim Pendaftaran</button>
 
-            <div class="login-footer">
-                <div>
-                    <span style="color: #888;">Menunggu verifikasi?</span>
-                    <a href="cek_status.php">Cek Status</a>
-                </div>
-                <div>
-                    <span style="color: #888;">Sudah punya akun?</span>
-                    <a href="login.php">Login</a>
-                </div>
+            <div class="login-footer" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+    <!-- Tombol Cek Status -->
+    <div>
+        <span style="color: #888;">Menunggu verifikasi?</span>
+        <a href="cek_status.php" style="
+            border: 1px solid #E8C999; 
+            color: #E8C999; 
+            padding: 5px 15px; 
+            border-radius: 5px; 
+            text-decoration: none; 
+            margin-left: 10px;
+            transition: 0.3s;
+        " onmouseover="this.style.background='#E8C999'; this.style.color='#000';" 
+           onmouseout="this.style.background='transparent'; this.style.color='#E8C999';">
+           Cek Status
+        </a>
+    </div>
+
+    <!-- Tombol Login -->
+    <div>
+        <span style="color: #888;">Sudah punya akun?</span>
+        <a href="login.php" style="
+            border: 1px solid #E8C999; 
+            color: #E8C999; 
+            padding: 5px 15px; 
+            border-radius: 5px; 
+            text-decoration: none; 
+            margin-left: 10px;
+            transition: 0.3s;
+        " onmouseover="this.style.background='#E8C999'; this.style.color='#000';" 
+           onmouseout="this.style.background='transparent'; this.style.color='#E8C999';">
+           Login
+        </a>
+    </div>
+</div>
+</div>
+                
             </div>
         </form>
     </div>
@@ -362,17 +397,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         <div class="modal-box" id="modalContent"></div>
     </div>
 
-    <?php
-    $q_wa = mysqli_query($koneksi, "SELECT wa_cs FROM pengaturan_web WHERE id=1");
-    $wa_data = mysqli_fetch_assoc($q_wa);
-    $wa_db = $wa_data['wa_cs'] ?? '082148556601';
-    $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
-    ?>
-    <a href="https://wa.me/<?= $wa_link ?>" target="_blank" class="wa-btn" title="Hubungi CS via WhatsApp">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
-          <path d="M13.601 2.326A7.85 7.85 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.9 7.9 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.9 7.9 0 0 0 13.6 2.326zM7.994 14.521a6.6 6.6 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.56 6.56 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592m3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.73.73 0 0 0-.529.247c-.182.198-.691.677-.691 1.654s.71 1.916.81 2.049c.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/>
-        </svg>
-    </a>
+    <a href="https://instagram.com/vandagympky_classic" target="_blank" class="wa-btn" title="Hubungi CS via Instagram" style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; color: #ffffff; background: var(--primary-red, #ff4d4d); border-radius: 50%; padding: 12px; box-shadow: 0 4px 15px rgba(255, 77, 77, 0.4); border: 2px solid #E8C999; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+</a>
 
     <script>
         function validasiAngka(input) {
@@ -536,6 +566,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             `;
         }
 
+        
         function kirimFinal(metode, email) {
             const content = document.getElementById('modalContent');
             const form = document.getElementById('formPendaftaran');
@@ -554,11 +585,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                 if (data.status === 'success') {
                     let pesanStatus = (metode === 'tunai') ? `<strong style="color: var(--warning-yellow);">Menunggu Pembayaran</strong>` : `<strong style="color: var(--warning-yellow);">Sedang Diproses</strong>`;
                     let instruksi = (metode === 'tunai') ? `Silakan datang ke resepsionis Vanda Gym untuk melakukan pembayaran tunai.` : `Admin sedang memverifikasi bukti pembayaran Anda.`;
-                    let tombolWa = "";
+                    let tombolIg = "";
 
                     if (metode !== 'tunai') {
-                        const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya baru saja melakukan pendaftaran member baru dengan email *${email}*. Tolong dicek ya. Terima kasih.`);
-                        tombolWa = `<a href="https://wa.me/6282148556601?text=${pesanWa}" target="_blank" class="btn-action" style="background-color: #25D366; color: white; text-decoration: none; font-size: 0.8rem; margin-top: 15px;">📱 Konfirmasi WhatsApp</a>`;
+                        // Siapkan pesan yang akan di-copy
+                        const pesanIg = `Halo Admin Vanda Gym, saya baru saja melakukan pendaftaran member baru dengan email ${email}. Tolong dicek ya. Terima kasih.`;
+
+                        // Panggil fungsi salin otomatis lalu buka IG
+                        tombolIg = `
+                        <button onclick="salinDanBukaIG('${pesanIg}')" class="btn-action" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; text-decoration: none; font-size: 0.8rem; margin-top: 15px; border: none; width: 100%; cursor: pointer;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                            </svg>
+                            Konfirmasi via DM IG
+                        </button>
+                        <p style="font-size:0.65rem; color:#888; text-align:center; margin-top:5px;">(Teks akan disalin otomatis, cukup tekan 'Paste/Tempel' di IG)</p>`;
                     }
 
                     content.innerHTML = `
@@ -567,7 +610,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                         <div style="background:#151515; padding:15px; border:1px solid #333; border-radius:4px; font-size:0.8rem; line-height:1.5;">
                             <strong style="color:white; display:block; margin-bottom:5px;">Langkah Selanjutnya:</strong>
                             <span style="color:#aaa;">${instruksi}</span>
-                            ${tombolWa}
+                            ${tombolIg}
                         </div>
                         <button class="btn-action btn-success" onclick="window.location.href='cek_status.php'">Cek Status Pendaftaran</button>
                     `;
@@ -587,6 +630,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                         <button class="btn-action btn-success" onclick="kirimFinal('${metode}', '${email}')">🔄 Coba Lagi</button>
                         <button class="btn-action btn-outline" onclick="document.getElementById('modalOverlay').style.display='none'">Batal</button>
                     </div>`;
+            });
+        }
+
+        // Tambahkan fungsi baru ini di bawah kirimFinal()
+        function salinDanBukaIG(pesan) {
+            navigator.clipboard.writeText(pesan).then(() => {
+                alert("Pesan otomatis telah disalin (Copied)! ✅\n\nSilakan klik 'Paste' (Tempel) di kolom pesan Instagram Vanda Gym.");
+                window.open("https://ig.me/m/csweb_testing", "_blank");
+            }).catch(err => {
+                // Jika browser tidak support auto-copy, tetap buka IG
+                window.open("https://ig.me/m/csweb_testing", "_blank");
             });
         }
     </script>
