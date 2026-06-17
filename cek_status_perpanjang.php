@@ -166,22 +166,22 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         .btn-back-square:hover { background-color: var(--primary-red); color: white; border-color: var(--primary-red); }
         
         .form-header { text-align: center; margin-bottom: 25px; border-bottom: 1px solid #222; padding-bottom: 20px;}
-        .form-header h2 { color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; font-size: 1.5rem; margin-bottom: 5px;}
-        .form-header p { color: #888; font-size: 0.9rem; }
+        .form-header h2 { color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; font-size: 1.2rem; margin-bottom: 5px;}
+        .form-header p { color: #888; font-size: 0.7rem; }
         
         /* TABEL RIWAYAT */
         .table-container { overflow-x: auto; margin-top: 15px; border-radius: 4px; border: 1px solid #222; }
-        .table-riwayat { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+        .table-riwayat { width: 100%; border-collapse: collapse; font-size: 0.65rem; text-align: left; }
         .table-riwayat th { background-color: #151515; color: var(--accent-gold); padding: 12px; border-bottom: 1px solid #333; white-space: nowrap; text-transform: uppercase; }
         .table-riwayat td { padding: 12px; border-bottom: 1px solid #222; color: #ccc; white-space: nowrap; vertical-align: middle; }
         .table-riwayat tr:last-child td { border-bottom: none; }
         .table-riwayat tr:hover { background-color: #111; }
 
-        .btn-small-gold { background: #151515; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s;}
+        .btn-small-gold { background: #151515; border: 1px solid var(--accent-gold); color: var(--accent-gold); font-size: 0.65rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s;}
         .btn-small-gold:hover { background: var(--accent-gold); color: #000; }
 
         /* TOMBOL BATALKAN (MERAH) */
-        .btn-small-red { background: #151515; border: 1px solid var(--primary-red); color: var(--primary-red); font-size: 0.75rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s;}
+        .btn-small-red { background: #151515; border: 1px solid var(--primary-red); color: var(--primary-red); font-size: 0.65rem; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.3s;}
         .btn-small-red:hover { background: var(--primary-red); color: #fff; }
 
         .empty-state { text-align: center; padding: 30px; color: #666; font-style: italic; background: #111; border: 1px dashed #333; border-radius: 4px; }
@@ -191,9 +191,9 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         .receipt-card { background: #fff; color: #000; width: 100%; max-width: 350px; padding: 25px 20px; border-radius: 8px; font-family: 'Courier New', Courier, monospace; position: relative; box-shadow: 0 0 20px rgba(232, 201, 153, 0.2); }
         .close-modal { position: absolute; top: -15px; right: -15px; background: var(--primary-red); color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; font-family: sans-serif; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
         .receipt-header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 15px; margin-bottom: 15px; }
-        .receipt-header h3 { margin: 0; font-size: 1.2rem; font-family: sans-serif; font-weight: 900;}
-        .receipt-header p { margin: 5px 0 0; font-size: 0.75rem; color: #555;}
-        .receipt-body p { margin: 5px 0; font-size: 0.85rem; display: flex; justify-content: space-between; }
+        .receipt-header h3 { margin: 0; font-size: 1rem; font-family: sans-serif; font-weight: 900;}
+        .receipt-header p { margin: 5px 0 0; font-size: 0.65rem; color: #555;}
+        .receipt-body p { margin: 5px 0; font-size: 0.65rem; display: flex; justify-content: space-between; }
         .receipt-footer { text-align: center; border-top: 2px dashed #000; padding-top: 15px; margin-top: 15px; }
         .btn-download { display: flex; align-items: center; justify-content: center; gap: 8px; background-color: #000; color: #fff; border: none; padding: 12px; width: 100%; margin-top: 20px; font-weight: bold; border-radius: 4px; cursor: pointer; font-family: sans-serif; transition: 0.3s; }
         .btn-download:hover { background-color: #333; }
@@ -202,12 +202,12 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         /* TOMBOL WA MELAYANG & NAVIGASI BAWAH */
         .wa-btn { position: fixed; bottom: 30px; left: 30px; background-color: #25D366; color: white; border-radius: 50%; width: 55px; height: 55px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6); z-index: 1000; transition: 0.3s; text-decoration: none; }
         .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
-        .wa-btn svg { width: 30px; height: 30px; fill: currentColor; }
+        .wa-btn svg { width: 30px; height: 30px; }
 
         .bottom-nav-mobile { display: none !important; }
 
         @media (max-width: 768px) {
-            body { padding: 15px 10px 85px; }
+            body { padding: 15px 25px 85px; }
             .status-container { padding: 20px 15px; }
             .wa-btn { bottom: 85px !important; left: 15px; width: 45px; height: 45px; }
             .wa-btn svg { width: 24px; height: 24px; }
@@ -272,7 +272,7 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
             </div>
         </div>
         
-        <h4 style="color: var(--accent-gold); margin-bottom: 10px; text-transform: uppercase; font-size: 0.95rem;">Daftar Transaksi Terakhir</h4>
+        <h4 style="color: var(--accent-gold); margin-bottom: 10px; text-transform: uppercase; font-size: 0.85rem;">Daftar Transaksi Terakhir</h4>
         
         <div id="tempatRiwayat">
             <?php if (mysqli_num_rows($q_riwayat) > 0): ?>
@@ -385,7 +385,7 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         </a>
         <a href="galeri_member.php" class="nav-item">
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            <span>Tutorial</span>
+            <span>Galeri</span>
         </a>
         <a href="chatbot_member.php" class="nav-item">
             <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg>
@@ -438,6 +438,7 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
                     alert('Kesalahan jaringan. Silakan coba lagi.');
                 });
             }
+            
         }
     </script>
 </body>

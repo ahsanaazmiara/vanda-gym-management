@@ -157,10 +157,10 @@ if (!$is_expired) {
         .section-divider { border-bottom: 1px solid #222; margin: 25px 0 15px; padding-bottom: 8px; color: var(--accent-gold); font-weight: bold; text-transform: uppercase; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;}
         
         /* ALERT BOXES */
-        .alert-box { padding: 15px; border-radius: 6px; margin-bottom: 20px; font-size: 0.85rem; line-height: 1.4; }
-        .alert-error { background: rgba(220, 53, 69, 0.1); border: 1px solid var(--primary-red); color: #ff6b6b; display: none; }
-        .alert-warning { background: rgba(255, 193, 7, 0.1); border: 1px solid var(--warning-yellow); color: var(--warning-yellow); }
-        .alert-info { background: rgba(232, 201, 153, 0.1); border: 1px dashed var(--accent-gold); text-align: center; }
+        .alert-box { padding: 12px 15px; border-radius: 4px; margin-bottom: 20px; font-size: 0.85rem; line-height: 1.4; }
+        .alert-error { background: #1a0f0f; border: 1px solid #331a1a; color: #ff6b6b; display: none; }
+        .alert-warning { background: #1f1b10; border: 1px solid #332b1a; color: var(--warning-yellow); }
+        .alert-info { background: #111; border: 1px solid #222; color: #ccc; text-align: center; }
 
         .status-badge { display: inline-block; padding: 6px 15px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; letter-spacing: 0.5px; }
         .badge-expired { background: var(--primary-red); color: white; }
@@ -213,7 +213,7 @@ if (!$is_expired) {
         
         .wa-btn { position: fixed; bottom: 30px; left: 30px; width: 55px; height: 55px; background-color: #25D366; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 1000; text-decoration: none; transition: 0.3s; }
         .wa-btn:hover { transform: scale(1.1); background-color: #1ebe57; }
-        .wa-btn svg { width: 30px; height: 30px; fill: currentColor; }
+        .wa-btn svg { width: 30px; height: 30px; }
 
         .bottom-nav-mobile { display: none !important; }
 
@@ -222,7 +222,7 @@ if (!$is_expired) {
            ==================================================== */
         @media (max-width: 768px) {
             body { 
-                padding: 15px 10px; 
+                padding: 15px 25px; 
                 align-items: flex-start;
             }
             .pay-container { 
@@ -235,42 +235,42 @@ if (!$is_expired) {
             .nav-top { margin-bottom: 15px; }
             .btn-back-square { width: 35px; height: 35px; font-size: 1rem; }
             .form-header { margin-bottom: 20px; }
-            .form-header h2 { font-size: 1.25rem; margin-bottom: 3px; }
-            .form-header p { font-size: 0.75rem; }
+            .form-header h2 { font-size: 1.0rem; margin-bottom: 3px; }
+            .form-header p { font-size: 0.65rem; }
             
             /* Section Divider */
-            .section-divider { margin: 20px 0 10px; padding-bottom: 5px; font-size: 0.8rem; }
+            .section-divider { margin: 20px 0 10px; padding-bottom: 5px; font-size: 0.7rem; }
             
             /* Box Info & Alert */
-            .alert-box { padding: 12px; font-size: 0.8rem; margin-bottom: 15px; }
-            .status-badge { font-size: 0.7rem; padding: 4px 12px; }
+            .alert-box { padding: 12px; font-size: 0.7rem; margin-bottom: 15px; }
+            .status-badge { font-size: 0.6rem; padding: 4px 12px; }
             
             /* Form Input */
             .grid-2 { grid-template-columns: 1fr; gap: 10px; }
             .form-group { margin-bottom: 12px; }
-            .form-group label { font-size: 0.75rem; margin-bottom: 4px; }
-            .form-control { padding: 8px 10px; font-size: 0.85rem; min-height: 38px; }
+            .form-group label { font-size: 0.65rem; margin-bottom: 4px; }
+            .form-control { padding: 8px 10px; font-size: 0.75rem; min-height: 38px; }
             
             /* Box Nominal & Pembayaran */
             #boxNominal { padding: 10px; margin-bottom: 12px; }
-            #boxNominal span { font-size: 0.8rem; }
-            #textNominal { font-size: 1rem !important; }
+            #boxNominal span { font-size: 0.7rem; }
+            #textNominal { font-size: 0.9rem !important; }
             
             .payment-methods { gap: 8px; margin-bottom: 12px; }
             .pay-method { padding: 10px 8px; }
-            .pay-method span { font-size: 0.75rem; }
+            .pay-method span { font-size: 0.65rem; }
             
             .pay-details { padding: 15px; margin-bottom: 15px; }
-            .btn-upload { padding: 8px; font-size: 0.8rem; }
+            .btn-upload { padding: 8px; font-size: 0.7rem; }
             
             /* Tombol Aksi */
-            .btn-action { min-height: 40px; font-size: 0.85rem; margin-top: 10px; }
+            .btn-action { min-height: 40px; font-size: 0.75rem; margin-top: 10px; }
             
             /* Modal / Draf */
             .modal-box { padding: 20px 15px; }
-            .draf-item { font-size: 0.8rem; }
+            .draf-item { font-size: 0.7rem; }
             .checkbox-container { padding: 10px; margin: 15px 0; }
-            .checkbox-container label { font-size: 0.75rem; }
+            .checkbox-container label { font-size: 0.65rem; }
 
             /* Tombol WA & Navigasi Bawah */
             .wa-btn { bottom: 85px !important; left: 15px !important; width: 45px; height: 45px; }
@@ -347,15 +347,41 @@ if (!$is_expired) {
         <div id="errorBox" class="alert-box alert-error"></div>
 
         <?php if ($ada_pending): ?>
-            <div class="alert-box alert-info" style="border-color: var(--warning-yellow);">
-                <div class="status-badge badge-pending" style="margin-bottom: 10px;">MENUNGGU VERIFIKASI</div>
-                <h3 style="color: white; margin-bottom: 5px;">Transaksi Sedang Diproses</h3>
-                <p>Anda memiliki pengajuan perpanjangan yang belum diverifikasi oleh Admin. Sistem mencegah pembayaran ganda.</p>
-                <p style="margin-top: 10px; font-size: 0.8rem; color: #888;">Ingin mengganti paket atau metode bayar?</p>
-            </div>
+    <div class="alert-box alert-info" style="border-color: var(--warning-yellow);">
+        <div class="status-badge badge-pending" style="margin-bottom: 10px;">MENUNGGU VERIFIKASI</div>
+        <h3 style="color: white; margin-bottom: 5px;">Transaksi Sedang Diproses</h3>
+        <p>Anda memiliki pengajuan perpanjangan yang belum diverifikasi oleh Admin. Sistem mencegah pembayaran ganda.</p>
+        
+        <div style="background: #0a0a0a; padding: 15px; border-radius: 4px; margin-top: 15px; border: 1px solid #222;">
+            <span style="color: #ccc; font-size: 0.75rem; display: block; margin-bottom: 15px; line-height: 1.4;">
+                <strong>Agar tagihan lebih cepat diproses</strong>, silakan konfirmasi pembayaran Anda ke Admin melalui DM Instagram dengan menekan tombol di bawah ini:
+            </span>
             
-            <button class="btn-action btn-danger" onclick="batalkanPending()">Batalkan Transaksi Ini</button>
-            <a href="member_dasbor.php" class="btn-action btn-outline">Kembali ke Dasbor</a>
+            <?php 
+            $pesanIgPending = "Halo Admin Vanda Gym, saya memiliki tagihan perpanjangan member yang masih pending. Tolong dibantu cek ya. Terima kasih.";
+            if (isset($email)) {
+                $pesanIgPending = "Halo Admin Vanda Gym, saya memiliki tagihan perpanjangan member yang masih pending dengan email " . $email . ". Tolong dibantu cek ya. Terima kasih.";
+            }
+            ?>
+            
+            <div style="text-align: center;">
+                <button onclick="salinDanBukaIG('<?= htmlspecialchars($pesanIgPending, ENT_QUOTES) ?>')" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; font-size: 0.85rem; padding: 10px 20px; border-radius: 4px; border: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; margin: 0 auto; transition: 0.2s;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                    </svg>
+                    Konfirmasi via DM IG
+                </button>
+                <p style="font-size:0.65rem; color:#777; text-align:center; margin-top:6px; margin-bottom:0;">(Teks disalin otomatis, cukup tekan 'Paste/Tempel' di IG)</p>
+            </div>
+        </div>
+        <p style="margin-top: 15px; font-size: 0.8rem; color: #888;">Ingin mengganti paket atau metode bayar?</p>
+    </div>
+    
+    <button class="btn-action btn-danger" onclick="batalkanPending()">Batalkan Transaksi Ini</button>
+    <a href="member_dasbor.php" class="btn-action btn-outline">Kembali ke Dasbor</a>
+            
             
         <?php else: ?>
             <div class="alert-box alert-info">
@@ -482,7 +508,7 @@ if (!$is_expired) {
         </a>
         <a href="galeri_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-            <span>Tutorial</span>
+            <span>Galeri</span>
         </a>
         <a href="chatbot_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
             <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg>
@@ -593,14 +619,14 @@ if (!$is_expired) {
             modal.style.display = 'flex';
             
             content.innerHTML = `
-                <h3 style="color:var(--text-light); text-transform:uppercase; text-align:center; font-size:1.1rem; letter-spacing:1px; margin-bottom:5px;">Konfirmasi Perpanjangan</h3>
-                <div style="margin:20px 0; font-size: 0.85rem; color:#ccc;">
+                <h3 style="color:var(--text-light); text-transform:uppercase; text-align:center; font-size:1.0rem; letter-spacing:1px; margin-bottom:5px;">Konfirmasi Perpanjangan</h3>
+                <div style="margin:20px 0; font-size: 0.75rem; color:#ccc;">
                     <div class="draf-item"><span style="color:#888;">Nama:</span> <span style="text-align:right; color:white;">${namaLengkap}</span></div>
                     <div class="draf-item"><span style="color:#888;">Paket Latihan:</span> <span style="text-align:right; color:white;">${namaPaket} <br> Berlaku: ${tglMulai}</span></div>
                     <div class="draf-item"><span style="color:#888;">Metode:</span> <span style="text-align:right; color:white; text-transform: uppercase;">${metode}</span></div>
                     <div class="draf-item" style="border-top:1px dashed #333; margin-top:10px; padding-top:15px;">
                         <span style="color:var(--text-light); font-weight:bold;">Total Tagihan:</span> 
-                        <span style="color:var(--accent-gold); font-weight:bold; font-size:1.1rem;">${hargaPaket}</span>
+                        <span style="color:var(--accent-gold); font-weight:bold; font-size:1.0rem;">${hargaPaket}</span>
                     </div>
                 </div>
                 
@@ -615,59 +641,85 @@ if (!$is_expired) {
         }
 
         // FUNGSI SUBMIT FINAL KE BACKEND
-        function kirimFinal(metode, email) {
-            const content = document.getElementById('modalContent');
-            
-            content.innerHTML = `<div style="text-align:center;"><p style="font-weight:bold; font-size:0.9rem; color:var(--accent-gold);">Menyimpan data...</p><p style="color:#888; font-size:0.8rem; margin-top:10px;">Mohon tunggu sebentar.</p></div>`;
+        // FUNGSI SUBMIT FINAL KE BACKEND (VERSI PERPANJANG + IG)
+// FUNGSI SUBMIT FINAL KE BACKEND (VERSI PERPANJANG + IG)
+function kirimFinal(metode, email) {
+    const content = document.getElementById('modalContent');
+    
+    content.innerHTML = `<div style="text-align:center;"><p style="font-weight:bold; font-size:0.8rem; color:var(--accent-gold);">Menyimpan data...</p><p style="color:#888; font-size:0.8rem; margin-top:10px;">Mohon tunggu sebentar.</p></div>`;
 
-            const formData = new FormData();
-            formData.append('action', 'perpanjang');
-            formData.append('paketHarga', document.getElementById('paketPilih').value);
-            formData.append('tglMulaiInput', document.getElementById('tglMulai').value);
-            formData.append('metodeBayar', document.querySelector('input[name="metodeBayar"]:checked').value);
+    const formData = new FormData();
+    formData.append('action', 'perpanjang');
+    formData.append('paketHarga', document.getElementById('paketPilih').value);
+    formData.append('tglMulaiInput', document.getElementById('tglMulai').value);
+    formData.append('metodeBayar', document.querySelector('input[name="metodeBayar"]:checked').value);
+    
+    if(document.getElementById('buktiFile') && document.getElementById('buktiFile').files[0]) {
+        formData.append('buktiFile', document.getElementById('buktiFile').files[0]);
+    }
+
+    fetch('perpanjang.php', { method: 'POST', body: formData })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            let pesanStatus = (metode === 'tunai') ? `<strong style="color: var(--warning-yellow);">Menunggu Pembayaran</strong>` : `<strong style="color: var(--warning-yellow);">Sedang Diproses</strong>`;
             
-            if(document.getElementById('buktiFile') && document.getElementById('buktiFile').files[0]) {
-                formData.append('buktiFile', document.getElementById('buktiFile').files[0]);
+            // --- BAGIAN INSTRUKSI YANG DIUBAH ---
+            let instruksi = (metode === 'tunai') 
+                ? `Silakan datang ke resepsionis Vanda Gym untuk melakukan pembayaran tunai.` 
+                : `Bukti pembayaran Anda telah tersimpan. <br><br><span style="color: var(--accent-gold);">Agar tagihan lebih cepat diproses, silakan konfirmasi pembayaran Anda ke Admin melalui DM Instagram dengan menekan tombol di bawah ini.</span>`;
+            
+            let tombolIg = "";
+            if (metode !== 'tunai') {
+                const pesanIg = `Halo Admin Vanda Gym, saya baru saja mengajukan perpanjangan member dengan email ${email}. Tolong dicek ya. Terima kasih.`;
+                
+                tombolIg = `
+                <button onclick="salinDanBukaIG('${pesanIg}')" class="btn-action" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; text-decoration: none; font-size: 0.8rem; margin-top: 15px; border: none; width: 100%; cursor: pointer;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 5px;">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                    </svg>
+                    Konfirmasi via DM IG
+                </button>
+                <p style="font-size:0.55rem; color:#888; text-align:center; margin-top:5px;">(Teks akan disalin otomatis, cukup tekan 'Paste/Tempel' di IG)</p>`;
             }
 
-            fetch('perpanjang.php', { method: 'POST', body: formData })
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === 'success') {
-                    let pesanStatus = (metode === 'tunai') ? `<strong style="color: var(--warning-yellow);">Menunggu Pembayaran</strong>` : `<strong style="color: var(--warning-yellow);">Sedang Diproses</strong>`;
-                    let instruksi = (metode === 'tunai') ? `Silakan datang ke resepsionis Vanda Gym untuk melakukan pembayaran tunai.` : `Admin sedang memverifikasi bukti pembayaran perpanjangan Anda.`;
-                    
-                    let tombolWa = "";
-                    if (metode !== 'tunai') {
-                        const pesanWa = encodeURIComponent(`Halo Admin Vanda Gym, saya baru saja mengajukan perpanjangan member dengan email *${email}*. Tolong dicek ya. Terima kasih.`);
-                        tombolWa = `<a href="https://wa.me/6282148556601?text=${pesanWa}" target="_blank" class="btn-action" style="background-color: #25D366; color: white; text-decoration: none; font-size: 0.8rem; margin-top: 15px;">📱 Konfirmasi WhatsApp</a>`;
-                    }
-
-                    content.innerHTML = `
-                        <h3 style="color:var(--success-green); text-align:center; font-size:1.2rem; text-transform:uppercase;">Berhasil!</h3>
-                        <p style="margin:5px 0 15px 0; text-align:center; font-size:0.85rem; color:#ccc;">Status: ${pesanStatus}</p>
-                        <div style="background:#151515; padding:15px; border:1px solid #333; border-radius:4px; font-size:0.8rem; line-height:1.5;">
-                            <strong style="color:white; display:block; margin-bottom:5px;">Langkah Selanjutnya:</strong>
-                            <span style="color:#aaa;">${instruksi}</span>
-                            ${tombolWa}
-                        </div>
-                        <button class="btn-action btn-success" onclick="window.location.href='cek_status_perpanjang.php'">Cek Status Transaksi</button>
-                    `;
-                } else { 
-                    document.getElementById('modalOverlay').style.display = 'none';
-                    tampilkanError(data.message); 
-                }
-            })
-            .catch(err => {
-                content.innerHTML = `
-                    <div style="text-align:center; padding: 5px;">
-                        <h3 style="color:var(--primary-red); font-weight:bold; margin-bottom:10px; font-size:1.1rem; text-transform:uppercase;">Koneksi Gagal!</h3>
-                        <p style="font-size:0.8rem; color:#ccc; margin-bottom:20px; line-height:1.5;">Sistem gagal terhubung ke server. Periksa koneksi internet Anda.</p>
-                        <button class="btn-action btn-success" onclick="kirimFinal('${metode}', '${email}')">🔄 Coba Lagi</button>
-                        <button class="btn-action btn-outline" onclick="document.getElementById('modalOverlay').style.display='none'">Batal</button>
-                    </div>`;
-            });
+            content.innerHTML = `
+                <h3 style="color:var(--success-green); text-align:center; font-size:1.1rem; text-transform:uppercase;">Berhasil!</h3>
+                <p style="margin:5px 0 15px 0; text-align:center; font-size:0.75rem; color:#ccc;">Status: ${pesanStatus}</p>
+                <div style="background:#151515; padding:15px; border:1px solid #333; border-radius:4px; font-size:0.8rem; line-height:1.5;">
+                    <strong style="color:white; display:block; margin-bottom:5px;">Langkah Selanjutnya:</strong>
+                    <span style="color:#aaa;">${instruksi}</span>
+                    ${tombolIg}
+                </div>
+                <button class="btn-action btn-success" onclick="window.location.href='cek_status_perpanjang.php'">Cek Status Transaksi</button>
+            `;
+        } else { 
+            document.getElementById('modalOverlay').style.display = 'none';
+            tampilkanError(data.message); 
         }
+    })
+    .catch(err => {
+        content.innerHTML = `
+            <div style="text-align:center; padding: 5px;">
+                <h3 style="color:var(--primary-red); font-weight:bold; margin-bottom:10px; font-size:1.0rem; text-transform:uppercase;">Koneksi Gagal!</h3>
+                <p style="font-size:0.7rem; color:#ccc; margin-bottom:20px; line-height:1.5;">Sistem gagal terhubung ke server. Periksa koneksi internet Anda.</p>
+                <button class="btn-action btn-success" onclick="kirimFinal('${metode}', '${email}')">🔄 Coba Lagi</button>
+                <button class="btn-action btn-outline" onclick="document.getElementById('modalOverlay').style.display='none'">Batal</button>
+            </div>`;
+    });
+}
+
+// Fungsi helper salin pesan otomatis & buka Instagram
+function salinDanBukaIG(pesan) {
+    navigator.clipboard.writeText(pesan).then(() => {
+        alert("Pesan otomatis telah disalin (Copied)! ✅\n\nSilakan klik 'Paste' (Tempel) di kolom pesan Instagram Vanda Gym.");
+        window.open("https://ig.me/m/vandagympky_classic", "_blank");
+    }).catch(err => {
+        window.open("https://ig.me/m/vandagympky_classic", "_blank");
+    });
+}
 
         function batalkanPending() {
             if(confirm("Apakah Anda yakin ingin membatalkan transaksi pengajuan ini?")) {

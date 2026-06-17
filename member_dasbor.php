@@ -17,7 +17,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     header('Content-Type: application/json');
     $pref = mysqli_real_escape_string($koneksi, $_POST['prefNotif']);
     
-    // Reset semua jadi 0 dulu, baru set yang dipilih jadi 1
     mysqli_query($koneksi, "UPDATE users SET notif_wa=0, notif_email=0, notif_dash=0 WHERE id_user=$id_user");
     
     $column = "notif_" . $pref; 
@@ -43,17 +42,15 @@ $query = "
 $result = mysqli_query($koneksi, $query);
 $data = mysqli_fetch_assoc($result);
 
-// Cek status pending perpanjangan
 $cek_pending = mysqli_query($koneksi, "SELECT status FROM membership WHERE id_user = $id_user AND status = 'pending' AND jenis_pengajuan = 'perpanjang' LIMIT 1");
 $sedang_perpanjang = (mysqli_num_rows($cek_pending) > 0);
 
 // =========================================================
-// 3. AMBIL DATA PENGATURAN WEB (UNTUK JAM & FOOTER)
+// 3. AMBIL DATA PENGATURAN WEB
 // =========================================================
 $q_web = mysqli_query($koneksi, "SELECT * FROM pengaturan_web WHERE id=1");
 $web_data = mysqli_fetch_assoc($q_web);
 
-// Decode Jam Operasional (JSON ke Array)
 $jam = isset($web_data['jam_operasional']) && !empty($web_data['jam_operasional']) ? json_decode($web_data['jam_operasional'], true) : [];
 if (empty($jam)) {
     $jam = [
@@ -66,7 +63,6 @@ if (empty($jam)) {
     ];
 }
 
-// Decode Jadwal Senam
 $js_data = isset($web_data['jadwal_senam']) && !empty($web_data['jadwal_senam']) ? json_decode($web_data['jadwal_senam'], true) : [];
 if (empty($js_data)) {
     $js_data = [
@@ -89,7 +85,6 @@ function renderJam($jam_array, $sesi_key) {
     }
 }
 
-// Format Nomor WA
 $wa_raw = preg_replace('/[^0-9]/', '', $web_data['wa_cs'] ?? '082148556601');
 $wa_link = (substr($wa_raw, 0, 1) == '0') ? '62' . substr($wa_raw, 1) : $wa_raw;
 
@@ -131,7 +126,6 @@ if ($status_member === 'aktif' && $tgl_akhir_raw) {
     }
 }
 
-// 6. LOGIKA SIMULASI MASA AKTIF SISA 7 HARI
 if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
     $status_member = 'aktif';
     $sisa_hari = 7;
@@ -150,93 +144,288 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         /* =========================================
            KOTAK OFFLINE DETECTOR
            ========================================= */
-        .connection-error-box { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.85); display: none; justify-content: center; align-items: center; z-index: 999999; padding: 20px; }
-        .error-card-center { background-color: #0f0a0a; border: 1px solid #ff4d4d; border-top: 4px solid #ff4d4d; border-radius: 8px; padding: 30px 25px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 10px 30px rgba(255, 77, 77, 0.15); }
+        .connection-error-box { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 999999; padding: 20px; }
+        .error-card-center { background-color: #0f0a0a; border: 1px solid #ff4d4d; border-top: 4px solid #ff4d4d; border-radius: 8px; padding: 30px 25px; max-width: 400px; width: 100%; text-align: center; box-shadow: 0 10px 30px rgba(255,77,77,0.15); }
         .btn-retry { background-color: #25D366; color: white; border: none; padding: 10px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; transition: 0.3s; }
         .btn-retry:hover { background-color: #1ebe57; }
 
         /* =========================================
-           HEADER, LONCENG & PROFIL DI KANAN
+           SEMBUNYIKAN BOTTOM NAV DI PC DEFAULT
            ========================================= */
-        .header-right { display: flex; align-items: center; gap: 15px; }
-        .bell-icon { position: relative; color: #888; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 4px; transition: 0.3s; text-decoration: none; }
+        .bottom-nav-mobile { display: none !important; }
+
+        /* =========================================
+           HEADER & KANAN HEADER (LONCENG + HAMBURGER)
+           ========================================= */
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+
+        .bell-icon {
+            position: relative;
+            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            transition: 0.3s;
+            text-decoration: none;
+        }
         .bell-icon:hover { color: var(--text-light); }
         .bell-icon.active { color: var(--text-light); animation: ring 2s infinite ease-in-out; }
         .bell-badge { position: absolute; top: 4px; right: 4px; background: var(--primary-red); color: white; font-size: 10px; font-weight: bold; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-        
-        @keyframes ring { 0% {transform: rotate(0);} 10% {transform: rotate(15deg);} 20% {transform: rotate(-10deg);} 30% {transform: rotate(5deg);} 40% {transform: rotate(-5deg);} 50% {transform: rotate(0);} 100% {transform: rotate(0);} }
 
-        .profile-icon-header { display: flex; align-items: center; justify-content: center; color: var(--accent-gold); width: 40px; height: 40px; transition: 0.3s; border: 1px solid transparent; }
-        .profile-icon-header:hover { transform: scale(1.1); color: var(--text-light); }
-        nav .profile-icon { display: none; }
-
-        @media (min-width: 769px) {
-            header { display: flex; justify-content: space-between; align-items: center; }
-            nav#nav-menu { flex: 1; display: flex; justify-content: flex-end; padding-right: 20px; }
-            .header-right { margin-left: 0; border-left: 1px solid #333; padding-left: 15px; }
-            .bottom-nav-mobile { display: none !important; }
+        @keyframes ring {
+            0%  { transform: rotate(0); }
+            10% { transform: rotate(15deg); }
+            20% { transform: rotate(-10deg); }
+            30% { transform: rotate(5deg); }
+            40% { transform: rotate(-5deg); }
+            50% { transform: rotate(0); }
+            100%{ transform: rotate(0); }
         }
 
         /* =========================================
-           DASBOR KONTEN (DATA MEMBER)
+           HAMBURGER TOGGLE (SAMA SEPERTI INDEX.PHP)
            ========================================= */
-        .dashboard-container { max-width: 900px; margin: 40px auto; padding: 0 20px; width: 100%; min-height: 60vh; }
-        
+        header .menu-toggle {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 42px;
+            height: 42px;
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 10px;
+            cursor: pointer;
+            z-index: 1001;
+            padding: 0;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+        header .menu-toggle:hover { border-color: var(--accent-gold); }
+        header .menu-toggle .bar {
+            display: block;
+            width: 20px;
+            height: 2px;
+            background-color: #E8C999;
+            border-radius: 2px;
+            transition: all 0.3s ease-in-out;
+            margin: 2px 0;
+        }
+        header .menu-toggle.active .bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+        header .menu-toggle.active .bar:nth-child(2) { opacity: 0; }
+        header .menu-toggle.active .bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+        /* =========================================
+           DROPDOWN NAV MENU (SAMA SEPERTI INDEX.PHP)
+           ========================================= */
+        #nav-menu {
+            display: none;
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            left: auto;
+            width: 220px;
+            box-sizing: border-box;
+            background-color: #1a1a1a;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border: 1px solid #333;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        #nav-menu.active {
+            display: flex;
+            animation: slideDownFade 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes slideDownFade {
+            from { opacity: 0; transform: translateY(-15px) scale(0.95); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        #nav-menu a.menu-link {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            color: #ccc;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 10px;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-size: 0.75rem;
+            text-transform: none;
+            letter-spacing: normal;
+            margin-left: 0;
+            min-height: auto;
+        }
+        #nav-menu a.menu-link:hover {
+            background-color: rgba(232, 201, 153, 0.1);
+            color: var(--accent-gold);
+        }
+        #nav-menu a.menu-link.active-link {
+            color: var(--accent-gold);
+            background-color: rgba(232, 201, 153, 0.07);
+        }
+        #nav-menu a.menu-link.locked-link {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .menu-divider {
+            height: 1px;
+            background-color: #333;
+            margin: 4px 0;
+            width: 100%;
+        }
+
+        /* Tombol Keluar di dalam dropdown */
+        .nav-actions-dasbor {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        .nav-actions-dasbor .btn-keluar-menu {
+            display: block;
+            box-sizing: border-box;
+            padding: 9px 15px;
+            border: 1px solid var(--primary-red);
+            background-color: transparent;
+            color: var(--primary-red);
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            font-size: 0.6rem;
+            text-decoration: none;
+        }
+        .nav-actions-dasbor .btn-keluar-menu:hover {
+            background-color: var(--primary-red);
+            color: white;
+        }
+
+        /* =========================================
+           DASBOR KONTEN
+           ========================================= */
+        .dashboard-container { max-width: 900px; margin: 20px auto; padding: 0 20px; width: 100%; min-height: 60vh; }
+
         .dash-card { background: #111; border: 1px solid #222; border-top: 4px solid var(--accent-gold); border-radius: 8px; padding: 30px; margin-bottom: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .dash-card.card-danger { border-top-color: var(--primary-red); }
-        
-        .profile-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px dashed #333; padding-bottom: 20px; }
-        .user-info h2 { color: var(--text-light); font-size: 1.6rem; margin-bottom: 5px; }
-        .user-info p { color: #888; font-size: 0.95rem; }
-        .status-badge { background: rgba(37, 211, 102, 0.1); color: var(--success-green); border: 1px solid var(--success-green); padding: 6px 20px; border-radius: 30px; font-weight: bold; font-size: 0.9rem; letter-spacing: 1px; }
-        .status-badge.danger { background: rgba(255, 77, 77, 0.1); color: var(--primary-red); border-color: var(--primary-red); }
+
+        .profile-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0px; border-bottom: 1px dashed #333; padding-bottom: 10px; }
+        .user-info h2 { color: var(--text-light); font-size: 1.5rem; margin-bottom: 5px; }
+        .user-info p { color: #888; font-size: 0.75rem; }
+        .status-badge { background: rgba(37,211,102,0.1); color: var(--success-green); border: 1px solid var(--success-green); padding: 6px 20px; border-radius: 30px; font-weight: bold; font-size: 0.8rem; letter-spacing: 1px; }
+        .status-badge.danger { background: rgba(255,77,77,0.1); color: var(--primary-red); border-color: var(--primary-red); }
 
         .membership-details { display: flex; flex-direction: column; gap: 15px; }
         .detail-item { display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px dashed #222; }
         .detail-item:last-child { border-bottom: none; padding-bottom: 0; }
-        .detail-item span { color: #888; font-size: 0.95rem; }
-        .detail-item strong { color: var(--text-light); font-size: 1.05rem; text-align: right; }
+        .detail-item span { color: #888; font-size: 0.75rem; }
+        .detail-item strong { color: var(--text-light); font-size: 1.0rem; text-align: right; }
         .danger-text { color: var(--primary-red) !important; }
 
         /* =========================================
            AKSI CEPAT
            ========================================= */
-        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-bottom: 40px; }
+        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;     margin: 40px 100px; }
         .action-btn { background: #111; border: 1px solid #222; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 15px; text-decoration: none; transition: 0.3s; cursor: pointer; }
-        .action-btn:hover { border-color: var(--accent-gold); transform: translateY(-3px); box-shadow: 0 5px 15px rgba(232, 201, 153, 0.1); }
+        .action-btn:hover { border-color: var(--accent-gold); transform: translateY(-3px); box-shadow: 0 5px 15px rgba(232,201,153,0.1); }
         .action-btn.danger-border { border-color: var(--primary-red); }
         .action-btn.locked { opacity: 0.5; filter: grayscale(100%); cursor: not-allowed; }
         .action-icon { color: var(--accent-gold); display: flex; align-items: center; }
         .action-btn.danger-border .action-icon { color: var(--primary-red); }
-        .action-btn h3 { color: var(--text-light); font-size: 1.1rem; margin-bottom: 3px; }
-        .action-btn p { color: #888; font-size: 0.85rem; margin-bottom: 0; }
+        .action-btn h3 { color: var(--text-light); font-size: 1.0rem; margin-bottom: 3px; }
+        .action-btn p { color: #888; font-size: 0.75rem; margin-bottom: 0; }
 
         /* =========================================
-           MOBILE RESPONSIVE (UKURAN DIPERKECIL)
+           FLOATING BUTTONS
            ========================================= */
-        .bottom-nav-mobile { display: none !important; }
+        @keyframes floatGemes {
+            0%   { transform: translateY(0px); }
+            50%  { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .chatbot-btn, .wa-btn {
+            animation: floatGemes 3s ease-in-out infinite;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .chatbot-btn:hover, .wa-btn:hover {
+            transform: scale(1.15) rotate(8deg) !important;
+            animation-play-state: paused;
+        }
 
+        /* =========================================
+           MOBILE RESPONSIVE
+           ========================================= */
         @media screen and (max-width: 768px) {
             body { padding-bottom: 85px !important; }
-            header #nav-menu, header .menu-toggle { display: none !important; }
-            
-            .dashboard-container { padding: 10px; margin: 15px auto; }
-            
-            .alert-box { flex-direction: column; text-align: center; gap: 8px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 15px; }
-            .alert-box a { width: 100%; text-align: center; padding: 8px 10px; font-size: 0.85rem; }
-            
+
+            /* Sembunyikan tombol WA floating di mobile */
+            .wa-btn { display: none !important; }
+
+            /* Perkecil tombol hamburger */
+            header .menu-toggle {
+                width: 36px;
+                height: 36px;
+            }
+            header .menu-toggle .bar { width: 16px; }
+
+            /* Dropdown lebih kecil & nempel pojok kanan atas */
+            #nav-menu {
+                top: 55px;
+                right: 10px;
+                left: auto;
+                width: 195px;
+                box-sizing: border-box;
+                padding: 10px;
+            }
+
+            #nav-menu a.menu-link {
+                font-size: 0.75rem;
+                padding: 5px 6px;
+                white-space: nowrap;
+            }
+
+            .nav-actions-dasbor .btn-keluar-menu {
+                font-size: 0.75rem;
+                padding: 7px 8px;
+            }
+
+            /* Dasbor konten */
+            .dashboard-container { padding: 0px 45px; margin: 15px auto; }
+
+            .alert-box { flex-direction: column; text-align: center; gap: 8px; padding: 10px 12px; font-size: 0.75rem; margin-bottom: 15px; }
+            .alert-box a { width: 165px; text-align: center; padding: 8px 10px; font-size: 0.85rem; }
+
             .dash-card { padding: 15px 12px; margin-bottom: 15px; border-radius: 6px; }
             .profile-header { flex-direction: column; align-items: center; text-align: center; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; }
-            .user-info h2 { font-size: 1.25rem; margin-bottom: 2px;}
+            .user-info h2 { font-size: 1.25rem; margin-bottom: 2px; }
             .user-info p { font-size: 0.8rem; }
             .status-badge { font-size: 0.75rem; padding: 4px 12px; }
 
             .membership-details { gap: 10px; }
             .detail-item { flex-direction: row; padding-bottom: 8px; }
             .detail-item span { font-size: 0.8rem; }
-            .detail-item strong { font-size: 0.9rem; } 
+            .detail-item strong { font-size: 0.9rem; }
 
-            /* Styling Khusus Tombol Simulasi HP */
             .dash-card > div:last-child { margin-top: 15px !important; padding-top: 10px !important; text-align: center !important; }
             .dash-card > div:last-child a { font-size: 0.75rem !important; padding: 5px 10px !important; }
 
@@ -251,81 +440,119 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             .schedule-time { font-size: 0.75rem !important; }
 
             /* Aksi Cepat HP */
-            .action-grid { grid-template-columns: 1fr; gap: 10px; margin-bottom: 20px; }
+                   .action-grid { grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 20px 5px
+}
             .action-btn { padding: 12px 15px; gap: 12px; border-radius: 6px; }
             .action-btn h3 { font-size: 0.95rem; margin-bottom: 2px; }
             .action-btn p { font-size: 0.75rem; }
             .action-icon svg { width: 32px; height: 32px; }
-            
-            /* =========================================
-   NAVIGASI BAWAH MOBILE (STANDAR KEDUA HALAMAN)
-   ========================================= */
-.bottom-nav-mobile {
-    display: flex !important;
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: 70px !important;
-    background-color: #0a0a0a !important;
-    border-top: 1px solid #333 !important;
-    justify-content: space-around !important;
-    align-items: center !important;
-    z-index: 2147483647 !important;
-    box-shadow: 0 -5px 15px rgba(0,0,0,0.9) !important;
-}
 
-.bottom-nav-mobile .nav-item {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    color: #ccc !important;
-    text-decoration: none !important;
-    font-size: 10px !important;
-    background: transparent !important;
-    border: none !important;
-    flex: 1 !important;
-    gap: 4px !important;
-    cursor: pointer !important;
-    padding: 5px 0 !important;
-    transition: 0.3s;
-}
+            /* Tombol melayang */
+            .chatbot-btn { bottom: 85px !important; width: 45px !important; height: 45px !important; right: 15px !important; }
+            .chatbot-btn svg { width: 22px !important; height: 22px !important; }
 
-.bottom-nav-mobile .nav-item:hover, 
-.bottom-nav-mobile .nav-item:active {
-    color: var(--accent-gold, #E8C999) !important;
-}
+            /* ============================================
+               NAVIGASI BAWAH MOBILE
+               ============================================ */
+            .bottom-nav-mobile {
+                display: flex !important;
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                width: 100vw !important;
+                height: 70px !important;
+                background-color: #0a0a0a !important;
+                border-top: 1px solid #333 !important;
+                justify-content: space-around !important;
+                align-items: center !important;
+                z-index: 2147483647 !important;
+                box-shadow: 0 -5px 15px rgba(0,0,0,0.9) !important;
+            }
 
-.bottom-nav-mobile .nav-item svg {
-    width: 22px !important;
-    height: 22px !important;
-    stroke: currentColor !important;
-    fill: none !important;
-    stroke-width: 2 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-}
+            .bottom-nav-mobile .nav-item {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                color: #ccc !important;
+                text-decoration: none !important;
+                font-size: 10px !important;
+                background: transparent !important;
+                border: none !important;
+                flex: 1 !important;
+                gap: 4px !important;
+                cursor: pointer !important;
+                padding: 5px 0 !important;
+                transition: 0.3s;
+            }
 
-/* Menu Aktif / Highlight */
-.bottom-nav-mobile .nav-item.highlight {
-    color: var(--accent-gold, #E8C999) !important;
-    font-weight: bold !important;
-}
-.bottom-nav-mobile .nav-item.highlight svg {
-    stroke: var(--accent-gold, #E8C999) !important;
-    fill: none !important; 
-}
+            .bottom-nav-mobile .nav-item:hover,
+            .bottom-nav-mobile .nav-item:active { color: var(--accent-gold, #E8C999) !important; }
 
-            /* Tombol Melayang */
-            .wa-btn, .chatbot-btn { bottom: 85px !important; width: 45px !important; height: 45px !important; }
-            .wa-btn { left: 15px !important; } .chatbot-btn { right: 15px !important; }
-            .wa-btn svg, .chatbot-btn svg { width: 22px !important; height: 22px !important; }
+            .bottom-nav-mobile .nav-item svg {
+                width: 22px !important;
+                height: 22px !important;
+                stroke: currentColor !important;
+                fill: none !important;
+                stroke-width: 2 !important;
+                stroke-linecap: round !important;
+                stroke-linejoin: round !important;
+            }
+
+            .bottom-nav-mobile .nav-item.highlight {
+                color: var(--accent-gold, #E8C999) !important;
+                font-weight: bold !important;
+            }
+            .bottom-nav-mobile .nav-item.highlight svg {
+                stroke: var(--accent-gold, #E8C999) !important;
+            }
+            .bottom-nav-mobile .nav-item.locked-nav {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+            @keyframes jelly {
+                0%, 100% { transform: scale(1, 1); }
+                25% { transform: scale(0.8, 1.2); }
+                50% { transform: scale(1.2, 0.8); }
+                75% { transform: scale(0.95, 1.05); }
+            }
+            .bottom-nav-mobile .nav-item:active svg { animation: jelly 0.5s ease; }
+
+                .announcement-banner {
+        flex-direction: row;
+        gap: 8px;
+        padding: 12px;
+        font-size: 13px;
+    }
+
+        .profile-header {
+        flex-direction: row;
+        align-items: center;
+        text-align: center;
+        gap: 8px;
+        margin-bottom: 0px;
+        padding-bottom: 10px;
+    }
         }
 
         @media (max-width: 480px) {
-            .wa-btn, .chatbot-btn { width: 40px !important; height: 40px !important; }
-            .wa-btn svg, .chatbot-btn svg { width: 20px !important; height: 20px !important; }
+            .action-grid { grid-template-columns: 1fr; gap: 10px; margin: 20px 50px; }
+                .announcement-banner {
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        font-size: 13px;
+    }
+            .chatbot-btn { width: 40px !important; height: 40px !important; }
+            .chatbot-btn svg { width: 20px !important; height: 20px !important; }
+
+            .dashboard-container {
+        padding: 0px 35px;
+        margin: 15px auto;
+    }
         }
     </style>
 </head>
@@ -336,35 +563,65 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             <img src="assets/logo.png" alt="Logo Vanda Gym">
         </div>
 
-        <nav id="nav-menu">
-            <a href="member_dasbor.php" class="nav-link active">Dasbor</a>
-            <a href="chatbot_member.php" class="nav-link <?= ($status_member !== 'aktif') ? 'locked' : '' ?>">Chatbot AI</a>
-            <a href="kalkulator.php?source=dasbor" class="nav-link">Kalkulator Gizi</a>
-            <a href="galeri_member.php" class="nav-link <?= ($status_member !== 'aktif') ? 'locked' : '' ?>">Galeri Gym</a>
-            <button class="btn-logout" onclick="window.location.href='index.php'" style="margin-left: 15px; padding: 8px 20px; background:var(--primary-red); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Keluar</button>
-        </nav>
-
         <div class="header-right">
+            <!-- Lonceng: selalu terlihat, di luar hamburger -->
             <a href="perpanjang.php" class="bell-icon <?= ($peringatan_merah && !$sedang_perpanjang) ? 'active' : '' ?>" title="Tagihan Perpanjangan Membership">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
                 <?php if ($status_member === 'aktif' && $peringatan_merah && !$sedang_perpanjang): ?>
                     <span class="bell-badge">!</span>
                 <?php endif; ?>
             </a>
 
-            <a href="profil_member.php" class="profile-icon-header" title="Profil Saya">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            </a>
-
+            <!-- Hamburger Toggle -->
             <button class="menu-toggle" id="mobile-menu" aria-label="Toggle Menu">
                 <span class="bar"></span>
                 <span class="bar"></span>
                 <span class="bar"></span>
             </button>
         </div>
+
+        <!-- Dropdown Nav Menu -->
+        <nav id="nav-menu">
+            <a href="member_dasbor.php" class="menu-link active-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                Dasbor
+            </a>
+            <a href="https://instagram.com/vandagympky_classic" target="_blank" class="menu-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+                Hubungi Kami
+            </a>
+            <a href="galeri_member.php" class="menu-link <?= ($status_member !== 'aktif') ? 'locked-link' : '' ?>">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
+                Galeri Gym
+            </a>
+            <a href="chatbot_member.php" class="menu-link <?= ($status_member !== 'aktif') ? 'locked-link' : '' ?>">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
+                Chatbot AI
+            </a>
+            <a href="kalkulator.php?source=dasbor" class="menu-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
+                Kalkulator Gizi
+            </a>
+            <a href="profil_member.php" class="menu-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Profil Saya
+            </a>
+
+            <div class="menu-divider"></div>
+
+            <div class="nav-actions-dasbor">
+                <a href="logout.php" class="btn-keluar-menu">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    Keluar dari Akun
+                </a>
+            </div>
+        </nav>
     </header>
 
-   <?php if (($web_data['pengumuman_aktif'] ?? '') === 'aktif'): ?>
+    <?php if (($web_data['pengumuman_aktif'] ?? '') === 'aktif'): ?>
     <div class="announcement-banner">
         <span class="announcement-badge">Info Terkini</span>
         <span class="announcement-text"><?= htmlspecialchars($web_data['teks_pengumuman']) ?></span>
@@ -372,11 +629,11 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
     <?php endif; ?>
 
     <div class="dashboard-container">
-        
+
         <?php if ($sedang_perpanjang && $status_member === 'aktif'): ?>
             <div class="alert-box info" style="margin-bottom: 20px;">
                 <div style="margin-bottom: 12px;"><strong>Info:</strong> Permintaan <strong>Perpanjangan</strong> Anda sedang diverifikasi oleh Admin. Masa aktif Anda saat ini masih berjalan.</div>
-                <a href="cek_status_perpanjang.php" style="background-color: var(--accent-gold); color: #000; font-weight: bold; padding: 6px 15px; font-size: 0.85rem; text-decoration: none; display: inline-block; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: 0.3s;">Cek Status & Riwayat</a>
+                <a href="cek_status_perpanjang.php" style="background-color: var(--accent-gold); color: #000; font-weight: bold; padding: 6px 15px; font-size: 0.7rem; text-decoration: none; display: inline-block; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: 0.3s;">Cek Status & Riwayat</a>
             </div>
         <?php elseif ($status_member === 'aktif'): ?>
             <div class="alert-box <?= $peringatan_merah ? 'danger' : '' ?>" style="margin-bottom: 20px;">
@@ -386,7 +643,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                     <?php endif; ?>
                     <div><strong><?= $peringatan_merah ? 'Peringatan:' : 'Info:' ?></strong> Masa aktif membership Anda tersisa <strong style="font-size:1.2rem;"><?= $sisa_hari ?> Hari</strong> lagi.</div>
                 </div>
-                
                 <?php if ($peringatan_merah): ?>
                     <a href="perpanjang.php" class="btn-primary" style="background-color: var(--primary-red); color: white; border: none; font-weight:bold; padding: 6px 12px; font-size: 0.85rem; display: inline-block;">Perpanjang Sekarang</a>
                 <?php else: ?>
@@ -410,8 +666,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                     <?= strtoupper($status_member) ?>
                 </div>
             </div>
-        
-        
 
             <div class="membership-details">
                 <div class="detail-item"><span>Paket Saat Ini</span><strong><?= $paket ?></strong></div>
@@ -430,7 +684,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </div>
 
         <section id="jadwal" style="background-color: transparent;">
-            <h2 class="section-title" style="font-size: 1.4rem; text-align: left; color: var(--accent-gold); border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;">Jadwal Operasional & Kelas</h2>
+            <h2 class="section-title" style="font-size: 1.4rem; text-align: center; color: var(--accent-gold); border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px;">Jadwal Operasional & Kelas</h2>
             <div class="schedule-container">
                 <div class="schedule-box">
                     <div class="schedule-header">Jam Operasional Gym</div>
@@ -487,7 +741,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </section>
 
         <div style="margin-top: 20px; margin-bottom: 20px;">
-            <h3 style="color: var(--accent-gold); border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; font-size: 1.15rem; text-transform: uppercase; letter-spacing: 1px;">Aksi Cepat</h3>
+            <h2 style="color: var(--accent-gold); border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; text-align: center; font-size: 1.4rem;">Aksi Cepat</h2>
             <div class="action-grid">
                 <a href="kalkulator.php?source=dasbor" class="action-btn">
                     <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="8" y1="14" x2="8.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="16" y1="14" x2="16.01" y2="14"></line></svg></div>
@@ -496,7 +750,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                         <p>Hitung kebutuhan kalori harian.</p>
                     </div>
                 </a>
-                
+
                 <a href="perpanjang.php" class="action-btn <?= ($status_member !== 'aktif' || $sedang_perpanjang) ? 'danger-border' : '' ?>">
                     <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg></div>
                     <div>
@@ -514,16 +768,18 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                 </a>
 
                 <a href="galeri_member.php" class="action-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Galeri terkunci. Silakan perpanjang membership Anda.\')"' : '' ?>>
-                    <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg></div>
+                    <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg></div>
                     <div>
-                        <h3>Galeri & Tutorial</h3>
-                        <p>Video posisi latihan alat gym.</p>
+                        <h3>Galeri Gym</h3>
+                        <p>Foto & video fasilitas dan tutorial alat gym.</p>
                     </div>
                 </a>
             </div>
         </div>
 
-    </div> <footer>
+    </div>
+
+    <footer>
         <div class="footer-container">
             <div class="footer-info">
                 <h3>Vanda Gym Classic</h3>
@@ -535,7 +791,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                     </p>
                     <p style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                        <span>CS / Pendaftaran: <?= htmlspecialchars($web_data['wa_cs'] ?? '0821-4855-6601') ?></span>
+                        <span>CS / Pendaftaran: @vandagympky_classic</span>
                     </p>
                     <p style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-gold)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
@@ -552,37 +808,44 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </div>
     </footer>
 
+    <!-- BOTTOM NAV MOBILE -->
     <div class="bottom-nav-mobile">
-    <a href="member_dasbor.php" class="nav-item highlight">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        <span>Dasbor</span>
-    </a>
-    <a href="kalkulator.php?source=dasbor" class="nav-item">
-        <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
-        <span>Gizi</span>
-    </a>
-    <a href="galeri_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
-        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-        <span>Tutorial</span>
-    </a>
-    <a href="chatbot_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
-        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg>
-        <span>AI Bot</span>
-    </a>
-    <a href="profil_member.php" class="nav-item">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-        <span>Profil</span>
-    </a>
-</div>
+        <a href="member_dasbor.php" class="nav-item highlight">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span>Dasbor</span>
+        </a>
+        <a href="kalkulator.php?source=dasbor" class="nav-item">
+            <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
+            <span>Gizi</span>
+        </a>
+        <a href="galeri_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked-nav' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Galeri terkunci!\')"' : '' ?>>
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            <span>Galeri</span>
+        </a>
+        <a href="chatbot_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked-nav' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg>
+            <span>AI Bot</span>
+        </a>
+        <a href="profil_member.php" class="nav-item">
+            <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span>Profil</span>
+        </a>
+    </div>
 
-    <a href="https://instagram.com/vandagympky_classic" target="_blank" class="wa-btn" title="Hubungi CS via Instagram" style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; color: #ffffff; background: var(--primary-red, #ff4d4d); border-radius: 50%; padding: 12px; box-shadow: 0 4px 15px rgba(255, 77, 77, 0.4); border: 2px solid #E8C999; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-    </svg>
-</a>
+    <!-- Tombol WA Floating (Hanya PC) -->
+    <a href="https://instagram.com/vandagympky_classic" target="_blank" class="wa-btn" title="Hubungi CS via Instagram"
+       style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; color: #ffffff; background: var(--primary-red, #ff4d4d); border-radius: 50%; padding: 12px; box-shadow: 0 4px 15px rgba(255,77,77,0.4); border: 2px solid #E8C999; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+    </a>
 
-    <a href="chatbot_member.php" class="chatbot-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Fitur AI terkunci.\')"' : '' ?> title="Chatbot Vanda AI">
+    <!-- Tombol Chatbot Floating -->
+    <a href="chatbot_member.php" class="chatbot-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>"
+       <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Fitur AI terkunci.\')"' : '' ?>
+       title="Chatbot Vanda AI"
+       style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; background-color: var(--primary-red); color: white; border: none; border-radius: 50%; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6); text-decoration: none;">
         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="11" width="18" height="10" rx="2"></rect>
             <circle cx="12" cy="5" r="2"></circle>
@@ -592,6 +855,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </svg>
     </a>
 
+    <!-- Offline Detector -->
     <div id="boxErrorKoneksi" class="connection-error-box">
         <div class="error-card-center">
             <div style="width: 50px; height: 50px; background: #221111; border: 2px solid #ff4d4d; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
@@ -605,39 +869,39 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
     </div>
 
     <script>
-    const menuToggle = document.getElementById('mobile-menu');
-    const navMenu = document.getElementById('nav-menu');
+        // HAMBURGER TOGGLE (SAMA SEPERTI INDEX.PHP)
+        const menuToggle = document.getElementById('mobile-menu');
+        const navMenu    = document.getElementById('nav-menu');
 
-    if(menuToggle && navMenu) {
         menuToggle.addEventListener('click', () => {
             menuToggle.classList.toggle('active');
             navMenu.classList.toggle('active');
         });
-    }
 
-    // Menutup menu jika area luar diklik
-    document.addEventListener('click', (e) => {
-        if (!navMenu.contains(e.target) && !menuToggle.contains(e.target)) {
-            menuToggle.classList.remove('active');
-            navMenu.classList.remove('active');
-        }
-    });
+        // Tutup dropdown jika klik di luar
+        document.addEventListener('click', function(event) {
+            const isClickInside = navMenu.contains(event.target) || menuToggle.contains(event.target);
+            if (!isClickInside && navMenu.classList.contains('active')) {
+                navMenu.classList.remove('active');
+                menuToggle.classList.remove('active');
+            }
+        });
 
-    // Offline Detector
-    window.addEventListener('offline', function() {
-        document.getElementById('boxErrorKoneksi').style.display = 'flex';
-    });
-    window.addEventListener('online', function() {
-        document.getElementById('boxErrorKoneksi').style.display = 'none';
-    });
-    function cobaLagiKoneksi() {
-        if(navigator.onLine) {
+        // OFFLINE DETECTOR
+        window.addEventListener('offline', function() {
+            document.getElementById('boxErrorKoneksi').style.display = 'flex';
+        });
+        window.addEventListener('online', function() {
             document.getElementById('boxErrorKoneksi').style.display = 'none';
-            window.location.reload(); 
-        } else {
-            alert("Koneksi masih terputus! Silakan periksa jaringan Wi-Fi atau Data Seluler Anda.");
+        });
+        function cobaLagiKoneksi() {
+            if (navigator.onLine) {
+                document.getElementById('boxErrorKoneksi').style.display = 'none';
+                window.location.reload();
+            } else {
+                alert("Koneksi masih terputus! Silakan periksa jaringan Wi-Fi atau Data Seluler Anda.");
+            }
         }
-    }
     </script>
 </body>
 </html>
