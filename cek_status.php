@@ -437,13 +437,21 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
                         <p style="font-weight:bold; font-size:1rem;"><span>TOTAL</span> <span>${harga}</span></p>
                     `;
                     resStatus.innerHTML = '<span style="color:var(--success-green); font-weight:bold;">Aktif Terverifikasi</span>';
+                    
+                    // --- PERUBAHAN ADA DI BAGIAN INI ---
                     resPesan.innerHTML = `
+                        <div >
+                            Akun Anda sudah aktif. Silakan login untuk menggunakan layanan chatbot dan fitur member lainnya.
+                        </div>
                         <div class="detail-info">
                             <div class="detail-row"><span>Paket Latihan:</span><span>${namaPaket}</span></div>
                             <div class="detail-row"><span>Berlaku Mulai:</span><span>${tglMulai}</span></div>
                             <div class="detail-row"><span>Berakhir Pada:</span><span style="color: var(--primary-red);">${tglBerakhir}</span></div>
                         </div>
-                        <button class="btn-small-gold" style="width:100%; font-size:0.85rem;" onclick="bukaBukti()">🧾 Download E-Receipt</button>
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button class="btn-small-gold" style="flex: 1; font-size:0.85rem; margin-top:0;" onclick="bukaBukti()">🧾 Download E-Receipt</button>
+                            <a href="login.php" style="flex: 1; background: var(--success-green); color: white; text-decoration: none; display: inline-flex; justify-content: center; align-items: center; font-size: 0.85rem; font-weight: bold; padding: 8px 12px; border-radius: 4px; transition: 0.3s; margin-top:0;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">🔑 Login Sekarang</a>
+                        </div>
                     `;
                 } else if (statusDb === 'ditolak') {
                     resStatus.innerHTML = '<span style="color:var(--primary-red); font-weight:bold;">Pendaftaran Ditolak</span>';

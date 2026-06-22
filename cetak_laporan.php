@@ -2,27 +2,41 @@
 session_start();
 require 'includes/koneksi.php';
 
+// Pastikan hanya admin yang bisa mencetak laporan
 if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'admin') {
-    exit('Akses ditolak.');
+    die("Akses ditolak.");
 }
 
+// Tangkap parameter dari form
+$jenis = $_GET['jenis'] ?? 'bulanan';
 $bulan = $_GET['bulan'] ?? date('m');
 $tahun = $_GET['tahun'] ?? date('Y');
 
-$nama_bulan = [
-    '01'=>'Januari', '02'=>'Februari', '03'=>'Maret', '04'=>'April', '05'=>'Mei', '06'=>'Juni',
-    '07'=>'Juli', '08'=>'Agustus', '09'=>'September', '10'=>'Oktober', '11'=>'November', '12'=>'Desember'
+// Array nama bulan
+$bulan_indo = [
+    '01' => 'Januari', '02' => 'Februari', '03' => 'Maret',
+    '04' => 'April', '05' => 'Mei', '06' => 'Juni', '07' => 'Juli',
+    '08' => 'Agustus', '09' => 'September', '10' => 'Oktober',
+    '11' => 'November', '12' => 'Desember'
 ];
 
-// Ambil data transaksi aktif pada bulan & tahun tersebut
-$query = "SELECT m.*, u.nama_lengkap 
-          FROM membership m 
-          JOIN users u ON m.id_user = u.id_user 
-          WHERE m.status = 'aktif' 
-          AND MONTH(m.created_at) = '$bulan' 
-          AND YEAR(m.created_at) = '$tahun'
-          ORDER BY m.created_at ASC";
-$result = mysqli_query($koneksi, $query);
+// Tentukan judul periode dan kondisi pencarian query berdasarkan jenis laporan
+if ($jenis === 'tahunan') {
+    $nama_periode = "Tahun " . $tahun;
+    $kondisi_waktu = "YEAR(m.created_at) = '$tahun'";
+} else {
+    $nama_periode = "Bulan " . $bulan_indo[$bulan] . " " . $tahun;
+    $kondisi_waktu = "MONTH(m.created_at) = '$bulan' AND YEAR(m.created_at) = '$tahun'";
+}
+
+// Query mengambil transaksi membership sesuai filter periode
+$query = mysqli_query($koneksi, "
+    SELECT u.nama_lengkap, m.jenis_pengajuan, m.paket_bulan, m.total_harga, m.created_at, m.metode_bayar 
+    FROM membership m 
+    JOIN users u ON m.id_user = u.id_user 
+    WHERE m.status IN ('aktif', 'kedaluwarsa') AND $kondisi_waktu
+    ORDER BY m.created_at ASC
+");
 
 $total_pendapatan = 0;
 ?>
@@ -30,77 +44,113 @@ $total_pendapatan = 0;
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>Laporan_Penghasilan_<?= $bulan ?>_<?= $tahun ?></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan_Pendapatan_<?= str_replace(' ', '_', $nama_periode) ?></title>
     <style>
-        body { font-family: Arial, sans-serif; color: #333; padding: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-        .header h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
-        .header p { margin: 5px 0 0; font-size: 14px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #999; padding: 10px; text-align: left; font-size: 12px; }
-        th { background-color: #f2f2f2; }
-        .total-row { font-weight: bold; background-color: #eee; }
-        .footer { margin-top: 30px; text-align: right; font-size: 12px; }
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            color: #000;
+            background: #fff;
+            margin: 0;
+            padding: 20px;
+        }
+        .kop-surat {
+            text-align: center;
+            border-bottom: 3px solid #000;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .kop-surat h1 { margin: 0; font-size: 24px; text-transform: uppercase; }
+        .kop-surat p { margin: 5px 0 0; font-size: 14px; }
+        .judul-laporan {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .judul-laporan h2 { margin: 0; font-size: 18px; text-decoration: underline; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        table, th, td {
+            border: 1px solid #000;
+        }
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th { background-color: #f2f2f2; text-align: center; }
+        td.text-right { text-align: right; }
+        td.text-center { text-align: center; }
+        
+        /* Pengaturan Kertas Saat Print PDF melalui Browser */
         @media print {
-            .no-print { display: none; }
+            @page { margin: 2cm; }
             body { padding: 0; }
+            .btn-print { display: none !important; }
+        }
+        
+        .btn-print {
+            padding: 10px 20px; background: #8E1616; color: white; border: none; 
+            border-radius: 4px; cursor: pointer; display: block; margin: 0 auto 20px auto; 
+            font-weight: bold; width: 200px; text-align: center; font-family: Arial, sans-serif;
         }
     </style>
 </head>
-<body onload="window.print()">
-    <div class="no-print" style="background: #fff3cd; padding: 10px; margin-bottom: 20px; border: 1px solid #ffeeba; font-size: 13px;">
-        <strong>Petunjuk:</strong> Gunakan menu <b>"Save as PDF"</b> di tujuan printer untuk mengunduh laporan ini.
+<body>
+
+    <button class="btn-print" onclick="window.print()">🖨️ Cetak / Simpan PDF</button>
+
+    <div class="kop-surat">
+        <h1>Vanda Gym Classic Room</h1>
+        <p>Jl. Kapten Pierre Tendean No.17 Palangka Raya, Kalimantan Tengah<br>Email: cs@vandagym.com | Telp/WA: <?= htmlspecialchars($_SESSION['wa_cs'] ?? '08xxx') ?></p>
     </div>
 
-    <div class="header">
-        <h1>VANDA GYM CLASSIC ROOM</h1>
-        <p>Laporan Pendapatan Membership Bulanan</p>
-        <p>Periode: <?= $nama_bulan[$bulan] ?> <?= $tahun ?></p>
+    <div class="judul-laporan">
+        <h2>LAPORAN PENDAPATAN MEMBERSHIP</h2>
+        <p>Periode: <strong><?= $nama_periode ?></strong></p>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>No</th>
-                <th>Tanggal</th>
-                <th>Nama Member</th>
-                <th>Paket</th>
-                <th>Metode Bayar</th>
-                <th>Jumlah (Rp)</th>
+                <th width="5%">No</th>
+                <th width="15%">Tanggal</th>
+                <th width="25%">Nama Member</th>
+                <th width="15%">Jenis</th>
+                <th width="10%">Paket</th>
+                <th width="15%">Metode</th>
+                <th width="15%">Nominal</th>
             </tr>
         </thead>
         <tbody>
             <?php 
             $no = 1;
-            if(mysqli_num_rows($result) > 0):
-                while($row = mysqli_fetch_assoc($result)): 
+            if(mysqli_num_rows($query) == 0): ?>
+                <tr><td colspan="7" class="text-center"><em>Tidak ada transaksi aktif pada periode ini.</em></td></tr>
+            <?php else:
+                while($row = mysqli_fetch_assoc($query)): 
                     $total_pendapatan += $row['total_harga'];
             ?>
-                <tr>
-                    <td><?= $no++ ?></td>
-                    <td><?= date('d/m/Y', strtotime($row['created_at'])) ?></td>
-                    <td><?= $row['nama_lengkap'] ?></td>
-                    <td><?= $row['paket_bulan'] ?> Bulan</td>
-                    <td><?= strtoupper($row['metode_bayar']) ?></td>
-                    <td><?= number_format($row['total_harga'], 0, ',', '.') ?></td>
-                </tr>
-            <?php 
-                endwhile; 
-            else:
-                echo "<tr><td colspan='6' style='text-align:center;'>Tidak ada data transaksi bulan ini.</td></tr>";
-            endif;
-            ?>
-            <tr class="total-row">
-                <td colspan="5" style="text-align: right;">TOTAL PENDAPATAN :</td>
-                <td>Rp <?= number_format($total_pendapatan, 0, ',', '.') ?></td>
+            <tr>
+                <td class="text-center"><?= $no++ ?></td>
+                <td><?= date('d M Y', strtotime($row['created_at'])) ?></td>
+                <td><?= $row['nama_lengkap'] ?></td>
+                <td class="text-center"><?= ucfirst($row['jenis_pengajuan']) ?></td>
+                <td class="text-center"><?= $row['paket_bulan'] ?> Bln</td>
+                <td class="text-center"><?= strtoupper($row['metode_bayar']) ?></td>
+                <td class="text-right">Rp <?= number_format($row['total_harga'], 0, ',', '.') ?></td>
             </tr>
+            <?php endwhile; endif; ?>
         </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="6" class="text-right">TOTAL PENDAPATAN</th>
+                <th class="text-right">Rp <?= number_format($total_pendapatan, 0, ',', '.') ?></th>
+            </tr>
+        </tfoot>
     </table>
 
-    <div class="footer">
-        <p>Dicetak pada: <?= date('d/m/Y H:i') ?></p>
-        <p style="margin-top: 50px;">(_________________________)</p>
-        <p>Admin Vanda Gym</p>
-    </div>
 </body>
 </html>

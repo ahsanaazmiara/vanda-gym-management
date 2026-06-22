@@ -89,7 +89,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
                         if ($id_user_cari == $_SESSION['id_user']) { // Pastikan hanya bisa batal jika emailnya milik dia sendiri
                             $btnReceipt = "<button type='button' class='btn-small-red' onclick='batalkanTransaksi($id_membership)'>Batalkan</button>";
                         }
-                    } else if ($status == 'kadaluarsa') {
+                    } else if ($status == 'kedaluwarsa') {
                         $badge = '<span style="color:var(--primary-red);">Kadaluwarsa</span>';
                         $btnReceipt = "<button type='button' class='btn-small-gold' onclick='bukaBukti($dataResi)'>Lihat</button>";
                     } else {
@@ -321,7 +321,7 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
                                     $badge = '<span style="color:var(--warning-yellow); font-weight:bold;">Menunggu Verifikasi</span>';
                                     // Tombol Batal Transaksi (PHP Render awal)
                                     $btnReceipt = "<button type='button' class='btn-small-red' onclick='batalkanTransaksi($id_membership)'>Batalkan</button>";
-                                } else if ($status == 'kadaluarsa') {
+                                } else if ($status == 'kedaluwarsa') {
                                     $badge = '<span style="color:var(--primary-red);">Kadaluwarsa</span>';
                                     $btnReceipt = "<button type='button' class='btn-small-gold' onclick='bukaBukti($dataResi)'>Lihat</button>";
                                 } else {

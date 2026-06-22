@@ -112,19 +112,28 @@ function formatTglIndo($tanggal) {
     return date('d', $waktu) . ' ' . $bulanIndo[date('m', $waktu)] . ' ' . date('Y', $waktu);
 }
 
-// ---------------------------------------------------------
+
 // PERBAIKAN SISA HARI: SINKRONISASI DENGAN DASBOR
 // ---------------------------------------------------------
+// 1. Set zona waktu ke WIB agar hari sinkron dengan waktu lokal
+date_default_timezone_set('Asia/Jakarta');
+
 $hari_ini = date('Y-m-d');
-$is_expired = ($tgl_akhir_db < $hari_ini);
+$is_expired = true; // Set default kedaluwarsa
 $sisa_hari = 0;
 
-if (!$is_expired) {
-    // Gunakan DateTime agar hitungannya presisi sama dengan dasbor
+if ($tgl_akhir_db) {
     $tglAkhirObj = new DateTime($tgl_akhir_db);
-    $hariIniObj = new DateTime($hari_ini);
-    $selisih = $hariIniObj->diff($tglAkhirObj);
-    $sisa_hari = $selisih->days;
+    $tglAkhirObj->setTime(0, 0, 0); // Pastikan perbandingan tepat di jam 00:00:00
+    $hariIniObj = new DateTime('today'); // Mengambil hari ini jam 00:00:00
+
+    if ($tglAkhirObj < $hariIniObj) {
+        $is_expired = true;
+    } else {
+        $is_expired = false;
+        $selisih = $hariIniObj->diff($tglAkhirObj);
+        $sisa_hari = $selisih->days;
+    }
 }
 ?>
 

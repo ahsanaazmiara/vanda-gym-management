@@ -1,4 +1,8 @@
 <?php
+// Atur masa aktif session menjadi 1 hari (86400 detik)
+ini_set('session.gc_maxlifetime', 86400);
+session_set_cookie_params(86400);
+
 session_start();
 require 'includes/koneksi.php';
 
@@ -108,21 +112,33 @@ if ($tgl_akhir_raw) {
     $tgl_berakhir = date('d', $ta) . ' ' . $bulanIndo[date('m', $ta)] . ' ' . date('Y', $ta);
 } else { $tgl_berakhir = '-'; }
 
-// 5. HITUNG SISA HARI & LOGIKA PERINGATAN
+// =========================================================
+// 5. HITUNG SISA HARI & LOGIKA PERINGATAN (FIX DATETIME)
+// =========================================================
 $sisa_hari = 0;
 $peringatan_merah = false;
 
+// Kunci zona waktu agar sinkron
+date_default_timezone_set('Asia/Jakarta');
+
 if ($status_member === 'aktif' && $tgl_akhir_raw) {
-    $sekarang = time();
-    $batas_waktu = strtotime($tgl_akhir_raw);
-    $selisih = $batas_waktu - $sekarang;
-    $sisa_hari = max(0, round($selisih / (60 * 60 * 24)));
+    $tgl_sekarang = new DateTime('today'); 
+    $tgl_akhir = new DateTime($tgl_akhir_raw);
     
-    if ($sisa_hari <= 0 && $tgl_akhir_raw < date('Y-m-d')) {
-        $status_member = 'kadaluarsa';
-        mysqli_query($koneksi, "UPDATE membership SET status='kadaluarsa' WHERE id_user=$id_user AND status='aktif'");
-    } elseif ($sisa_hari <= 7) {
-        $peringatan_merah = true;
+    // Pastikan tanggal akhir dihitung pada jam 00:00:00
+    $tgl_akhir->setTime(0, 0, 0); 
+    
+    if ($tgl_akhir < $tgl_sekarang) {
+        $sisa_hari = 0;
+        $status_member = 'kedaluwarsa';
+        mysqli_query($koneksi, "UPDATE membership SET status='kedaluwarsa' WHERE id_user=$id_user AND status='aktif'");
+    } else {
+        $selisih = $tgl_sekarang->diff($tgl_akhir);
+        $sisa_hari = $selisih->days;
+        
+        if ($sisa_hari <= 7) {
+            $peringatan_merah = true;
+        }
     }
 }
 
@@ -177,7 +193,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             text-decoration: none;
         }
         .bell-icon:hover { color: var(--text-light); }
-        .bell-icon.active { color: var(--text-light); animation: ring 2s infinite ease-in-out; }
+        .bell-icon.active { color: var(--primary-red); animation: ring 2s infinite ease-in-out; }
         .bell-badge { position: absolute; top: 4px; right: 4px; background: var(--primary-red); color: white; font-size: 10px; font-weight: bold; width: 14px; height: 14px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
 
         @keyframes ring {
@@ -191,7 +207,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         }
 
         /* =========================================
-           HAMBURGER TOGGLE (SAMA SEPERTI INDEX.PHP)
+           HAMBURGER TOGGLE
            ========================================= */
         header .menu-toggle {
             display: flex;
@@ -223,7 +239,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         header .menu-toggle.active .bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
 
         /* =========================================
-           DROPDOWN NAV MENU (SAMA SEPERTI INDEX.PHP)
+           DROPDOWN NAV MENU
            ========================================= */
         #nav-menu {
             display: none;
@@ -282,7 +298,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         #nav-menu a.menu-link.locked-link {
             opacity: 0.45;
             cursor: not-allowed;
-            pointer-events: none;
         }
 
         .menu-divider {
@@ -292,7 +307,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             width: 100%;
         }
 
-        /* Tombol Keluar di dalam dropdown */
         .nav-actions-dasbor {
             display: flex;
             flex-direction: column;
@@ -345,7 +359,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         /* =========================================
            AKSI CEPAT
            ========================================= */
-        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;     margin: 40px 100px; }
+        .action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;    margin: 40px 100px; }
         .action-btn { background: #111; border: 1px solid #222; border-radius: 8px; padding: 20px; display: flex; align-items: center; gap: 15px; text-decoration: none; transition: 0.3s; cursor: pointer; }
         .action-btn:hover { border-color: var(--accent-gold); transform: translateY(-3px); box-shadow: 0 5px 15px rgba(232,201,153,0.1); }
         .action-btn.danger-border { border-color: var(--primary-red); }
@@ -377,41 +391,16 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
            ========================================= */
         @media screen and (max-width: 768px) {
             body { padding-bottom: 85px !important; }
-
-            /* Sembunyikan tombol WA floating di mobile */
             .wa-btn { display: none !important; }
 
-            /* Perkecil tombol hamburger */
-            header .menu-toggle {
-                width: 36px;
-                height: 36px;
-            }
+            header .menu-toggle { width: 36px; height: 36px; }
             header .menu-toggle .bar { width: 16px; }
 
-            /* Dropdown lebih kecil & nempel pojok kanan atas */
-            #nav-menu {
-                top: 55px;
-                right: 10px;
-                left: auto;
-                width: 195px;
-                box-sizing: border-box;
-                padding: 10px;
-            }
+            #nav-menu { top: 55px; right: 10px; left: auto; width: 195px; box-sizing: border-box; padding: 10px; }
+            #nav-menu a.menu-link { font-size: 0.75rem; padding: 5px 6px; white-space: nowrap; }
+            .nav-actions-dasbor .btn-keluar-menu { font-size: 0.75rem; padding: 7px 8px; }
 
-            #nav-menu a.menu-link {
-                font-size: 0.75rem;
-                padding: 5px 6px;
-                white-space: nowrap;
-            }
-
-            .nav-actions-dasbor .btn-keluar-menu {
-                font-size: 0.75rem;
-                padding: 7px 8px;
-            }
-
-            /* Dasbor konten */
             .dashboard-container { padding: 0px 45px; margin: 15px auto; }
-
             .alert-box { flex-direction: column; text-align: center; gap: 8px; padding: 10px 12px; font-size: 0.75rem; margin-bottom: 15px; }
             .alert-box a { width: 165px; text-align: center; padding: 8px 10px; font-size: 0.85rem; }
 
@@ -429,7 +418,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             .dash-card > div:last-child { margin-top: 15px !important; padding-top: 10px !important; text-align: center !important; }
             .dash-card > div:last-child a { font-size: 0.75rem !important; padding: 5px 10px !important; }
 
-            /* Jadwal HP */
             #jadwal { padding: 10px 0; margin: 15px 0; }
             .section-title { font-size: 1.2rem !important; margin-bottom: 15px !important; padding-bottom: 8px !important; }
             .schedule-container { grid-template-columns: 1fr; gap: 12px; }
@@ -439,23 +427,15 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             .schedule-day { font-size: 0.8rem !important; }
             .schedule-time { font-size: 0.75rem !important; }
 
-            /* Aksi Cepat HP */
-                   .action-grid { grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin: 20px 5px
-}
+            .action-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin: 20px 5px }
             .action-btn { padding: 12px 15px; gap: 12px; border-radius: 6px; }
             .action-btn h3 { font-size: 0.95rem; margin-bottom: 2px; }
             .action-btn p { font-size: 0.75rem; }
             .action-icon svg { width: 32px; height: 32px; }
 
-            /* Tombol melayang */
             .chatbot-btn { bottom: 85px !important; width: 45px !important; height: 45px !important; right: 15px !important; }
             .chatbot-btn svg { width: 22px !important; height: 22px !important; }
 
-            /* ============================================
-               NAVIGASI BAWAH MOBILE
-               ============================================ */
             .bottom-nav-mobile {
                 display: flex !important;
                 position: fixed !important;
@@ -501,17 +481,9 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                 stroke-linejoin: round !important;
             }
 
-            .bottom-nav-mobile .nav-item.highlight {
-                color: var(--accent-gold, #E8C999) !important;
-                font-weight: bold !important;
-            }
-            .bottom-nav-mobile .nav-item.highlight svg {
-                stroke: var(--accent-gold, #E8C999) !important;
-            }
-            .bottom-nav-mobile .nav-item.locked-nav {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
+            .bottom-nav-mobile .nav-item.highlight { color: var(--accent-gold, #E8C999) !important; font-weight: bold !important; }
+            .bottom-nav-mobile .nav-item.highlight svg { stroke: var(--accent-gold, #E8C999) !important; }
+            .bottom-nav-mobile .nav-item.locked-nav { opacity: 0.4; cursor: not-allowed; }
 
             @keyframes jelly {
                 0%, 100% { transform: scale(1, 1); }
@@ -521,38 +493,17 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             }
             .bottom-nav-mobile .nav-item:active svg { animation: jelly 0.5s ease; }
 
-                .announcement-banner {
-        flex-direction: row;
-        gap: 8px;
-        padding: 12px;
-        font-size: 13px;
-    }
+            .announcement-banner { flex-direction: row; gap: 8px; padding: 12px; font-size: 13px; }
 
-        .profile-header {
-        flex-direction: row;
-        align-items: center;
-        text-align: center;
-        gap: 8px;
-        margin-bottom: 0px;
-        padding-bottom: 10px;
-    }
+            .profile-header { flex-direction: row; align-items: center; text-align: center; gap: 8px; margin-bottom: 0px; padding-bottom: 10px; }
         }
 
         @media (max-width: 480px) {
             .action-grid { grid-template-columns: 1fr; gap: 10px; margin: 20px 50px; }
-                .announcement-banner {
-        flex-direction: column;
-        gap: 8px;
-        padding: 12px;
-        font-size: 13px;
-    }
+            .announcement-banner { flex-direction: column; gap: 8px; padding: 12px; font-size: 13px; }
             .chatbot-btn { width: 40px !important; height: 40px !important; }
             .chatbot-btn svg { width: 20px !important; height: 20px !important; }
-
-            .dashboard-container {
-        padding: 0px 35px;
-        margin: 15px auto;
-    }
+            .dashboard-container { padding: 0px 35px; margin: 15px auto; }
         }
     </style>
 </head>
@@ -564,18 +515,19 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </div>
 
         <div class="header-right">
-            <!-- Lonceng: selalu terlihat, di luar hamburger -->
-            <a href="perpanjang.php" class="bell-icon <?= ($peringatan_merah && !$sedang_perpanjang) ? 'active' : '' ?>" title="Tagihan Perpanjangan Membership">
+            <?php 
+                $notif_merah = (($peringatan_merah || $status_member !== 'aktif') && !$sedang_perpanjang); 
+            ?>
+            <a href="perpanjang.php" class="bell-icon <?= $notif_merah ? 'active' : '' ?>" title="Tagihan Perpanjangan Membership">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                 </svg>
-                <?php if ($status_member === 'aktif' && $peringatan_merah && !$sedang_perpanjang): ?>
+                <?php if ($notif_merah): ?>
                     <span class="bell-badge">!</span>
                 <?php endif; ?>
             </a>
 
-            <!-- Hamburger Toggle -->
             <button class="menu-toggle" id="mobile-menu" aria-label="Toggle Menu">
                 <span class="bar"></span>
                 <span class="bar"></span>
@@ -583,7 +535,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             </button>
         </div>
 
-        <!-- Dropdown Nav Menu -->
         <nav id="nav-menu">
             <a href="member_dasbor.php" class="menu-link active-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -593,11 +544,11 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
                 Hubungi Kami
             </a>
-            <a href="galeri_member.php" class="menu-link <?= ($status_member !== 'aktif') ? 'locked-link' : '' ?>">
+            <a href="galeri_member.php" class="menu-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
                 Galeri Gym
             </a>
-            <a href="chatbot_member.php" class="menu-link <?= ($status_member !== 'aktif') ? 'locked-link' : '' ?>">
+            <a href="chatbot_member.php" class="menu-link <?= ($status_member !== 'aktif') ? 'locked-link' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Fitur AI terkunci. Silakan perpanjang membership Anda.\')"' : '' ?>>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
                 Chatbot AI
             </a>
@@ -613,7 +564,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             <div class="menu-divider"></div>
 
             <div class="nav-actions-dasbor">
-                <a href="logout.php" class="btn-keluar-menu">
+                <a href="index.php" class="btn-keluar-menu">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                     Keluar dari Akun
                 </a>
@@ -649,7 +600,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                     <a href="perpanjang.php" class="btn-primary" style="min-height: 35px; padding: 5px 15px; font-size: 0.9rem; display: inline-block;">Perpanjang</a>
                 <?php endif; ?>
             </div>
-        <?php elseif ($status_member === 'kadaluarsa'): ?>
+        <?php elseif ($status_member === 'kedaluwarsa'): ?>
             <div class="alert-box danger" style="margin-bottom: 20px;">
                 <div style="margin-bottom: 10px;"><strong>Perhatian:</strong> Masa aktif membership Anda telah <strong>KEDALUWARSA</strong>.</div>
                 <a href="perpanjang.php" class="btn-primary" style="background-color: var(--primary-red); color: white; border: none; font-weight:bold; padding: 6px 12px; font-size: 0.85rem; display: inline-block;">Perpanjang Sekarang</a>
@@ -663,7 +614,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                     <p><?= htmlspecialchars($email_user) ?></p>
                 </div>
                 <div class="status-badge <?= ($status_member !== 'aktif') ? 'danger' : '' ?>">
-                    <?= strtoupper($status_member) ?>
+                    <?= ($status_member === 'aktif') ? 'AKTIF' : 'kedaluwarsa' ?>
                 </div>
             </div>
 
@@ -767,7 +718,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
                     </div>
                 </a>
 
-                <a href="galeri_member.php" class="action-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Galeri terkunci. Silakan perpanjang membership Anda.\')"' : '' ?>>
+                <a href="galeri_member.php" class="action-btn">
                     <div class="action-icon"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg></div>
                     <div>
                         <h3>Galeri Gym</h3>
@@ -808,7 +759,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </div>
     </footer>
 
-    <!-- BOTTOM NAV MOBILE -->
     <div class="bottom-nav-mobile">
         <a href="member_dasbor.php" class="nav-item highlight">
             <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
@@ -818,7 +768,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
             <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
             <span>Gizi</span>
         </a>
-        <a href="galeri_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked-nav' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Galeri terkunci!\')"' : '' ?>>
+        <a href="galeri_member.php" class="nav-item">
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
             <span>Galeri</span>
         </a>
@@ -832,7 +782,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </a>
     </div>
 
-    <!-- Tombol WA Floating (Hanya PC) -->
     <a href="https://instagram.com/vandagympky_classic" target="_blank" class="wa-btn" title="Hubungi CS via Instagram"
        style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; color: #ffffff; background: var(--primary-red, #ff4d4d); border-radius: 50%; padding: 12px; box-shadow: 0 4px 15px rgba(255,77,77,0.4); border: 2px solid #E8C999; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -841,7 +790,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </svg>
     </a>
 
-    <!-- Tombol Chatbot Floating -->
     <a href="chatbot_member.php" class="chatbot-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>"
        <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Fitur AI terkunci.\')"' : '' ?>
        title="Chatbot Vanda AI"
@@ -855,7 +803,6 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
         </svg>
     </a>
 
-    <!-- Offline Detector -->
     <div id="boxErrorKoneksi" class="connection-error-box">
         <div class="error-card-center">
             <div style="width: 50px; height: 50px; background: #221111; border: 2px solid #ff4d4d; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
@@ -869,7 +816,7 @@ if (isset($_GET['simulasi']) && $_GET['simulasi'] == '7') {
     </div>
 
     <script>
-        // HAMBURGER TOGGLE (SAMA SEPERTI INDEX.PHP)
+        // HAMBURGER TOGGLE 
         const menuToggle = document.getElementById('mobile-menu');
         const navMenu    = document.getElementById('nav-menu');
 
