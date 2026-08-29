@@ -123,24 +123,23 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         .form-header h2 { color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; font-size: 1.5rem; margin-bottom: 5px;}
         .form-header p { color: #888; font-size: 0.9rem; }
 
+        /* KOTAK INSTRUKSI TAMBAHAN */
+        .instruction-box { background-color: #151515; border-left: 4px solid var(--accent-gold); padding: 15px 20px; margin-bottom: 25px; border-radius: 0 4px 4px 0; font-size: 0.85rem; color: #ccc; line-height: 1.5; }
+        .instruction-box h4 { color: var(--accent-gold); margin-bottom: 8px; font-size: 0.95rem; text-transform: uppercase; }
+        .instruction-box ul { margin-left: 20px; margin-top: 5px; }
+        .instruction-box li { margin-bottom: 5px; }
+        .instruction-box strong { color: var(--text-light); }
+
         .form-group { margin: 25px 0; text-align: left; position: relative; }
         .form-group label { display: block; margin-bottom: 8px; color: #ccc; font-weight: 600; font-size: 0.85rem;}
         
-        .form-control {
-            width: 100%; padding: 10px 15px; min-height: 44px;
-            background-color: var(--input-bg); border: 1px solid #333;
-            border-radius: 4px; color: white; font-size: 1rem; transition: 0.3s;
-        }
+        .form-control { width: 100%; padding: 10px 15px; min-height: 44px; background-color: var(--input-bg); border: 1px solid #333; border-radius: 4px; color: white; font-size: 1rem; transition: 0.3s; }
         .form-control:focus { outline: none; border-color: var(--accent-gold); }
         .form-control.invalid { border-color: var(--primary-red); }
 
         .error-msg { color: var(--primary-red); font-size: 0.85rem; margin-top: 5px; display: none; }
 
-        .btn-search {
-            width: 100%; background-color: var(--success-green); color: white;
-            border: none; min-height: 48px; font-size: 1rem; font-weight: bold;
-            border-radius: 4px; cursor: pointer; text-transform: uppercase; transition: 0.3s; margin-bottom: 15px;
-        }
+        .btn-search { width: 100%; background-color: var(--success-green); color: white; border: none; min-height: 48px; font-size: 1rem; font-weight: bold; border-radius: 4px; cursor: pointer; text-transform: uppercase; transition: 0.3s; margin-bottom: 15px; }
         .btn-search:hover { background-color: #218838; }
         
         /* HASIL PENCARIAN & TABEL RIWAYAT */
@@ -198,6 +197,9 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
             .form-header h2 { font-size: 1.25rem; }
             .form-header p { font-size: 0.8rem; }
             
+            /* RESPONSIVE KOTAK INSTRUKSI */
+            .instruction-box { padding: 12px 15px; font-size: 0.8rem; margin-bottom: 20px; }
+            
             .form-group { margin: 15px 0; }
             .form-group label { font-size: 0.8rem; margin-bottom: 5px; }
             .form-control { padding: 8px 12px; min-height: 38px; font-size: 0.85rem; }
@@ -225,7 +227,17 @@ $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
         
         <div class="form-header">
             <h2>Cek <span style="color: var(--accent-gold);">Status</span></h2>
-            <p>Masukkan Email Anda untuk melihat status aktivasi membership.</p>
+        </div>
+
+        <!-- KOTAK INSTRUKSI / PANDUAN -->
+        <div class="instruction-box">
+            <h4>Panduan Penggunaan</h4>
+            <p>Halaman ini berfungsi untuk melacak status pendaftaran dan riwayat keanggotaan Anda.</p>
+            <ul>
+                <li>Masukkan <strong>Email</strong> yang Anda gunakan saat mendaftar, lalu klik <strong>Cari Data</strong>.</li>
+                <li>Jika status <strong>Menunggu Verifikasi</strong>, Anda dapat meninjau atau membatalkan pengajuan.</li>
+                <li>Jika status <strong>Aktif</strong>, Anda dapat mengunduh <em>E-Receipt</em> (bukti pembayaran) dan langsung login ke sistem.</li>
+            </ul>
         </div>
 
         <div class="form-group">

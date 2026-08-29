@@ -1,9 +1,9 @@
 <?php
-// Atur masa aktif session menjadi 1 hari (86400 detik)
-ini_set('session.gc_maxlifetime', 86400);
-session_set_cookie_params(86400);
+// Konfigurasi session terpusat (lihat session_init.php).
+// File ini menggantikan pemanggilan ini_set()/session_set_cookie_params()/session_start()
+// yang dulu ada di sini, supaya settingnya konsisten dengan login.php.
+require 'session_init.php';
 
-session_start();
 require 'includes/koneksi.php';
 
 if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'admin') {
@@ -16,6 +16,11 @@ if(mysqli_num_rows($cek_pengaturan) == 0) {
     mysqli_query($koneksi, "INSERT INTO pengaturan_web (id) VALUES (1)");
 }
 mysqli_query($koneksi, "ALTER TABLE users MODIFY COLUMN role VARCHAR(20) DEFAULT 'member'");
+
+// Auto-expire: setiap kali dashboard admin dibuka, cek membership yang statusnya
+// masih 'aktif' tapi tanggal berakhirnya sudah lewat, lalu ubah ke 'kedaluwarsa'.
+// Ini membuat status berubah otomatis tanpa perlu menunggu member login.
+mysqli_query($koneksi, "UPDATE membership SET status='kedaluwarsa' WHERE status='aktif' AND tgl_berakhir < CURDATE()");
 
 // =========================================================
 // AJAX HANDLERS
@@ -167,8 +172,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
             SELECT u.id_user, u.nama_lengkap, u.no_wa, u.email,
                    m.status, m.tgl_berakhir, m.paket_bulan
             FROM users u
-            LEFT JOIN (SELECT id_user, MAX(id_membership) as max_id FROM membership GROUP BY id_user) lm ON u.id_user = lm.id_user
-            LEFT JOIN membership m ON lm.max_id = m.id_membership
+            LEFT JOIN (
+                SELECT t.id_user,
+                    (SELECT mm.id_membership
+                     FROM membership mm
+                     WHERE mm.id_user = t.id_user
+                     ORDER BY (CASE WHEN mm.status='aktif' AND mm.tgl_berakhir >= CURDATE() THEN 0 ELSE 1 END) ASC,
+                              mm.id_membership DESC
+                     LIMIT 1) as display_id
+                FROM (SELECT DISTINCT id_user FROM membership) t
+            ) lm ON u.id_user = lm.id_user
+            LEFT JOIN membership m ON lm.display_id = m.id_membership
             WHERE u.role NOT IN ('admin') AND (u.nama_lengkap LIKE '%$keyword%' OR u.no_wa LIKE '%$keyword%' OR u.email LIKE '%$keyword%')
             LIMIT 10
         ");
@@ -289,10 +303,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
 // DATA STATISTIK & PENGATURAN
 // =========================================================
 $count_pending = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT COUNT(*) as c FROM membership WHERE status='pending'"))['c'];
+
+// Hitung total pendapatan (termasuk yang aktif maupun yang sudah kedaluwarsa)
 $total_income  = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT SUM(total_harga) as s FROM membership WHERE status IN ('aktif', 'kedaluwarsa')"))['s'] ?? 0;
 $rp_income = number_format($total_income, 0, ',', '.');
 
-// Hitung Member Aktif & Kedaluwarsa (MURNI DARI STATUS TERAKHIR TIAP USER)
+// Hitung Member Aktif & Kedaluwarsa
+// Baris "acuan" tiap user diprioritaskan: kalau masih ada membership berstatus
+// 'aktif' dan belum lewat tgl_berakhir, itu yang dipakai. Kalau tidak ada,
+// baru pakai baris paling baru apa adanya (misalnya baris 'ditolak' terbaru).
+// Ini supaya member yang masa aktifnya masih jalan tidak keliru dianggap
+// 'ditolak' hanya karena ada pengajuan perpanjangan yang baru saja ditolak.
 $count_aktif = 0;
 $count_expired = 0;
 
@@ -300,11 +321,16 @@ $query_stats = mysqli_query($koneksi, "
     SELECT m.status, COUNT(*) as jumlah
     FROM users u
     INNER JOIN (
-        SELECT id_user, MAX(id_membership) as max_id 
-        FROM membership 
-        GROUP BY id_user
+        SELECT t.id_user,
+            (SELECT mm.id_membership
+             FROM membership mm
+             WHERE mm.id_user = t.id_user
+             ORDER BY (CASE WHEN mm.status='aktif' AND mm.tgl_berakhir >= CURDATE() THEN 0 ELSE 1 END) ASC,
+                      mm.id_membership DESC
+             LIMIT 1) as display_id
+        FROM (SELECT DISTINCT id_user FROM membership) t
     ) latest_m ON u.id_user = latest_m.id_user
-    INNER JOIN membership m ON latest_m.max_id = m.id_membership
+    INNER JOIN membership m ON latest_m.display_id = m.id_membership
     WHERE u.role NOT IN ('admin','arsip')
     GROUP BY m.status
 ");
@@ -408,6 +434,8 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         tr:hover { background-color: #151515; }
 
         /* BULK */
+        .bulk-col { display: none; }
+        .selection-mode .bulk-col { display: table-cell; }
         .bulk-checkbox { width: 16px; height: 16px; accent-color: var(--accent-gold); cursor: pointer; }
         .bulk-toolbar { display: none; align-items: center; gap: 10px; padding: 10px 15px; background: rgba(232,201,153,0.08); border: 1px solid var(--accent-gold); border-radius: 6px; margin-bottom: 12px; flex-wrap: wrap; }
         .bulk-toolbar.visible { display: flex; }
@@ -444,6 +472,8 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         .btn-rej:hover { background: #a81a1a; }
         .btn-view { background: #333; color: var(--accent-gold); border: 1px solid var(--accent-gold); }
         .btn-view:hover { background: var(--accent-gold); color: #000; }
+        .btn-outline { background-color: transparent; border: 1px solid #444; color: #aaa; }
+        .btn-outline:hover { border-color: var(--primary-red); color: var(--primary-red); }
 
         /* ICON BUTTONS */
         .btn-icon {
@@ -609,10 +639,6 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
             Data Member
         </div>
-        <div class="menu-item" onclick="switchTab('tab-arsip', this)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v13H3V8"></path><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
-            Arsip Data
-        </div>
         <div class="menu-item" onclick="switchTab('tab-konten', this)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             Kelola Konten Web
@@ -739,19 +765,31 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                     <option value="ditolak">Ditolak</option>
                 </select>
             </div>
-            <button class="btn-submit" style="width:auto;margin:0;" onclick="bukaModal('modalTambahMember')">+ Tambah Member</button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-action btn-view" style="margin:0; display:flex; align-items:center; gap:5px;" onclick="bukaTabArsip()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                    Lihat Arsip
+                </button>
+
+                <button class="btn-action btn-outline" id="btnPilihMember" style="margin:0; border-color:#666; color:#ccc; display:flex; align-items:center; gap:5px;" onclick="togglePilihData('tabelMember', 'btnPilihMember', 'bulkToolbarMember', 'row-check-member')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                    Pilih Data
+                </button>
+
+                <button class="btn-submit" style="width:auto;margin:0;" onclick="bukaModal('modalTambahMember')">+ Tambah Member</button>
+            </div>
         </div>
         <div class="bulk-toolbar" id="bulkToolbarMember">
             <span class="bulk-count" id="bulkCountMember">0 dipilih</span>
             <button class="btn-bulk btn-bulk-warn" onclick="bulkArsip()">📦 Arsipkan</button>
             <button class="btn-bulk btn-bulk-danger" onclick="bulkHapus()">🗑️ Hapus Permanen</button>
-            <button class="btn-bulk btn-bulk-cancel" onclick="clearBulkMember()">Batal</button>
+            <button class="btn-bulk btn-bulk-cancel" onclick="togglePilihData('tabelMember', 'btnPilihMember', 'bulkToolbarMember', 'row-check-member')">Batal</button>
         </div>
         <div class="table-container">
             <table id="tabelMember">
                 <thead>
                     <tr>
-                        <th style="width:40px;"><input type="checkbox" class="bulk-checkbox" id="checkAllMember" onchange="toggleCheckAll('tabelMember','row-check-member','checkAllMember','bulkToolbarMember','bulkCountMember')"></th>
+                        <th class="bulk-col" style="width:40px;"><input type="checkbox" class="bulk-checkbox" id="checkAllMember" onchange="toggleCheckAll('tabelMember','row-check-member','checkAllMember','bulkToolbarMember','bulkCountMember')"></th>
                         <th>Nama / Email</th><th>Kontak WA</th><th>Pembayaran</th><th>Masa Aktif</th><th>Status</th><th>Aksi</th>
                     </tr>
                 </thead>
@@ -761,8 +799,17 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                         SELECT u.id_user, u.nama_lengkap, u.email, u.no_wa,
                                m.status, m.tgl_mulai, m.tgl_berakhir, m.metode_bayar, m.total_harga
                         FROM users u
-                        INNER JOIN (SELECT id_user, MAX(id_membership) as max_id FROM membership GROUP BY id_user) latest_m ON u.id_user = latest_m.id_user
-                        INNER JOIN membership m ON latest_m.max_id = m.id_membership
+                        INNER JOIN (
+                            SELECT t.id_user,
+                                (SELECT mm.id_membership
+                                 FROM membership mm
+                                 WHERE mm.id_user = t.id_user
+                                 ORDER BY (CASE WHEN mm.status='aktif' AND mm.tgl_berakhir >= CURDATE() THEN 0 ELSE 1 END) ASC,
+                                          mm.id_membership DESC
+                                 LIMIT 1) as display_id
+                            FROM (SELECT DISTINCT id_user FROM membership) t
+                        ) latest_m ON u.id_user = latest_m.id_user
+                        INNER JOIN membership m ON latest_m.display_id = m.id_membership
                         WHERE u.role NOT IN ('admin','arsip') AND m.status IN ('aktif','kedaluwarsa','ditolak')
                         ORDER BY m.id_membership DESC
                     ");
@@ -793,7 +840,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                         }
                     ?>
                     <tr data-uid="<?= $usr['id_user'] ?>">
-                        <td><input type="checkbox" class="bulk-checkbox row-check-member" onchange="updateBulkToolbar('row-check-member','checkAllMember','bulkToolbarMember','bulkCountMember')"></td>
+                        <td class="bulk-col"><input type="checkbox" class="bulk-checkbox row-check-member" onchange="updateBulkToolbar('row-check-member','checkAllMember','bulkToolbarMember','bulkCountMember')"></td>
                         <td><strong><?= $usr['nama_lengkap'] ?></strong><br><span style="font-size:0.85rem;color:#aaa;"><?= $tampil_email ?></span></td>
                         <td><?= $usr['no_wa'] ?></td>
                         <td><span style="color:var(--accent-gold);font-weight:bold;">Rp <?= number_format($usr['total_harga'],0,',','.') ?></span><br><span style="font-size:0.8rem;text-transform:uppercase;color:#888;"><?= $usr['metode_bayar'] ?></span></td>
@@ -831,20 +878,32 @@ $harga_senam = $web['harga_senam'] ?? 25000;
 
     <div id="tab-arsip" class="tab-section">
         <div style="display:flex;justify-content:space-between;margin-bottom:12px;align-items:center;flex-wrap:wrap;gap:15px;">
-            <p style="color:#888;margin:0;">Akun dinonaktifkan — riwayat transaksi tetap aman.</p>
-            <input type="text" id="searchArsip" class="form-control" placeholder="Cari nama / email..." style="width:250px;" onkeyup="filterArsip()">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <button class="btn-action btn-outline" style="margin:0; border-color:#666; color:#ccc; display:flex; align-items:center; gap:5px;" onclick="kembaliKeMember()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    Kembali
+                </button>
+                <p style="color:#888;margin:0;font-size:0.9rem;">Akun dinonaktifkan — riwayat transaksi aman.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input type="text" id="searchArsip" class="form-control" placeholder="Cari nama / email..." style="width:250px;" onkeyup="filterArsip()">
+                <button class="btn-action btn-outline" id="btnPilihArsip" style="margin:0; border-color:#666; color:#ccc; display:flex; align-items:center; gap:5px;" onclick="togglePilihData('tabelArsip', 'btnPilihArsip', 'bulkToolbarArsip', 'row-check-arsip')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                    Pilih Data
+                </button>
+            </div>
         </div>
         <div class="bulk-toolbar" id="bulkToolbarArsip">
             <span class="bulk-count" id="bulkCountArsip">0 dipilih</span>
             <button class="btn-bulk btn-bulk-success" onclick="bulkPulihkan()">♻️ Pulihkan</button>
             <button class="btn-bulk btn-bulk-danger" onclick="bulkHapusArsip()">🗑️ Hapus Permanen</button>
-            <button class="btn-bulk btn-bulk-cancel" onclick="clearBulkArsip()">Batal</button>
+            <button class="btn-bulk btn-bulk-cancel" onclick="togglePilihData('tabelArsip', 'btnPilihArsip', 'bulkToolbarArsip', 'row-check-arsip')">Batal</button>
         </div>
         <div class="table-container">
             <table id="tabelArsip">
                 <thead>
                     <tr>
-                        <th style="width:40px;"><input type="checkbox" class="bulk-checkbox" id="checkAllArsip" onchange="toggleCheckAll('tabelArsip','row-check-arsip','checkAllArsip','bulkToolbarArsip','bulkCountArsip')"></th>
+                        <th class="bulk-col" style="width:40px;"><input type="checkbox" class="bulk-checkbox" id="checkAllArsip" onchange="toggleCheckAll('tabelArsip','row-check-arsip','checkAllArsip','bulkToolbarArsip','bulkCountArsip')"></th>
                         <th>Nama / Email</th><th>Kontak WA</th><th>Terakhir Aktif</th><th>Status Terakhir</th><th>Aksi</th>
                     </tr>
                 </thead>
@@ -864,7 +923,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                         $tampil_email_a = (strpos($arsip['email'],'@noemail.local')!==false) ? '<em style="color:#555;">—</em>' : htmlspecialchars($arsip['email']);
                     ?>
                     <tr data-uid="<?= $arsip['id_user'] ?>">
-                        <td><input type="checkbox" class="bulk-checkbox row-check-arsip" onchange="updateBulkToolbar('row-check-arsip','checkAllArsip','bulkToolbarArsip','bulkCountArsip')"></td>
+                        <td class="bulk-col"><input type="checkbox" class="bulk-checkbox row-check-arsip" onchange="updateBulkToolbar('row-check-arsip','checkAllArsip','bulkToolbarArsip','bulkCountArsip')"></td>
                         <td><strong><?= $arsip['nama_lengkap'] ?></strong><br><span style="font-size:0.85rem;color:#aaa;"><?= $tampil_email_a ?></span></td>
                         <td><?= $arsip['no_wa'] ?></td>
                         <td><?= $arsip['tgl_berakhir'] ? date('d M Y',strtotime($arsip['tgl_berakhir'])) : '-' ?></td>
@@ -1021,7 +1080,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                         <p title="<?= htmlspecialchars($mg['judul']) ?>"><?= htmlspecialchars($mg['judul']) ?></p>
                         <span><?= strtoupper($mg['kategori']) ?></span>
                         <div style="display:flex;gap:5px;">
-                            <button type="button" class="btn-action btn-view" style="flex:1;margin:0;text-align:center;" onclick="bukaEditGaleri(<?= $mg['id_media'] ?>, '<?= htmlspecialchars(addslashes($mg['judul'])) ?>', '<?= htmlspecialchars(addslashes($mg['caption'])) ?>', '<?= $mg['kategori'] ?>')">Edit</button>
+                            <button type="button" class="btn-action btn-view" style="flex:1;margin:0;text-align:center;" onclick="bukaEditGaleri(<?= $mg['id_media'] ?>, '<?= htmlspecialchars(str_replace(["\r", "\n"], ["\\r", "\\n"], addslashes($mg['judul']))) ?>', '<?= htmlspecialchars(str_replace(["\r", "\n"], ["\\r", "\\n"], addslashes($mg['caption']))) ?>', '<?= $mg['kategori'] ?>')">Edit</button>
                             <button type="button" class="btn-action btn-rej" style="flex:1;margin:0;text-align:center;" onclick="hapusGaleri(<?= $mg['id_media'] ?>)">Hapus</button>
                         </div>
                     </div>
@@ -1225,6 +1284,45 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         document.getElementById('pageTitle').innerText = title;
         
         if(window.innerWidth <= 1024) toggleSidebar(); 
+    }
+
+    function bukaTabArsip() {
+        document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-arsip').classList.add('active');
+        document.getElementById('pageTitle').innerText = 'Arsip Data Member';
+    }
+
+    function kembaliKeMember() {
+        document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-member').classList.add('active');
+        document.getElementById('pageTitle').innerText = 'Data Member';
+    }
+
+    function togglePilihData(tableId, btnId, toolbarId, rowClass) {
+        const table = document.getElementById(tableId);
+        const btn = document.getElementById(btnId);
+        const toolbar = document.getElementById(toolbarId);
+        
+        // Tambah/Hapus class 'selection-mode' pada tabel
+        table.classList.toggle('selection-mode');
+        
+        if (table.classList.contains('selection-mode')) {
+            // Mode Memilih: Tombol jadi merah "Batal Pilih"
+            btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> Batal Pilih`;
+            btn.style.color = '#ff4d4d';
+            btn.style.borderColor = '#ff4d4d';
+        } else {
+            // Mode Normal: Tombol kembali abu-abu "Pilih Data"
+            btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg> Pilih Data`;
+            btn.style.color = '#ccc';
+            btn.style.borderColor = '#666';
+            
+            // Bersihkan semua centang secara otomatis
+            document.querySelectorAll('.' + rowClass).forEach(cb => cb.checked = false);
+            const checkAll = table.querySelector('thead input[type="checkbox"]');
+            if(checkAll) checkAll.checked = false;
+            toolbar.classList.remove('visible'); // Sembunyikan bulk toolbar
+        }
     }
 
     function switchInnerTab(jenis, elem) {

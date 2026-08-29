@@ -50,7 +50,7 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             width: 100%;
             display: flex;
             align-items: center;
-            padding: 6px 62px;
+            padding: 7px 5%;;
             box-sizing: border-box;
             z-index: 1001;
             border-bottom: 2px solid var(--primary-red);
@@ -90,6 +90,7 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             background-color: #E8C999;
             border-radius: 2px;
             transition: all 0.3s ease-in-out;
+                margin: -2px 0;
         }
 
         header .menu-toggle.active .bar:nth-child(1) { transform: translateY(12px) rotate(45deg); }

@@ -68,7 +68,7 @@ if ($is_member_view && isset($_SESSION['id_user'])) {
             width: 100%;
             display: flex;
             align-items: center;
-            padding: 6px 30px;
+            padding: 10px 5%;
             box-sizing: border-box;
             z-index: 1001;
             border-bottom: 2px solid var(--primary-red);
@@ -137,7 +137,7 @@ if ($is_member_view && isset($_SESSION['id_user'])) {
             display: none;
             position: fixed;
             top: 70px; right: 20px; left: auto;
-            width: 220px; box-sizing: border-box;
+            width: 210px; box-sizing: border-box;
             background-color: #1a1a1a; padding: 12px;
             border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             border: 1px solid #333; flex-direction: column; z-index: 1000;
@@ -153,11 +153,19 @@ if ($is_member_view && isset($_SESSION['id_user'])) {
 
         /* Link umum di dalam dropdown */
         #nav-menu a.menu-link {
-            display: flex; align-items: center; justify-content: flex-start; gap: 10px;
-            width: 100%; box-sizing: border-box; color: #ccc; text-decoration: none;
-            font-weight: 600; padding: 8px 10px; border-radius: 6px;
-            transition: all 0.3s ease; font-size: 0.85rem;
-            text-transform: none; letter-spacing: normal; margin-left: 0; min-height: auto;
+                display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    color: #ccc;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 10px 10px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
         }
         #nav-menu a.menu-link:hover { background-color: rgba(232,201,153,0.1); color: var(--accent-gold); }
         #nav-menu a.menu-link.active-link { color: var(--accent-gold); background-color: rgba(232,201,153,0.07); }
@@ -317,8 +325,8 @@ if ($is_member_view && isset($_SESSION['id_user'])) {
             header .menu-toggle { width: 36px; height: 36px; }
             header .menu-toggle .bar { width: 16px; }
 
-            #nav-menu { top: 55px; right: 10px; left: auto; width: 195px; box-sizing: border-box; padding: 10px; }
-            #nav-menu a.menu-link { font-size: 0.75rem; padding: 5px 6px; white-space: nowrap; }
+            #nav-menu { top: 55px; right: 10px; left: auto; width: 185px; box-sizing: border-box; padding: 10px; }
+            #nav-menu a.menu-link { font-size: 0.75rem; padding: 7px 6px; white-space: nowrap; }
             .nav-actions .nav-login, .nav-actions .btn-daftar { padding: 6px 8px; font-size: 0.75rem; }
             .nav-actions .btn-daftar { width: 100%; }
             .nav-actions-dasbor .btn-keluar-menu { font-size: 0.75rem; padding: 7px 8px; }
@@ -443,8 +451,8 @@ if ($is_member_view && isset($_SESSION['id_user'])) {
                     Chatbot AI
                 </a>
                 <a href="kalkulator.php?source=dasbor" class="menu-link active-link">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16.01" y2="14"></line><line x1="12" y1="14" x2="12.01" y2="14"></line><line x1="8" y1="14" x2="8.01" y2="14"></line></svg>
-                    Kalkulator Gizi
+                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2V2z"></path><line x1="16" y1="8" x2="16" y2="8.01"></line><line x1="12" y1="8" x2="12" y2="8.01"></line><line x1="8" y1="8" x2="8" y2="8.01"></line><line x1="16" y1="12" x2="16" y2="12.01"></line><line x1="12" y1="12" x2="12" y2="12.01"></line><line x1="8" y1="12" x2="8" y2="12.01"></line><line x1="16" y1="16" x2="16" y2="16.01"></line><line x1="12" y1="16" x2="12" y2="16.01"></line><line x1="8" y1="16" x2="8" y2="16.01"></line></svg>
+                     Kalkulator Gizi
                 </a>
                 <a href="profil_member.php" class="menu-link">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
