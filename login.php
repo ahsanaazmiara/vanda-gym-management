@@ -1,6 +1,5 @@
 <?php
 require 'session_init.php';
-session_start();
 require 'includes/koneksi.php';
 require_once 'includes/api_key.php'; 
 
