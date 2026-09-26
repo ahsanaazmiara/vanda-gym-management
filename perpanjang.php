@@ -1,6 +1,6 @@
 <?php
-session_start();
-require 'includes/koneksi.php';
+require_once __DIR__ . '/session_init.php';
+require_once __DIR__ . '/includes/koneksi.php';
 
 // 1. PROTEKSI: Cek Login
 if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'member') {
@@ -29,17 +29,39 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
 
     // --- AKSI: PERPANJANG MEMBERSHIP ---
     if ($_POST['action'] == 'perpanjang') {
-        $paket     = (int) $_POST['paketHarga']; 
-        $tgl_mulai = $_POST['tglMulaiInput'];
-        $metode    = $_POST['metodeBayar'];
-        
-        // Tentukan durasi bulan berdasarkan kelipatan harga base
-        $q_web_harga = mysqli_query($koneksi, "SELECT harga_bulanan FROM pengaturan_web WHERE id=1");
-        $web_harga = mysqli_fetch_assoc($q_web_harga);
-        $harga_base = $web_harga['harga_bulanan'] ?? 175000;
-        
-        $durasi = round($paket / $harga_base);
-        if($durasi < 1) $durasi = 1;
+        $durasi    = (int) ($_POST['paketDurasi'] ?? 0);
+        $tgl_mulai = $_POST['tglMulaiInput'] ?? '';
+        $metode    = $_POST['metodeBayar'] ?? '';
+
+        // Form hanya mengirim durasi. Harga dihitung ulang oleh server
+        // berdasarkan harga_bulanan terbaru di pengaturan_web.
+        if (!in_array($durasi, [1, 2, 3], true)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Paket perpanjangan tidak valid.'
+            ]);
+            exit;
+        }
+
+        if (!in_array($metode, ['qris', 'tunai'], true)) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Metode pembayaran tidak valid.'
+            ]);
+            exit;
+        }
+
+        $q_web_harga = mysqli_query(
+            $koneksi,
+            "SELECT harga_bulanan
+             FROM pengaturan_web
+             WHERE id = 1
+             LIMIT 1"
+        );
+
+        $web_harga = $q_web_harga ? mysqli_fetch_assoc($q_web_harga) : [];
+        $harga_base = (int)($web_harga['harga_bulanan'] ?? 175000);
+        $paket = $harga_base * $durasi;
 
         $tgl_berakhir = date('Y-m-d', strtotime($tgl_mulai . " + $durasi months"));
 
@@ -49,7 +71,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
             $ext = pathinfo($_FILES['buktiFile']['name'], PATHINFO_EXTENSION);
             $nama_bersih = str_replace(' ', '_', preg_replace('/[^A-Za-z0-9 ]/', '', $_SESSION['nama']));
             $nama_file_bukti = "Bukti_Perpanjang_" . $nama_bersih . "_" . date('dmy_His') . "." . $ext;
-            
+
             if(!move_uploaded_file($_FILES['buktiFile']['tmp_name'], 'uploads/' . $nama_file_bukti)) {
                 echo json_encode(['status' => 'error', 'message' => 'Gagal mengupload bukti transfer.']);
                 exit;
@@ -57,9 +79,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
         }
 
         // Simpan ke tabel membership sebagai pengajuan baru (Status Pending)
-        $query = "INSERT INTO membership (id_user, jenis_pengajuan, paket_bulan, total_harga, tgl_mulai, tgl_berakhir, metode_bayar, bukti_bayar, status) 
+        $query = "INSERT INTO membership (id_user, jenis_pengajuan, paket_bulan, total_harga, tgl_mulai, tgl_berakhir, metode_bayar, bukti_bayar, status)
                   VALUES ($id_user, 'perpanjang', $durasi, $paket, '$tgl_mulai', '$tgl_berakhir', '$metode', '$nama_file_bukti', 'pending')";
-        
+
         if (mysqli_query($koneksi, $query)) {
             echo json_encode(['status' => 'success']);
         } else {
@@ -91,12 +113,15 @@ $q_member = mysqli_query($koneksi, "
 $m_data = mysqli_fetch_assoc($q_member);
 
 $tgl_akhir_db = $m_data['tgl_berakhir'] ?? date('Y-m-d', strtotime('-1 day'));
-$paket_terakhir = $m_data['total_harga'] ?? '';
+
+// Simpan durasi paket terakhir, bukan nominal harga.
+// Tetap akurat walaupun harga membership berubah.
+$durasi_terakhir = (int)($m_data['paket_bulan'] ?? 0);
 
 // Ambil Harga dari Pengaturan Web
 $q_web = mysqli_query($koneksi, "SELECT harga_bulanan, wa_cs FROM pengaturan_web WHERE id=1");
 $web = mysqli_fetch_assoc($q_web);
-$harga_base = $web['harga_bulanan'] ?? 175000;
+$harga_base = (int)($web['harga_bulanan'] ?? 175000);
 
 $wa_db = $web['wa_cs'] ?? '082148556601';
 $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
@@ -372,8 +397,8 @@ if ($tgl_akhir_db) {
 
                 <div class="section-divider">
                     <span>Pilihan Paket Baru</span>
-                    <?php if ($paket_terakhir != ''): ?>
-                        <button type="button" class="btn-small-gold" onclick="ulangiPaket(<?= $paket_terakhir ?>)">Perpanjang Lagi</button>
+                    <?php if ($durasi_terakhir > 0): ?>
+                        <button type="button" class="btn-small-gold" onclick="ulangiPaket(<?= $durasi_terakhir ?>)">Perpanjang Lagi</button>
                     <?php endif; ?>
                 </div>
 
@@ -382,9 +407,15 @@ if ($tgl_akhir_db) {
                         <label>Pilih Paket Durasi *</label>
                         <select id="paketPilih" name="paketPilih" class="form-control" required onchange="updateTotalHarga()">
                             <option value="" disabled selected>-- Pilih Paket --</option>
-                            <option value="<?= $harga_base ?>" data-nama="1 Bulan Gym">1 Bulan Gym (Rp <?= number_format($harga_base,0,',','.') ?>)</option>
-                            <option value="<?= $harga_base * 2 ?>" data-nama="2 Bulan Gym">2 Bulan Gym (Rp <?= number_format($harga_base*2,0,',','.') ?>)</option>
-                            <option value="<?= $harga_base * 3 ?>" data-nama="3 Bulan Gym">3 Bulan Gym (Rp <?= number_format($harga_base*3,0,',','.') ?>)</option>
+                            <option value="1" data-harga="<?= $harga_base ?>" data-nama="1 Bulan Gym">
+                                1 Bulan Gym (Rp <?= number_format($harga_base, 0, ',', '.') ?>)
+                            </option>
+                            <option value="2" data-harga="<?= $harga_base * 2 ?>" data-nama="2 Bulan Gym">
+                                2 Bulan Gym (Rp <?= number_format($harga_base * 2, 0, ',', '.') ?>)
+                            </option>
+                            <option value="3" data-harga="<?= $harga_base * 3 ?>" data-nama="3 Bulan Gym">
+                                3 Bulan Gym (Rp <?= number_format($harga_base * 3, 0, ',', '.') ?>)
+                            </option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -481,19 +512,24 @@ if ($tgl_akhir_db) {
             const select = document.getElementById('paketPilih');
             const boxNominal = document.getElementById('boxNominal');
             const textNominal = document.getElementById('textNominal');
-            
-            if(select.value) {
+
+            if (select.value) {
+                const selectedOption = select.options[select.selectedIndex];
+                const harga = parseInt(selectedOption.getAttribute('data-harga') || '0', 10);
+
                 boxNominal.style.display = 'flex';
-                textNominal.innerText = "Rp " + parseInt(select.value).toLocaleString('id-ID');
+                textNominal.innerText = "Rp " + harga.toLocaleString('id-ID');
             } else {
                 boxNominal.style.display = 'none';
+                textNominal.innerText = 'Rp 0';
             }
         }
 
-        function ulangiPaket(hargaTerakhir) {
+        function ulangiPaket(durasiTerakhir) {
             const select = document.getElementById('paketPilih');
-            for(let i=0; i<select.options.length; i++) {
-                if(select.options[i].value == hargaTerakhir) {
+
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value == durasiTerakhir) {
                     select.selectedIndex = i;
                     updateTotalHarga();
                     break;
@@ -560,8 +596,10 @@ if ($tgl_akhir_db) {
 
             // Ambil data untuk Draf
             const selectPaket = document.getElementById('paketPilih');
-            const namaPaket = selectPaket.options[selectPaket.selectedIndex].getAttribute('data-nama');
-            const hargaPaket = "Rp " + parseInt(selectPaket.value).toLocaleString('id-ID');
+            const selectedOption = selectPaket.options[selectPaket.selectedIndex];
+            const namaPaket = selectedOption.getAttribute('data-nama');
+            const harga = parseInt(selectedOption.getAttribute('data-harga') || 0);
+            const hargaPaket = "Rp " + harga.toLocaleString('id-ID');
             const namaLengkap = document.getElementById('regNama').value;
             const emailUser = document.getElementById('regEmail').value;
 
@@ -599,7 +637,7 @@ if ($tgl_akhir_db) {
 
             const formData = new FormData();
             formData.append('action', 'perpanjang');
-            formData.append('paketHarga', document.getElementById('paketPilih').value);
+            formData.append('paketDurasi', document.getElementById('paketPilih').value);
             formData.append('tglMulaiInput', document.getElementById('tglMulai').value);
             formData.append('metodeBayar', document.querySelector('input[name="metodeBayar"]:checked').value);
             

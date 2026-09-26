@@ -155,7 +155,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
         }
 
         if ($id_new > 0) {
-            $harga = ($paket == 1) ? 175000 : (($paket == 2) ? 350000 : 525000);
+            if (!in_array($paket, [1, 2, 3], true)) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Durasi paket tidak valid.'
+                ]);
+                exit;
+            }
+
+            // Ambil harga terbaru dari pengaturan_web.
+            $q_harga_member = mysqli_query(
+                $koneksi,
+                "SELECT harga_bulanan
+                 FROM pengaturan_web
+                 WHERE id = 1
+                 LIMIT 1"
+            );
+
+            $data_harga_member = $q_harga_member
+                ? mysqli_fetch_assoc($q_harga_member)
+                : [];
+
+            $harga_base_member = (int)($data_harga_member['harga_bulanan'] ?? 175000);
+            $harga = $harga_base_member * $paket;
+
             $tgl_akhir = date('Y-m-d', strtotime($tgl_mulai . " + $paket months"));
             $jenis_pengajuan = ($jenis === 'perpanjang') ? 'perpanjang' : 'daftar';
             $q2 = mysqli_query($koneksi, "INSERT INTO membership (id_user, jenis_pengajuan, paket_bulan, total_harga, tgl_mulai, tgl_berakhir, metode_bayar, status) VALUES ($id_new, '$jenis_pengajuan', $paket, $harga, '$tgl_mulai', '$tgl_akhir', 'tunai', 'aktif')");
@@ -419,7 +442,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         .stat-card.alert .number { color: var(--primary-red); }
 
         /* ACTIVITY */
-        .activity-list { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 20px; height: 100%; }
+        .activity-list { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 20px; height: auto; }
         .activity-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 15px 0; border-bottom: 1px dashed #333; gap: 15px; }
         .activity-item:last-child { border-bottom: none; padding-bottom: 0; }
         .activity-text { flex: 1; color: var(--text-light); font-size: 0.9rem; line-height: 1.5; }
@@ -536,17 +559,48 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         .autocomplete-item .ac-sub { color: #888; font-size: 0.75rem; margin-top: 2px; }
 
         /* GRID */
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; align-items: stretch; }
 
         /* MODALS */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 2000; padding: 20px; overflow-y: auto; }
         .modal-box { background: #111; border: 1px solid var(--accent-gold); padding: 30px; border-radius: 8px; max-width: 500px; width: 100%; position: relative; max-height: 90vh; overflow-y: auto; }
+
+        /* KHUSUS MODAL EDIT INFO MEDIA - dibuat lebih lebar dan nyaman */
+        #modalEditGaleri { padding: 30px 20px; }
+        #modalEditGaleri .modal-box {
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            padding: 35px 40px;
+        }
+        #modalEditGaleri .modal-box h3 {
+            font-size: 1.4rem;
+            margin-bottom: 25px !important;
+            padding-bottom: 12px !important;
+        }
+        #modalEditGaleri .form-group { margin-bottom: 18px; }
+        #modalEditGaleri .form-group label { font-size: 0.9rem; margin-bottom: 8px; }
+        #modalEditGaleri .form-control { font-size: 0.95rem; padding: 13px 15px; }
+        #modalEditGaleri #eg_caption {
+            min-height: 180px;
+            max-height: 350px;
+            resize: vertical;
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+        #modalEditGaleri .btn-submit { min-height: 46px; font-size: 0.95rem; }
+
         .close-modal { position: absolute; top: 15px; right: 15px; background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; transition: 0.3s; }
         .close-modal:hover { color: var(--primary-red); }
 
         /* CARDS */
-        .content-card { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 25px; margin-bottom: 30px; height: 100%; }
+        .content-card { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; padding: 25px; margin-bottom: 30px; height: auto; }
         .content-card h3 { color: var(--accent-gold); margin-bottom: 20px; font-size: 1.2rem; border-bottom: 1px dashed #333; padding-bottom: 10px; }
+
+        /* Dashboard overview: kartu sejajar tanpa border/list keluar dari container */
+        .dashboard-overview-grid > .content-card { margin-bottom: 0; display: flex; flex-direction: column; min-height: 0; }
+        .dashboard-overview-grid .activity-list { flex: 1; min-height: 250px; overflow: hidden; }
+        .dashboard-overview-grid canvas { max-width: 100%; }
         .jam-card { background: #151515; border: 1px solid #333; border-radius: 6px; padding: 20px; margin-bottom: 15px; }
         .jam-card label.hari { color: var(--accent-gold); font-size: 1.1rem; display: block; margin-bottom: 15px; text-transform: uppercase; font-weight: bold; }
         .error-msg { color: #ff4d4d; font-size: 0.75rem; margin-top: 5px; display: none; }
@@ -593,6 +647,17 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             .activity-item { flex-direction: column; gap: 6px; align-items: flex-start; }
             .modal-box { padding: 20px 15px; width: 95%; max-height: 85vh; }
             .modal-box .grid-2 { grid-template-columns: 1fr; gap: 10px; margin-bottom: 10px; }
+
+            #modalEditGaleri { padding: 12px; }
+            #modalEditGaleri .modal-box {
+                width: 100%;
+                max-width: 100%;
+                padding: 22px 16px;
+                max-height: 92vh;
+            }
+            #modalEditGaleri .modal-box h3 { font-size: 1.15rem; margin-bottom: 18px !important; }
+            #modalEditGaleri #eg_caption { min-height: 150px; max-height: 250px; }
+            #modalEditGaleri .form-control { font-size: 0.85rem; padding: 10px 12px; }
             .media-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
             .bulk-toolbar { gap: 7px; }
         }
@@ -673,7 +738,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                 <button onclick="bukaModalCetak()" class="btn-action btn-view" style="width:100%;margin:0;background:var(--success-green);color:white;border:none;padding:10px;">Cetak Laporan PDF</button>
             </div>
         </div>
-        <div class="grid-2" style="margin-bottom:0;">
+        <div class="grid-2 dashboard-overview-grid" style="margin-bottom:0;">
             <div class="content-card">
                 <h3>Statistik Status Member</h3>
                 <div style="position:relative;height:250px;width:100%;display:flex;justify-content:center;">
@@ -1141,9 +1206,9 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             <div class="grid-2">
                 <div class="form-group"><label>Durasi Paket</label>
                     <select name="paket" class="form-control" required>
-                        <option value="1">1 Bulan (Rp 175.000)</option>
-                        <option value="2">2 Bulan (Rp 350.000)</option>
-                        <option value="3">3 Bulan (Rp 525.000)</option>
+                        <option value="1">1 Bulan (Rp <?= number_format((int)($web['harga_bulanan'] ?? 175000), 0, ',', '.') ?>)</option>
+                        <option value="2">2 Bulan (Rp <?= number_format(((int)($web['harga_bulanan'] ?? 175000)) * 2, 0, ',', '.') ?>)</option>
+                        <option value="3">3 Bulan (Rp <?= number_format(((int)($web['harga_bulanan'] ?? 175000)) * 3, 0, ',', '.') ?>)</option>
                     </select>
                 </div>
                 <div class="form-group"><label>Tanggal Mulai Berjalan</label><input type="date" id="tm_tgl" name="tgl" class="form-control" required value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>"></div>
@@ -1178,7 +1243,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             <input type="hidden" name="action" value="edit_galeri">
             <input type="hidden" name="id_media" id="eg_id">
             <div class="form-group"><label>Judul Media</label><input type="text" name="judul_media" id="eg_judul" class="form-control" required></div>
-            <div class="form-group"><label>Caption / Keterangan</label><textarea name="caption_media" id="eg_caption" class="form-control" rows="3"></textarea></div>
+            <div class="form-group"><label>Caption / Keterangan</label><textarea name="caption_media" id="eg_caption" class="form-control" rows="7"></textarea></div>
             <div class="form-group"><label>Kategori</label>
                 <select name="kategori_media" id="eg_kategori" class="form-control" required>
                     <option value="alat">Fasilitas & Alat Gym</option>

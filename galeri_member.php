@@ -436,7 +436,7 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
            MOBILE RESPONSIVE
            ========================================= */
         @media (max-width: 768px) {
-            body { padding: 85px 25px 85px 25px; }
+            body { padding: 85px 15px 85px 15px; }
 
             /* Header mobile */
             header { padding: 10px 20px; }
@@ -467,10 +467,10 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             .category-title { font-size: 0.8rem; margin-bottom: 8px; padding-bottom: 6px; }
 
             /* Grid 3 kolom — sama seperti galeri_gym.php mobile */
-            .horizontal-scroll { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+            .horizontal-scroll { grid-template-columns: repeat(2, 1fr); gap: 6px; }
             .gallery-item { border-radius: 6px; }
             .item-info { padding: 10px 6px 6px; }
-            .item-title { font-size: 0.6rem; }
+            .item-title { font-size: 0.8rem; }
             .play-icon { width: 24px; height: 24px; }
             .play-icon svg { width: 12px; height: 12px; }
 
@@ -641,7 +641,6 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
     <div class="galeri-container">
         <div class="nav-top">
             <a href="member_dasbor.php" class="btn-back-square" title="Kembali ke Dasbor">←</a>
-            <span style="color: #666; font-size: 0.75rem; font-weight: bold; text-transform: uppercase;">Galeri Vanda Gym</span>
         </div>
 
         <div class="form-header">

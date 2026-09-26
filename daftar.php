@@ -1,6 +1,25 @@
 <?php
-session_start();
-require 'includes/koneksi.php'; 
+require_once __DIR__ . '/session_init.php';
+require_once __DIR__ . '/includes/koneksi.php';
+
+// =========================================================
+// AMBIL HARGA TERBARU DARI PENGATURAN WEB
+// =========================================================
+$q_pengaturan_harga = mysqli_query(
+    $koneksi,
+    "SELECT harga_bulanan, harga_harian, harga_senam
+     FROM pengaturan_web
+     WHERE id = 1
+     LIMIT 1"
+);
+
+$pengaturan_harga = $q_pengaturan_harga
+    ? mysqli_fetch_assoc($q_pengaturan_harga)
+    : [];
+
+$harga_bulanan = (int)($pengaturan_harga['harga_bulanan'] ?? 175000);
+$harga_harian  = (int)($pengaturan_harga['harga_harian'] ?? 25000);
+$harga_senam   = (int)($pengaturan_harga['harga_senam'] ?? 25000);
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'register') {
     header('Content-Type: application/json'); 
@@ -9,13 +28,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     $email     = mysqli_real_escape_string($koneksi, $_POST['regEmail']);
     $wa        = mysqli_real_escape_string($koneksi, $_POST['regHp']);
     $password  = password_hash($_POST['regPass'], PASSWORD_DEFAULT);
-    $harga     = (int) $_POST['regPaket']; 
-    $tgl_mulai = $_POST['regTgl'];
-    $metode    = $_POST['metodeBayar'];
+    $durasi    = (int) ($_POST['regPaket'] ?? 0);
+    $tgl_mulai = $_POST['regTgl'] ?? '';
+    $metode    = $_POST['metodeBayar'] ?? '';
 
-    $durasi = 1;
-    if ($harga == 350000) $durasi = 2;
-    else if ($harga == 525000) $durasi = 3;
+    // Form hanya mengirim durasi. Harga selalu dihitung ulang oleh server.
+    if (!in_array($durasi, [1, 2, 3], true)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Paket membership tidak valid.'
+        ]);
+        exit;
+    }
+
+    if (!in_array($metode, ['qris', 'tunai'], true)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Metode pembayaran tidak valid.'
+        ]);
+        exit;
+    }
+
+    $q_harga_submit = mysqli_query(
+        $koneksi,
+        "SELECT harga_bulanan
+         FROM pengaturan_web
+         WHERE id = 1
+         LIMIT 1"
+    );
+
+    $data_harga_submit = $q_harga_submit
+        ? mysqli_fetch_assoc($q_harga_submit)
+        : [];
+
+    $harga_base = (int)($data_harga_submit['harga_bulanan'] ?? 175000);
+    $harga = $harga_base * $durasi;
 
     $tgl_berakhir = date('Y-m-d', strtotime($tgl_mulai . " + $durasi months"));
 
@@ -223,7 +270,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             .btn-action { min-height: 32px !important; font-size: 0.75rem !important; margin-top: 8px !important; padding: 6px !important; border-radius: 4px !important; }
             
             /* Footer Login */
-            .login-footer { margin-top: 15px !important; font-size: 0.7rem !important; gap: 8px !important; flex-direction: column !important; }
+            .login-footer { margin-top: 15px !important; font-size: 0.7rem !important; flex-direction: column !important; }
             .login-footer a { padding: 4px 10px !important; font-size: 0.7rem !important; }
             
             /* Tombol WA Melayang */
@@ -297,9 +344,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                     <label>Pilih Durasi</label>
                     <select id="regPaket" name="regPaket" class="form-control" onchange="updateNominal()">
                         <option value="" disabled selected>-- Pilih Paket --</option>
-                        <option value="175000" data-nama="1 Bulan Gym">1 Bulan Gym</option>
-                        <option value="350000" data-nama="2 Bulan Gym">2 Bulan Gym</option>
-                        <option value="525000" data-nama="3 Bulan Gym">3 Bulan Gym</option>
+                        <option value="1" data-harga="<?= $harga_bulanan ?>" data-nama="1 Bulan Gym">
+                            1 Bulan Gym (Rp <?= number_format($harga_bulanan, 0, ',', '.') ?>)
+                        </option>
+                        <option value="2" data-harga="<?= $harga_bulanan * 2 ?>" data-nama="2 Bulan Gym">
+                            2 Bulan Gym (Rp <?= number_format($harga_bulanan * 2, 0, ',', '.') ?>)
+                        </option>
+                        <option value="3" data-harga="<?= $harga_bulanan * 3 ?>" data-nama="3 Bulan Gym">
+                            3 Bulan Gym (Rp <?= number_format($harga_bulanan * 3, 0, ',', '.') ?>)
+                        </option>
                     </select>
                     <div id="err_regPaket" class="field-error-text">Paket latihan wajib dipilih</div>
                 </div>
@@ -357,7 +410,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     <div>
         <span style="color: #888;">Menunggu verifikasi?</span>
         <a href="cek_status.php" style="
-            border: 1px solid #E8C999; 
             color: #E8C999; 
             padding: 5px 15px; 
             border-radius: 5px; 
@@ -374,7 +426,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     <div>
         <span style="color: #888;">Sudah punya akun?</span>
         <a href="login.php" style="
-            border: 1px solid #E8C999; 
             color: #E8C999; 
             padding: 5px 15px; 
             border-radius: 5px; 
@@ -445,9 +496,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             const paket = document.getElementById('regPaket');
             const boxNominal = document.getElementById('boxNominal');
             const textNominal = document.getElementById('textNominal');
+
             if (paket.value) {
+                const option = paket.options[paket.selectedIndex];
+                const harga = parseInt(option.dataset.harga || 0);
+
                 boxNominal.style.display = 'flex';
-                textNominal.innerText = "Rp " + parseInt(paket.value).toLocaleString('id-ID');
+                textNominal.innerText = "Rp " + harga.toLocaleString('id-ID');
             } else {
                 boxNominal.style.display = 'none';
             }
@@ -535,8 +590,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             }
 
             const selectPaket = document.getElementById('regPaket');
-            const namaPaket = selectPaket.options[selectPaket.selectedIndex].getAttribute('data-nama');
-            const hargaPaket = "Rp " + parseInt(selectPaket.value).toLocaleString('id-ID');
+            const selectedOption = selectPaket.options[selectPaket.selectedIndex];
+            const namaPaket = selectedOption.getAttribute('data-nama');
+            const harga = parseInt(selectedOption.getAttribute('data-harga') || 0);
+            const hargaPaket = "Rp " + harga.toLocaleString('id-ID');
 
             const modal = document.getElementById('modalOverlay');
             const content = document.getElementById('modalContent');
