@@ -119,7 +119,7 @@ function kirimEmailOtp($emailTujuan, $kodeOtp) {
     $pesan   = "Kode verifikasi pendaftaran Anda di Vanda Gym adalah: $kodeOtp\n\n"
              . "Kode ini berlaku selama 5 menit. Jangan berikan kode ini kepada siapa pun, "
              . "termasuk pihak yang mengaku dari Vanda Gym.";
-    $headers = "From: no-reply@vandagym.com\r\n" .
+    $headers = "From: Vanda Gym Classic <no-reply@vandagym.com>" .
                "Content-Type: text/plain; charset=UTF-8\r\n";
 
     return @mail($emailTujuan, $subjek, $pesan, $headers);
