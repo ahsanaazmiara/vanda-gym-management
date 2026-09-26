@@ -11,6 +11,48 @@ if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
+
+// =========================================================
+// FUNGSI BANTU VALIDASI NOMOR WHATSAPP MEMBER
+// =========================================================
+function normalisasiNomorWAIndonesia($nomor) {
+    $digit = preg_replace('/\D/', '', (string)$nomor);
+
+    if (substr($digit, 0, 2) === '62') {
+        $digit = substr($digit, 2);
+    } elseif (substr($digit, 0, 1) === '0') {
+        $digit = substr($digit, 1);
+    }
+
+    if (!preg_match('/^8[1-9][0-9]{7,10}$/', $digit)) {
+        return false;
+    }
+
+    $delapanAkhir = substr($digit, -8);
+    if (strlen($delapanAkhir) === 8 && preg_match('/^(\d)\1{7}$/', $delapanAkhir)) {
+        return false;
+    }
+
+    return '62' . $digit;
+}
+
+function nomorWADipakaiUserLain($koneksi, $waNormal, $excludeId = 0) {
+    $lokal = substr($waNormal, 2);
+    $v1 = mysqli_real_escape_string($koneksi, $waNormal);
+    $v2 = mysqli_real_escape_string($koneksi, '0' . $lokal);
+    $v3 = mysqli_real_escape_string($koneksi, $lokal);
+    $excludeId = (int)$excludeId;
+
+    $q = mysqli_query(
+        $koneksi,
+        "SELECT id_user FROM users
+         WHERE id_user <> $excludeId
+           AND no_wa IN ('$v1', '$v2', '$v3')
+         LIMIT 1"
+    );
+    return $q && mysqli_num_rows($q) > 0;
+}
+
 $cek_pengaturan = mysqli_query($koneksi, "SELECT id FROM pengaturan_web WHERE id=1");
 if(mysqli_num_rows($cek_pengaturan) == 0) {
     mysqli_query($koneksi, "INSERT INTO pengaturan_web (id) VALUES (1)");
@@ -23,11 +65,165 @@ mysqli_query($koneksi, "ALTER TABLE users MODIFY COLUMN role VARCHAR(20) DEFAULT
 mysqli_query($koneksi, "UPDATE membership SET status='kedaluwarsa' WHERE status='aktif' AND tgl_berakhir < CURDATE()");
 
 // =========================================================
+// KATEGORI GALERI DINAMIS
+// =========================================================
+// Kategori galeri tidak lagi di-hardcode ke alat/upper/lower.
+// Admin dapat menambah, mengganti nama, dan menghapus kategori kosong.
+function slugKategoriGaleri($teks) {
+    $teks = trim((string)$teks);
+    $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $teks);
+    if ($ascii !== false) $teks = $ascii;
+    $teks = strtolower($teks);
+    $teks = preg_replace('/[^a-z0-9]+/', '-', $teks);
+    return trim($teks, '-');
+}
+
+// Tabel master kategori. Dibuat otomatis agar tidak perlu menambah SQL manual.
+mysqli_query($koneksi, "CREATE TABLE IF NOT EXISTS kategori_galeri (
+    id_kategori INT AUTO_INCREMENT PRIMARY KEY,
+    nama_kategori VARCHAR(100) NOT NULL,
+    slug VARCHAR(100) NOT NULL UNIQUE,
+    urutan INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+// Jika kolom kategori pada instalasi lama masih ENUM, ubah menjadi VARCHAR
+// agar kategori baru benar-benar dapat disimpan secara fleksibel.
+$qKolKategori = mysqli_query($koneksi, "SHOW COLUMNS FROM galeri_gym LIKE 'kategori'");
+if ($qKolKategori && ($kolKategori = mysqli_fetch_assoc($qKolKategori))) {
+    if (stripos($kolKategori['Type'] ?? '', 'enum(') === 0) {
+        mysqli_query($koneksi, "ALTER TABLE galeri_gym MODIFY kategori VARCHAR(100) NOT NULL");
+    }
+}
+
+// Kategori bawaan tidak di-seed ulang pada setiap request.
+// Data lama tetap aman karena kategori yang masih dipakai media akan
+// disinkronkan pada blok di bawah. Dengan begitu kategori yang sengaja
+// dihapus admin tidak muncul kembali otomatis setelah halaman direload.
+
+// Sinkronkan SEMUA kategori lama yang masih tersimpan pada media.
+// Penting: jangan menghapus / menimpa nilai kategori media lama. Kita hanya
+// memastikan setiap nilai kategori yang pernah dipakai memiliki pasangan pada
+// tabel master kategori_galeri agar tetap muncul di dropdown admin.
+$qKategoriLama = mysqli_query($koneksi, "SELECT DISTINCT TRIM(kategori) AS kategori FROM galeri_gym WHERE kategori IS NOT NULL AND TRIM(kategori) <> ''");
+if ($qKategoriLama) {
+    $namaKategoriBawaan = [
+        'alat'  => 'Fasilitas & Alat Gym',
+        'upper' => 'Tutorial Upper Body',
+        'lower' => 'Tutorial Lower Body'
+    ];
+
+    while ($katLama = mysqli_fetch_assoc($qKategoriLama)) {
+        $nilaiKategoriLama = trim((string)$katLama['kategori']);
+        if ($nilaiKategoriLama === '') continue;
+
+        // Pertama cari berdasarkan slug persis seperti yang tersimpan pada media.
+        $nilaiEsc = mysqli_real_escape_string($koneksi, $nilaiKategoriLama);
+        $cekPersis = mysqli_query($koneksi, "SELECT id_kategori FROM kategori_galeri WHERE slug='$nilaiEsc' LIMIT 1");
+        if ($cekPersis && mysqli_num_rows($cekPersis) > 0) {
+            continue;
+        }
+
+        // Jika data lama ternyata menyimpan nama kategori (bukan slug), coba
+        // cocokkan dahulu berdasarkan nama agar tidak membuat kategori duplikat.
+        $cekNama = mysqli_query($koneksi, "SELECT id_kategori, slug FROM kategori_galeri WHERE LOWER(nama_kategori)=LOWER('$nilaiEsc') LIMIT 1");
+        if ($cekNama && ($rowNama = mysqli_fetch_assoc($cekNama))) {
+            // Media lama tetap dibiarkan memakai nilai lamanya. Nanti daftar
+            // tampilan juga memiliki fallback agar tetap terbaca.
+            continue;
+        }
+
+        // Buat master fallback tanpa mengubah media lama.
+        $slugBaru = slugKategoriGaleri($nilaiKategoriLama);
+        if ($slugBaru === '') {
+            $slugBaru = 'kategori-' . substr(md5($nilaiKategoriLama), 0, 8);
+        }
+
+        // Kalau nilai lama memang slug sederhana, pertahankan supaya relasi media
+        // lama langsung cocok. Jika berupa nama kategori, slug-kan dengan aman.
+        $slugSimpan = preg_match('/^[a-z0-9_-]+$/', $nilaiKategoriLama)
+            ? $nilaiKategoriLama
+            : $slugBaru;
+
+        $namaFallback = $namaKategoriBawaan[$nilaiKategoriLama]
+            ?? ucwords(str_replace(['-', '_'], ' ', $nilaiKategoriLama));
+
+        $slugSimpanEsc = mysqli_real_escape_string($koneksi, $slugSimpan);
+        $namaFallbackEsc = mysqli_real_escape_string($koneksi, $namaFallback);
+
+        // Kalau slug hasil normalisasi ternyata sudah ada, tidak perlu membuat baris baru.
+        $cekSlugNormal = mysqli_query($koneksi, "SELECT id_kategori FROM kategori_galeri WHERE slug='$slugSimpanEsc' LIMIT 1");
+        if (!$cekSlugNormal || mysqli_num_rows($cekSlugNormal) === 0) {
+            $qUrutanFallback = mysqli_query($koneksi, "SELECT COALESCE(MAX(urutan),0)+10 AS next_urutan FROM kategori_galeri");
+            $urutFallback = 999;
+            if ($qUrutanFallback && ($rUrut = mysqli_fetch_assoc($qUrutanFallback))) {
+                $urutFallback = max(40, (int)($rUrut['next_urutan'] ?? 999));
+            }
+            mysqli_query($koneksi, "INSERT IGNORE INTO kategori_galeri (nama_kategori, slug, urutan) VALUES ('$namaFallbackEsc', '$slugSimpanEsc', $urutFallback)");
+        }
+    }
+}
+
+// =========================================================
+// HELPER MASTER KATEGORI GALERI
+// =========================================================
+// Ambil daftar kategori langsung dari tabel master. Query dibuat sederhana
+// supaya menghapus satu kategori tidak memengaruhi kategori lain yang masih ada.
+function ambilKategoriGaleriLengkap($koneksi) {
+    $hasil = [];
+    $q = mysqli_query(
+        $koneksi,
+        "SELECT id_kategori, nama_kategori, slug, urutan
+         FROM kategori_galeri
+         ORDER BY urutan ASC, nama_kategori ASC"
+    );
+
+    if (!$q) return $hasil;
+
+    while ($row = mysqli_fetch_assoc($q)) {
+        $slugEsc = mysqli_real_escape_string($koneksi, (string)$row['slug']);
+        $namaEsc = mysqli_real_escape_string($koneksi, (string)$row['nama_kategori']);
+
+        // Hitung penggunaan kategori. Tetap mendukung data lama yang mungkin
+        // menyimpan nama kategori langsung, bukan slug.
+        $qJumlah = mysqli_query(
+            $koneksi,
+            "SELECT COUNT(*) AS jumlah
+             FROM galeri_gym
+             WHERE kategori='$slugEsc'
+                OR LOWER(TRIM(kategori)) = LOWER(TRIM('$namaEsc'))"
+        );
+        $jumlah = 0;
+        if ($qJumlah && ($dJumlah = mysqli_fetch_assoc($qJumlah))) {
+            $jumlah = (int)($dJumlah['jumlah'] ?? 0);
+        }
+
+        $row['id_kategori'] = (int)$row['id_kategori'];
+        $row['urutan'] = (int)$row['urutan'];
+        $row['jumlah_media'] = $jumlah;
+        $hasil[] = $row;
+    }
+
+    return $hasil;
+}
+
+// =========================================================
 // AJAX HANDLERS
 // =========================================================
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
     header('Content-Type: application/json');
     $action = $_POST['action'];
+
+    // Selalu baca ulang master kategori langsung dari database ketika UI meminta
+    // daftar kategori. Ini mencegah dropdown kehilangan kategori yang sebenarnya
+    // masih ada di database setelah satu kategori dihapus.
+    if ($action === 'list_kategori_galeri') {
+        echo json_encode([
+            'status' => 'success',
+            'data' => ambilKategoriGaleriLengkap($koneksi)
+        ]);
+        exit;
+    }
 
     if ($action === 'terima') {
         $id_m = mysqli_real_escape_string($koneksi, $_POST['id_membership']);
@@ -96,37 +292,77 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
     }
 
     if ($action === 'edit_member') {
-        $id_u  = mysqli_real_escape_string($koneksi, $_POST['id_user']);
-        $nama  = mysqli_real_escape_string($koneksi, $_POST['nama']);
-        $wa    = mysqli_real_escape_string($koneksi, $_POST['wa']);
-        $pass  = $_POST['pass'];
-        $email = mysqli_real_escape_string($koneksi, $_POST['email'] ?? '');
+        $id_u = (int)($_POST['id_user'] ?? 0);
+        $namaRaw = trim($_POST['nama'] ?? '');
+        $waRaw = trim($_POST['wa'] ?? '');
+        $pass = $_POST['pass'] ?? '';
 
-        $query_upd = "UPDATE users SET nama_lengkap='$nama', no_wa='$wa'";
-        if (!empty($email)) {
-            $query_upd .= ", email='$email'";
+        if ($id_u <= 0 || $namaRaw === '') {
+            echo json_encode(['status' => 'error', 'message' => 'Data member tidak lengkap.']);
+            exit;
         }
+
+        $waNormal = normalisasiNomorWAIndonesia($waRaw);
+        if ($waNormal === false) {
+            echo json_encode(['status' => 'error', 'field' => 'wa', 'message' => 'Nomor WhatsApp tidak valid. Isi nomor setelah +62, misalnya 82123456789.']);
+            exit;
+        }
+
+        if (nomorWADipakaiUserLain($koneksi, $waNormal, $id_u)) {
+            echo json_encode(['status' => 'error', 'field' => 'wa', 'message' => 'Nomor WhatsApp tersebut sudah digunakan oleh akun lain.']);
+            exit;
+        }
+
+        $nama = mysqli_real_escape_string($koneksi, $namaRaw);
+        $wa = mysqli_real_escape_string($koneksi, $waNormal);
+
+        // Email sengaja tidak dapat diubah dari dashboard admin.
+        // Perubahan email dilakukan sendiri oleh member melalui OTP di halaman profil.
+        $query_upd = "UPDATE users SET nama_lengkap='$nama', no_wa='$wa'";
         if (!empty($pass)) {
             $pass_hash = password_hash($pass, PASSWORD_DEFAULT);
             $query_upd .= ", password='$pass_hash'";
         }
         $query_upd .= " WHERE id_user='$id_u'";
+
         $q = mysqli_query($koneksi, $query_upd);
-        echo json_encode(['status' => $q ? 'success' : 'error']); exit;
+        echo json_encode([
+            'status' => $q ? 'success' : 'error',
+            'message' => $q ? 'Data member berhasil diperbarui.' : 'Gagal memperbarui data member.'
+        ]);
+        exit;
     }
 
     if ($action === 'tambah_member') {
-        $nama      = mysqli_real_escape_string($koneksi, $_POST['nama']);
+        $namaRaw   = trim($_POST['nama'] ?? '');
         $email     = trim($_POST['email'] ?? '');
-        $wa        = mysqli_real_escape_string($koneksi, $_POST['wa'] ?? '');
-        $paket     = (int)$_POST['paket'];
-        $tgl_mulai = $_POST['tgl'];
+        $waRaw     = trim($_POST['wa'] ?? '');
+        $paket     = (int)($_POST['paket'] ?? 0);
+        $tgl_mulai = $_POST['tgl'] ?? '';
         $buat_akun = $_POST['buat_akun'] ?? 'tidak';
         $jenis     = $_POST['jenis'] ?? 'baru';
         $id_lama   = (int)($_POST['id_member_lama'] ?? 0);
         $id_new    = 0;
 
+        if ($namaRaw === '') {
+            echo json_encode(['status' => 'error', 'message' => 'Nama member wajib diisi.']);
+            exit;
+        }
+
+        $waNormal = normalisasiNomorWAIndonesia($waRaw);
+        if ($waNormal === false) {
+            echo json_encode(['status' => 'error', 'field' => 'wa', 'message' => 'Nomor WhatsApp tidak valid. Isi nomor setelah +62, misalnya 82123456789.']);
+            exit;
+        }
+
+        $nama = mysqli_real_escape_string($koneksi, $namaRaw);
+        $wa = mysqli_real_escape_string($koneksi, $waNormal);
+
         if ($jenis === 'perpanjang' && $id_lama > 0) {
+            if (nomorWADipakaiUserLain($koneksi, $waNormal, $id_lama)) {
+                echo json_encode(['status' => 'error', 'message' => 'Nomor WhatsApp tersebut sudah digunakan oleh akun lain.']);
+                exit;
+            }
             $id_new = $id_lama;
             mysqli_query($koneksi, "UPDATE users SET nama_lengkap='$nama', no_wa='$wa' WHERE id_user='$id_lama'");
         } else {
@@ -137,17 +373,26 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
                     $data_u = mysqli_fetch_assoc($cek);
                     if ($data_u['role'] === 'admin') { echo json_encode(['status'=>'error','message'=>'Email adalah akun Admin!']); exit; }
                     $id_u = $data_u['id_user'];
+                    if (nomorWADipakaiUserLain($koneksi, $waNormal, $id_u)) {
+                        echo json_encode(['status'=>'error','message'=>'Nomor WhatsApp tersebut sudah digunakan oleh akun lain.']); exit;
+                    }
                     $cek_m = mysqli_query($koneksi, "SELECT status FROM membership WHERE id_user='$id_u' AND status='aktif'");
                     if (mysqli_num_rows($cek_m) > 0) { echo json_encode(['status'=>'error','message'=>'Email sudah terdaftar aktif.']); exit; }
                     $pass_hash = password_hash($_POST['pass'] ?? '123456', PASSWORD_DEFAULT);
                     mysqli_query($koneksi, "UPDATE users SET nama_lengkap='$nama', no_wa='$wa', password='$pass_hash', role='member' WHERE id_user='$id_u'");
                     $id_new = $id_u;
                 } else {
+                    if (nomorWADipakaiUserLain($koneksi, $waNormal, 0)) {
+                        echo json_encode(['status'=>'error','message'=>'Nomor WhatsApp tersebut sudah digunakan oleh akun lain.']); exit;
+                    }
                     $pass_hash = password_hash($_POST['pass'] ?? '123456', PASSWORD_DEFAULT);
                     $q1 = mysqli_query($koneksi, "INSERT INTO users (nama_lengkap, email, no_wa, password, role) VALUES ('$nama', '$email_esc', '$wa', '$pass_hash', 'member')");
                     if ($q1) $id_new = mysqli_insert_id($koneksi);
                 }
             } else {
+                if (nomorWADipakaiUserLain($koneksi, $waNormal, 0)) {
+                    echo json_encode(['status'=>'error','message'=>'Nomor WhatsApp tersebut sudah digunakan oleh akun lain.']); exit;
+                }
                 $placeholder = 'noakun_' . time() . '_' . rand(100,999) . '@noemail.local';
                 $q1 = mysqli_query($koneksi, "INSERT INTO users (nama_lengkap, email, no_wa, password, role) VALUES ('$nama', '$placeholder', '$wa', '', 'member')");
                 if ($q1) $id_new = mysqli_insert_id($koneksi);
@@ -255,13 +500,139 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
         echo json_encode(['status' => 'success']); exit;
     }
 
+    // ---------------------------------------------------------
+    // KELOLA KATEGORI GALERI
+    // ---------------------------------------------------------
+    if ($action === 'tambah_kategori_galeri') {
+        $namaRaw = trim($_POST['nama_kategori'] ?? '');
+        if ($namaRaw === '' || strlen($namaRaw) < 2 || strlen($namaRaw) > 100) {
+            echo json_encode(['status'=>'error','message'=>'Nama kategori harus terdiri dari 2–100 karakter.']);
+            exit;
+        }
+
+        $slugRaw = slugKategoriGaleri($namaRaw);
+        if ($slugRaw === '') {
+            echo json_encode(['status'=>'error','message'=>'Nama kategori tidak valid.']);
+            exit;
+        }
+
+        $nama = mysqli_real_escape_string($koneksi, $namaRaw);
+        $slug = mysqli_real_escape_string($koneksi, $slugRaw);
+        $cek = mysqli_query($koneksi, "SELECT id_kategori FROM kategori_galeri WHERE LOWER(nama_kategori)=LOWER('$nama') OR slug='$slug' LIMIT 1");
+        if ($cek && mysqli_num_rows($cek) > 0) {
+            echo json_encode(['status'=>'error','message'=>'Kategori tersebut sudah tersedia.']);
+            exit;
+        }
+
+        $qUrut = mysqli_query($koneksi, "SELECT COALESCE(MAX(urutan),0)+10 AS next_urutan FROM kategori_galeri");
+        $urut = ($qUrut && ($dUrut = mysqli_fetch_assoc($qUrut))) ? (int)$dUrut['next_urutan'] : 999;
+        $q = mysqli_query($koneksi, "INSERT INTO kategori_galeri (nama_kategori, slug, urutan) VALUES ('$nama', '$slug', $urut)");
+        echo json_encode([
+            'status' => $q ? 'success' : 'error',
+            'message' => $q ? 'Kategori baru berhasil ditambahkan.' : 'Gagal menambahkan kategori.',
+            'id_kategori' => $q ? mysqli_insert_id($koneksi) : 0,
+            'nama_kategori' => $q ? $namaRaw : '',
+            'slug' => $q ? $slugRaw : '',
+            'kategori' => $q ? ambilKategoriGaleriLengkap($koneksi) : []
+        ]);
+        exit;
+    }
+
+    if ($action === 'edit_kategori_galeri') {
+        $idKat = (int)($_POST['id_kategori'] ?? 0);
+        $namaRaw = trim($_POST['nama_kategori'] ?? '');
+        if ($idKat <= 0 || $namaRaw === '' || strlen($namaRaw) < 2 || strlen($namaRaw) > 100) {
+            echo json_encode(['status'=>'error','message'=>'Nama kategori tidak valid.']);
+            exit;
+        }
+
+        $nama = mysqli_real_escape_string($koneksi, $namaRaw);
+        $cek = mysqli_query($koneksi, "SELECT id_kategori FROM kategori_galeri WHERE LOWER(nama_kategori)=LOWER('$nama') AND id_kategori<>$idKat LIMIT 1");
+        if ($cek && mysqli_num_rows($cek) > 0) {
+            echo json_encode(['status'=>'error','message'=>'Nama kategori tersebut sudah digunakan.']);
+            exit;
+        }
+
+        // Slug sengaja tidak diubah agar media lama tetap terhubung ke kategori yang sama.
+        $q = mysqli_query($koneksi, "UPDATE kategori_galeri SET nama_kategori='$nama' WHERE id_kategori=$idKat");
+        echo json_encode(['status'=>$q?'success':'error','message'=>$q?'Nama kategori berhasil diubah.':'Gagal mengubah kategori.']);
+        exit;
+    }
+
+    if ($action === 'hapus_kategori_galeri') {
+        $idKat = (int)($_POST['id_kategori'] ?? 0);
+        $qKat = mysqli_query($koneksi, "SELECT slug, nama_kategori FROM kategori_galeri WHERE id_kategori=$idKat LIMIT 1");
+        $kat = $qKat ? mysqli_fetch_assoc($qKat) : null;
+        if (!$kat) {
+            echo json_encode(['status'=>'error','message'=>'Kategori tidak ditemukan.']);
+            exit;
+        }
+
+        $slugEsc = mysqli_real_escape_string($koneksi, $kat['slug']);
+        $namaKatEsc = mysqli_real_escape_string($koneksi, $kat['nama_kategori']);
+        // Hitung juga data lama yang mungkin menyimpan nama kategori langsung,
+        // bukan slug, agar kategori yang masih dipakai media tidak bisa terhapus.
+        $qJumlah = mysqli_query(
+            $koneksi,
+            "SELECT COUNT(*) AS jumlah
+             FROM galeri_gym
+             WHERE kategori='$slugEsc'
+                OR LOWER(TRIM(kategori)) = LOWER(TRIM('$namaKatEsc'))"
+        );
+        $jumlah = ($qJumlah && ($dJumlah = mysqli_fetch_assoc($qJumlah))) ? (int)$dJumlah['jumlah'] : 0;
+        if ($jumlah > 0) {
+            echo json_encode(['status'=>'error','message'=>"Kategori masih digunakan oleh $jumlah media. Pindahkan media ke kategori lain terlebih dahulu."]);
+            exit;
+        }
+
+        $q = mysqli_query($koneksi, "DELETE FROM kategori_galeri WHERE id_kategori=$idKat LIMIT 1");
+        $terhapus = $q ? mysqli_affected_rows($koneksi) : 0;
+
+        if (!$q || $terhapus !== 1) {
+            echo json_encode(['status'=>'error','message'=>'Kategori belum berhasil dihapus.']);
+            exit;
+        }
+
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Kategori berhasil dihapus.',
+            'deleted_id' => $idKat,
+            'kategori' => ambilKategoriGaleriLengkap($koneksi)
+        ]);
+        exit;
+    }
+
     if ($action === 'upload_galeri') {
-        $judul = mysqli_real_escape_string($koneksi, $_POST['judul_media']);
-        $caption = mysqli_real_escape_string($koneksi, $_POST['caption_media']);
-        $kategori = $_POST['kategori_media'];
-        $tipe = $_POST['tipe_media'];
+        $judulRaw = trim($_POST['judul_media'] ?? '');
+        $captionRaw = trim($_POST['caption_media'] ?? '');
+        $kategoriRaw = trim($_POST['kategori_media'] ?? '');
+        $tipe = $_POST['tipe_media'] ?? '';
+
+        if ($judulRaw === '') {
+            echo json_encode(['status'=>'error','message'=>'Judul media wajib diisi.']);
+            exit;
+        }
+        if (!in_array($tipe, ['foto','video'], true)) {
+            echo json_encode(['status'=>'error','message'=>'Tipe media tidak valid.']);
+            exit;
+        }
+
+        $kategoriCek = mysqli_real_escape_string($koneksi, $kategoriRaw);
+        $cekKategori = mysqli_query($koneksi, "SELECT id_kategori FROM kategori_galeri WHERE slug='$kategoriCek' LIMIT 1");
+        if (!$cekKategori || mysqli_num_rows($cekKategori) === 0) {
+            echo json_encode(['status'=>'error','message'=>'Kategori media tidak tersedia. Pilih kategori yang valid.']);
+            exit;
+        }
+
+        $judul = mysqli_real_escape_string($koneksi, $judulRaw);
+        $caption = mysqli_real_escape_string($koneksi, $captionRaw);
+        $kategori = $kategoriCek;
+
         if(isset($_FILES['file_media']) && $_FILES['file_media']['error'] == 0) {
             $file = $_FILES['file_media'];
+            if (($file['size'] ?? 0) > 10 * 1024 * 1024) {
+                echo json_encode(['status'=>'error','message'=>'Ukuran file maksimal 10MB.']); exit;
+            }
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $allowed_img = ['jpg','jpeg','png','webp']; $allowed_vid = ['mp4','webm'];
             if (($tipe == 'foto' && !in_array($ext, $allowed_img)) || ($tipe == 'video' && !in_array($ext, $allowed_vid))) {
@@ -280,15 +651,35 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
     }
 
     if ($action === 'edit_galeri') {
-        $id_media = (int)$_POST['id_media'];
-        $judul = mysqli_real_escape_string($koneksi, $_POST['judul_media']);
-        $caption = mysqli_real_escape_string($koneksi, $_POST['caption_media']);
-        $kategori = $_POST['kategori_media'];
+        $id_media = (int)($_POST['id_media'] ?? 0);
+        $judulRaw = trim($_POST['judul_media'] ?? '');
+        $captionRaw = trim($_POST['caption_media'] ?? '');
+        $kategoriRaw = trim($_POST['kategori_media'] ?? '');
+
+        if ($id_media <= 0 || $judulRaw === '') {
+            echo json_encode(['status'=>'error','message'=>'Data media tidak lengkap.']);
+            exit;
+        }
+
+        $kategoriCek = mysqli_real_escape_string($koneksi, $kategoriRaw);
+        $cekKategori = mysqli_query($koneksi, "SELECT id_kategori FROM kategori_galeri WHERE slug='$kategoriCek' LIMIT 1");
+        if (!$cekKategori || mysqli_num_rows($cekKategori) === 0) {
+            echo json_encode(['status'=>'error','message'=>'Kategori media tidak tersedia.']);
+            exit;
+        }
+
+        $judul = mysqli_real_escape_string($koneksi, $judulRaw);
+        $caption = mysqli_real_escape_string($koneksi, $captionRaw);
+        $kategori = $kategoriCek;
+
         if (isset($_FILES['file_media_edit']) && $_FILES['file_media_edit']['error'] == 0) {
             $q_file_lama = mysqli_query($koneksi, "SELECT file_path, tipe_media FROM galeri_gym WHERE id_media=$id_media");
             $row_lama = mysqli_fetch_assoc($q_file_lama);
             $tipe_lama = $row_lama['tipe_media'];
             $file = $_FILES['file_media_edit'];
+            if (($file['size'] ?? 0) > 10 * 1024 * 1024) {
+                echo json_encode(['status'=>'error','message'=>'Ukuran file maksimal 10MB.']); exit;
+            }
             $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
             $allowed_img = ['jpg','jpeg','png','webp']; $allowed_vid = ['mp4','webm'];
             if (($tipe_lama == 'foto' && !in_array($ext, $allowed_img)) || ($tipe_lama == 'video' && !in_array($ext, $allowed_vid))) {
@@ -320,6 +711,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
         } else { echo json_encode(['status' => 'error']); }
         exit;
     }
+}
+
+// =========================================================
+// MASTER KATEGORI GALERI UNTUK TAMPILAN ADMIN
+// =========================================================
+// Ambil SEMUA kategori langsung dari tabel kategori_galeri. Kategori tidak
+// disaring berdasarkan jumlah media, sehingga kategori kosong pun tetap muncul
+// sampai admin benar-benar menghapus kategori tersebut.
+$kategori_galeri = ambilKategoriGaleriLengkap($koneksi);
+$kategori_map = [];
+foreach ($kategori_galeri as $kg) {
+    $kategori_map[$kg['slug']] = $kg['nama_kategori'];
 }
 
 // =========================================================
@@ -448,6 +851,17 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         .activity-text { flex: 1; color: var(--text-light); font-size: 0.9rem; line-height: 1.5; }
         .activity-time { white-space: nowrap; color: #888; font-size: 0.75rem; padding-top: 2px; }
 
+
+        .wa-admin-row { display:flex; gap:8px; align-items:stretch; }
+        .wa-admin-prefix {
+            flex:0 0 88px; display:flex; align-items:center; justify-content:center;
+            background:#0d0d0d; border:1px solid #333; border-radius:4px;
+            color:var(--accent-gold); font-weight:700; font-size:0.8rem;
+        }
+        .wa-admin-row .form-control { flex:1; min-width:0; }
+        .wa-admin-note { display:block; color:#777; font-size:0.7rem; margin-top:5px; }
+        .wa-admin-error { display:none; color:#ff6b6b; font-size:0.72rem; margin-top:5px; }
+
         /* TABLE */
         .table-container { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 15px; display: block; }
         table { width: 100%; min-width: 800px; border-collapse: collapse; text-align: left; }
@@ -529,6 +943,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         .form-control { width: 100%; padding: 12px 15px; background: var(--input-bg); border: 1px solid #333; border-radius: 4px; color: white; transition: 0.3s; }
         .form-control:focus { outline: none; border-color: var(--accent-gold); }
         .form-control:disabled { background: #222; color: #555; cursor: not-allowed; border-color: #333; }
+        select.form-control option { background-color:#111; color:#fff; }
         input[type="date"], input[type="time"] { color-scheme: dark; }
         .btn-submit { background: var(--accent-gold); color: #000; padding: 12px 20px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; }
         .btn-submit:hover { background: #cda971; }
@@ -605,6 +1020,78 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         .jam-card label.hari { color: var(--accent-gold); font-size: 1.1rem; display: block; margin-bottom: 15px; text-transform: uppercase; font-weight: bold; }
         .error-msg { color: #ff4d4d; font-size: 0.75rem; margin-top: 5px; display: none; }
 
+        /* KATEGORI GALERI DINAMIS */
+        .category-tools-row {
+            display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+            margin-top:8px; min-height:28px;
+        }
+        .category-tool-link {
+            display:inline-flex; align-items:center; gap:6px;
+            padding:0; border:none; background:transparent;
+            font-size:0.76rem; font-weight:700; cursor:pointer;
+            transition:.2s; text-decoration:none;
+        }
+        .category-tool-link.add { color:var(--accent-gold); }
+        .category-tool-link.manage { color:#aaa; }
+        .category-tool-link:hover { color:#fff; transform:translateY(-1px); }
+
+        .category-inline-box {
+            display:none; margin-top:10px; padding:12px;
+            background:#0d0d0d; border:1px solid #333; border-radius:6px;
+        }
+        .category-inline-box.show { display:block; }
+        .category-inline-row { display:flex; gap:8px; align-items:stretch; }
+        .category-inline-row .form-control { flex:1; min-width:0; }
+        .category-inline-btn {
+            width:auto; min-width:82px; padding:0 14px; border:none;
+            border-radius:4px; font-weight:700; cursor:pointer; transition:.2s;
+        }
+        .category-inline-btn.save { background:var(--accent-gold); color:#000; }
+        .category-inline-btn.save:hover { background:#cda971; }
+        .category-inline-btn.cancel { background:#222; color:#aaa; border:1px solid #444; }
+        .category-inline-btn.cancel:hover { color:#fff; border-color:#777; }
+        .category-inline-note { display:block; color:#777; font-size:0.7rem; margin-top:6px; line-height:1.4; }
+
+        /* MODAL KELOLA KATEGORI */
+        #modalKelolaKategori .modal-box { max-width:620px; }
+        .category-manager-intro {
+            color:#888; font-size:0.8rem; line-height:1.5; margin:-5px 0 18px;
+        }
+        .category-manager-list {
+            display:flex; flex-direction:column; gap:8px;
+            max-height:420px; overflow-y:auto; padding-right:3px;
+        }
+        .category-manager-list::-webkit-scrollbar { width:5px; }
+        .category-manager-list::-webkit-scrollbar-thumb { background:#444; border-radius:4px; }
+        .category-manager-item {
+            display:flex; align-items:center; justify-content:space-between; gap:14px;
+            padding:13px 14px; background:#0d0d0d; border:1px solid #2b2b2b;
+            border-radius:7px; transition:.2s;
+        }
+        .category-manager-item:hover { border-color:#444; background:#111; }
+        .category-manager-info {
+            min-width:0; flex:1; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+        }
+        .category-manager-name {
+            color:var(--text-light); font-size:0.9rem; font-weight:700;
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+        }
+        .category-manager-separator { color:#555; font-size:0.78rem; }
+        .category-manager-count { color:#888; font-size:0.78rem; }
+        .category-delete-icon {
+            width:34px; height:34px; flex:0 0 34px; display:inline-flex; align-items:center;
+            justify-content:center; border-radius:6px; border:1px solid #453030;
+            background:transparent; color:#d86b6b; cursor:pointer; transition:.2s;
+        }
+        .category-delete-icon:hover {
+            background:rgba(142,22,22,.18); border-color:var(--primary-red); color:#ff6b6b;
+        }
+        .category-delete-icon svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .category-manager-empty {
+            color:#777; text-align:center; padding:24px 12px;
+            border:1px dashed #333; border-radius:6px; font-size:0.8rem;
+        }
+
         /* MEDIA GRID */
         .media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
         .media-item { border: 1px solid #333; border-radius: 6px; overflow: hidden; background: #111; position: relative; }
@@ -658,6 +1145,13 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             #modalEditGaleri .modal-box h3 { font-size: 1.15rem; margin-bottom: 18px !important; }
             #modalEditGaleri #eg_caption { min-height: 150px; max-height: 250px; }
             #modalEditGaleri .form-control { font-size: 0.85rem; padding: 10px 12px; }
+            .category-inline-row { flex-direction:column; }
+            .category-inline-btn { min-height:38px; width:100%; }
+            .category-tools-row { gap:12px; }
+            #modalKelolaKategori .modal-box { width:100%; max-width:100%; padding:20px 14px; }
+            .category-manager-item { align-items:flex-start; flex-direction:column; gap:9px; }
+            .category-manager-actions { width:100%; }
+            .category-manage-btn { flex:1; }
             .media-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
             .bulk-toolbar { gap: 7px; }
         }
@@ -919,7 +1413,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                             </button>
                             
-                            <button class="btn-icon bi-edit" title="Edit Member" onclick="bukaEditMember('<?= $usr['id_user'] ?>','<?= addslashes($usr['nama_lengkap']) ?>','<?= addslashes($usr['email']) ?>','<?= addslashes($usr['no_wa']) ?>')">
+                            <button class="btn-icon bi-edit" title="Edit Member" onclick="bukaEditMember('<?= $usr['id_user'] ?>','<?= addslashes($usr['nama_lengkap']) ?>','<?= addslashes($usr['no_wa']) ?>')">
                                 <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                             </button>
                             
@@ -1102,21 +1596,44 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         <div class="content-card">
             <h3>Upload Media ke Galeri Publik</h3>
             <form id="formUploadGaleri" onsubmit="uploadMedia(event)" enctype="multipart/form-data">
-                <div class="form-group"><label>Judul Media</label><input type="text" id="judul_media" class="form-control" required placeholder="Masukkan judul..."></div>
-                <div class="form-group"><label>Caption / Penjelasan (Opsional)</label><textarea id="caption_media" class="form-control" rows="3" placeholder="Tuliskan fungsi alat..."></textarea></div>
+                <input type="hidden" name="action" value="upload_galeri">
+                <div class="form-group"><label>Judul Media</label><input type="text" name="judul_media" id="judul_media" class="form-control" required placeholder="Masukkan judul..."></div>
+                <div class="form-group"><label>Caption / Penjelasan (Opsional)</label><textarea name="caption_media" id="caption_media" class="form-control" rows="3" placeholder="Tuliskan fungsi alat..."></textarea></div>
                 <div style="display:flex;gap:15px;margin-bottom:15px;flex-wrap:wrap;">
                     <div class="form-group" style="flex:1;min-width:200px;"><label>Kategori</label>
-                        <select id="kategori_media" class="form-control" required>
-                            <option value="alat">Fasilitas & Alat Gym</option><option value="upper">Tutorial Upper Body</option><option value="lower">Tutorial Lower Body</option>
+                        <select name="kategori_media" id="kategori_media" class="form-control" required>
+                            <option value="" disabled selected>-- Pilih Kategori --</option>
+                            <?php foreach($kategori_galeri as $kg): ?>
+                                <option
+                                    value="<?= htmlspecialchars($kg['slug']) ?>"
+                                    data-id="<?= (int)($kg['id_kategori'] ?? 0) ?>"
+                                    data-jumlah="<?= (int)($kg['jumlah_media'] ?? 0) ?>">
+                                    <?= htmlspecialchars($kg['nama_kategori']) ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
+
+                        <div class="category-tools-row">
+                            <button type="button" class="category-tool-link add" onclick="bukaTambahKategoriInline()">+ Tambah kategori baru</button>
+                            <button type="button" class="category-tool-link manage" onclick="bukaKelolaKategori()">⚙ Kelola kategori</button>
+                        </div>
+
+                        <div id="inlineTambahKategori" class="category-inline-box">
+                            <div class="category-inline-row">
+                                <input type="text" id="nama_kategori_inline" class="form-control" maxlength="100" placeholder="Nama kategori baru, mis. Cardio">
+                                <button type="button" class="category-inline-btn save" onclick="simpanKategoriInline()">Simpan</button>
+                                <button type="button" class="category-inline-btn cancel" onclick="batalKategoriInline()">Batal</button>
+                            </div>
+                            <small class="category-inline-note">Kategori baru akan langsung dipilih untuk media ini.</small>
+                        </div>
                     </div>
                     <div class="form-group" style="flex:1;min-width:200px;"><label>Tipe Media</label>
-                        <select id="tipe_media" class="form-control" required onchange="sesuaikanInputFile()">
+                        <select name="tipe_media" id="tipe_media" class="form-control" required onchange="sesuaikanInputFile()">
                             <option value="foto">Foto (JPG/PNG)</option><option value="video">Video (MP4)</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-group"><label>Pilih File (Max 10MB)</label><input type="file" id="file_media" class="form-control" accept="image/jpeg,image/png,image/webp" required style="padding:9px 15px;"></div>
+                <div class="form-group"><label>Pilih File (Max 10MB)</label><input type="file" name="file_media" id="file_media" class="form-control" accept="image/jpeg,image/png,image/webp" required style="padding:9px 15px;"></div>
                 <button type="submit" id="btnUpload" class="btn-submit">Upload Media Sekarang</button>
             </form>
         </div>
@@ -1125,8 +1642,11 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             <p style="color:#888;font-size:0.85rem;margin-bottom:15px;">Kelola media yang tampil di halaman utama dan menu Galeri.</p>
             <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
                 <input type="text" id="searchGaleri" placeholder="Cari judul media..." class="form-control" onkeyup="filterGaleri()" style="max-width:300px;margin-bottom:0;">
-                <select id="filterKategoriGaleri" class="form-control" onchange="filterGaleri()" style="max-width:200px;margin-bottom:0;cursor:pointer;">
-                    <option value="">Semua Kategori</option><option value="alat">Fasilitas & Alat Gym</option><option value="upper">Tutorial Upper Body</option><option value="lower">Tutorial Lower Body</option>
+                <select id="filterKategoriGaleri" class="form-control" onchange="filterGaleri()" style="max-width:240px;margin-bottom:0;cursor:pointer;">
+                    <option value="">Semua Kategori</option>
+                    <?php foreach($kategori_galeri as $kg): ?>
+                        <option value="<?= htmlspecialchars($kg['slug']) ?>"><?= htmlspecialchars($kg['nama_kategori']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="media-grid" id="containerGaleri">
@@ -1134,8 +1654,9 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                 $q_g = mysqli_query($koneksi, "SELECT * FROM galeri_gym ORDER BY id_media DESC");
                 if(mysqli_num_rows($q_g)==0) echo "<div class='no-media-msg' style='color:#666;'>Belum ada media terupload.</div>";
                 while($mg = mysqli_fetch_assoc($q_g)):
+                    $namaKategoriMedia = $kategori_map[$mg['kategori']] ?? ucwords(str_replace(['-','_'], ' ', $mg['kategori']));
                 ?>
-                <div class="media-item" data-judul="<?= htmlspecialchars(strtolower($mg['judul'])) ?>" data-kat="<?= $mg['kategori'] ?>">
+                <div class="media-item" data-judul="<?= htmlspecialchars(strtolower($mg['judul'])) ?>" data-kat="<?= htmlspecialchars($mg['kategori']) ?>">
                     <?php if($mg['tipe_media']=='video'): ?>
                         <video src="<?= $mg['file_path'] ?>#t=0.1" preload="metadata" muted></video>
                     <?php else: ?>
@@ -1143,7 +1664,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                     <?php endif; ?>
                     <div class="media-item-info">
                         <p title="<?= htmlspecialchars($mg['judul']) ?>"><?= htmlspecialchars($mg['judul']) ?></p>
-                        <span><?= strtoupper($mg['kategori']) ?></span>
+                        <span><?= htmlspecialchars($namaKategoriMedia) ?></span>
                         <div style="display:flex;gap:5px;">
                             <button type="button" class="btn-action btn-view" style="flex:1;margin:0;text-align:center;" onclick="bukaEditGaleri(<?= $mg['id_media'] ?>, '<?= htmlspecialchars(str_replace(["\r", "\n"], ["\\r", "\\n"], addslashes($mg['judul']))) ?>', '<?= htmlspecialchars(str_replace(["\r", "\n"], ["\\r", "\\n"], addslashes($mg['caption']))) ?>', '<?= $mg['kategori'] ?>')">Edit</button>
                             <button type="button" class="btn-action btn-rej" style="flex:1;margin:0;text-align:center;" onclick="hapusGaleri(<?= $mg['id_media'] ?>)">Hapus</button>
@@ -1187,7 +1708,14 @@ $harga_senam = $web['harga_senam'] ?? 25000;
 
             <div class="grid-2">
                 <div class="form-group"><label>Nama Lengkap</label><input type="text" name="nama" id="tm_nama" class="form-control" required></div>
-                <div class="form-group"><label>No. WhatsApp</label><input type="text" name="wa" id="tm_wa" class="form-control" required></div>
+                <div class="form-group"><label>No. WhatsApp</label>
+                    <div class="wa-admin-row">
+                        <div class="wa-admin-prefix">ID +62</div>
+                        <input type="tel" name="wa" id="tm_wa" class="form-control" required inputmode="numeric" maxlength="12" placeholder="82123456789" oninput="validasiWAAdmin(this, 'tm_wa_error')">
+                    </div>
+                    <small class="wa-admin-note">Contoh: 82123456789</small>
+                    <div id="tm_wa_error" class="wa-admin-error">Nomor tidak valid. Isi nomor setelah +62 dan mulai dari angka 8.</div>
+                </div>
             </div>
             
             <div id="areaAkun" class="form-group">
@@ -1227,11 +1755,26 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             <input type="hidden" name="action" value="edit_member">
             <input type="hidden" name="id_user" id="em_id">
             <div class="form-group"><label>Nama Lengkap</label><input type="text" name="nama" id="em_nama" class="form-control" required></div>
-            <div class="form-group"><label>No. WhatsApp</label><input type="text" name="wa" id="em_wa" class="form-control" required></div>
-            <div class="form-group"><label>Alamat Email (Kosongkan jika tidak ada)</label><input type="email" name="email" id="em_email" class="form-control"></div>
+            <div class="form-group"><label>No. WhatsApp</label>
+                <div class="wa-admin-row">
+                    <div class="wa-admin-prefix">ID +62</div>
+                    <input type="tel" name="wa" id="em_wa" class="form-control" required inputmode="numeric" maxlength="12" placeholder="82123456789" oninput="validasiWAAdmin(this, 'em_wa_error')">
+                </div>
+                <small class="wa-admin-note">Contoh: 82123456789</small>
+                <div id="em_wa_error" class="wa-admin-error">Nomor tidak valid. Isi nomor setelah +62 dan mulai dari angka 8.</div>
+            </div>
             <div class="form-group"><label>Ubah Password (Kosongkan jika tetap)</label><input type="password" name="pass" class="form-control" placeholder="***"></div>
             <button type="submit" class="btn-submit">Simpan Perubahan</button>
         </form>
+    </div>
+</div>
+
+<div id="modalKelolaKategori" class="modal-overlay">
+    <div class="modal-box">
+        <button type="button" class="close-modal" onclick="tutupModal('modalKelolaKategori')">&times;</button>
+        <h3 style="color:var(--accent-gold);margin-bottom:15px;border-bottom:1px dashed #333;padding-bottom:10px;">Kelola Kategori Galeri</h3>
+        <p class="category-manager-intro">Atur kategori yang digunakan untuk mengelompokkan media.</p>
+        <div id="daftarKelolaKategori" class="category-manager-list"></div>
     </div>
 </div>
 
@@ -1246,9 +1789,9 @@ $harga_senam = $web['harga_senam'] ?? 25000;
             <div class="form-group"><label>Caption / Keterangan</label><textarea name="caption_media" id="eg_caption" class="form-control" rows="7"></textarea></div>
             <div class="form-group"><label>Kategori</label>
                 <select name="kategori_media" id="eg_kategori" class="form-control" required>
-                    <option value="alat">Fasilitas & Alat Gym</option>
-                    <option value="upper">Tutorial Upper Body</option>
-                    <option value="lower">Tutorial Lower Body</option>
+                    <?php foreach($kategori_galeri as $kg): ?>
+                        <option value="<?= htmlspecialchars($kg['slug']) ?>"><?= htmlspecialchars($kg['nama_kategori']) ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div class="form-group"><label>Ganti File? (Kosongkan jika tidak diganti)</label><input type="file" name="file_media_edit" class="form-control" style="padding:9px 15px;"></div>
@@ -1350,6 +1893,21 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         
         if(window.innerWidth <= 1024) toggleSidebar(); 
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const restoreTab = sessionStorage.getItem('admin_tab_restore');
+        if (restoreTab && document.getElementById(restoreTab)) {
+            sessionStorage.removeItem('admin_tab_restore');
+            document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            document.getElementById(restoreTab).classList.add('active');
+            const menu = Array.from(document.querySelectorAll('.menu-item')).find(m => (m.getAttribute('onclick') || '').includes("'" + restoreTab + "'"));
+            if (menu) {
+                menu.classList.add('active');
+                document.getElementById('pageTitle').innerText = menu.innerText.replace(/[\n\r0-9]/g, '').trim();
+            }
+        }
+    });
 
     function bukaTabArsip() {
         document.querySelectorAll('.tab-section').forEach(t => t.classList.remove('active'));
@@ -1454,11 +2012,27 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         bukaModal('modalBukti');
     }
 
-    function bukaEditMember(id, nama, email, wa) {
+    function waKeLokal(wa) {
+        let d = String(wa || '').replace(/\D/g, '');
+        if (d.startsWith('62')) d = d.slice(2);
+        else if (d.startsWith('0')) d = d.slice(1);
+        return d;
+    }
+
+    function validasiWAAdmin(input, errorId) {
+        input.value = input.value.replace(/\D/g, '').slice(0, 12);
+        const valid = /^8[1-9][0-9]{7,10}$/.test(input.value);
+        const err = document.getElementById(errorId);
+        if (err) err.style.display = (input.value && !valid) ? 'block' : 'none';
+        input.style.borderColor = (input.value && !valid) ? '#dc3545' : '#333';
+        return valid;
+    }
+
+    function bukaEditMember(id, nama, wa) {
         document.getElementById('em_id').value = id;
         document.getElementById('em_nama').value = nama;
-        document.getElementById('em_wa').value = wa;
-        document.getElementById('em_email').value = (email.includes('@noemail.local')) ? '' : email;
+        document.getElementById('em_wa').value = waKeLokal(wa);
+        document.getElementById('em_wa_error').style.display = 'none';
         bukaModal('modalEditMember');
     }
 
@@ -1588,6 +2162,251 @@ $harga_senam = $web['harga_senam'] ?? 25000;
     }
 
     // GALERI AKSI
+    // Salinan data kategori yang berasal langsung dari database. Modal kelola
+    // kategori tidak lagi mengambil data dari dropdown karena dropdown dapat
+    // berubah state-nya di browser.
+    let kategoriGaleriData = <?= json_encode(array_values($kategori_galeri), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+
+    function reloadKeTabGaleri() {
+        sessionStorage.setItem('admin_tab_restore', 'tab-galeri');
+        location.reload();
+    }
+
+    function bukaTambahKategoriInline() {
+        const box = document.getElementById('inlineTambahKategori');
+        const input = document.getElementById('nama_kategori_inline');
+        if (!box || !input) return;
+        box.classList.add('show');
+        setTimeout(() => input.focus(), 50);
+    }
+
+    function batalKategoriInline() {
+        const box = document.getElementById('inlineTambahKategori');
+        const input = document.getElementById('nama_kategori_inline');
+        if (input) input.value = '';
+        if (box) box.classList.remove('show');
+    }
+
+    function tambahOptionKategoriKeSelect(select, slug, nama, idKategori = 0, jumlahMedia = 0) {
+        if (!select || !slug || !nama) return;
+        if ([...select.options].some(o => o.value === slug)) return;
+        const opt = document.createElement('option');
+        opt.value = slug;
+        opt.textContent = nama;
+        opt.dataset.id = String(idKategori || 0);
+        opt.dataset.jumlah = String(jumlahMedia || 0);
+        select.appendChild(opt);
+    }
+
+    function escapeHtmlKategori(teks) {
+        return String(teks ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function ambilKategoriMasterDariDropdown() {
+        return (Array.isArray(kategoriGaleriData) ? kategoriGaleriData : [])
+            .filter(k => Number(k.id_kategori || 0) > 0)
+            .map(k => ({
+                id: Number(k.id_kategori || 0),
+                slug: String(k.slug || ''),
+                nama: String(k.nama_kategori || ''),
+                jumlah: Number(k.jumlah_media || 0)
+            }));
+    }
+
+    function buatOptionKategori(select, kategori) {
+        const opt = document.createElement('option');
+        opt.value = String(kategori.slug || '');
+        opt.textContent = String(kategori.nama_kategori || '');
+        opt.dataset.id = String(kategori.id_kategori || 0);
+        opt.dataset.jumlah = String(kategori.jumlah_media || 0);
+        select.appendChild(opt);
+    }
+
+    function sinkronkanSemuaDropdownKategori(data, pilihUpload = null) {
+        if (!Array.isArray(data)) return;
+        kategoriGaleriData = data;
+
+        const upload = document.getElementById('kategori_media');
+        const edit = document.getElementById('eg_kategori');
+        const filter = document.getElementById('filterKategoriGaleri');
+
+        const uploadLama = pilihUpload !== null ? pilihUpload : (upload ? upload.value : '');
+        const editLama = edit ? edit.value : '';
+        const filterLama = filter ? filter.value : '';
+
+        if (upload) {
+            upload.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.disabled = true;
+            placeholder.textContent = '-- Pilih Kategori --';
+            upload.appendChild(placeholder);
+            data.forEach(k => buatOptionKategori(upload, k));
+            if (uploadLama && data.some(k => String(k.slug) === String(uploadLama))) {
+                upload.value = uploadLama;
+            } else {
+                upload.value = '';
+                placeholder.selected = true;
+            }
+        }
+
+        if (edit) {
+            edit.innerHTML = '';
+            data.forEach(k => buatOptionKategori(edit, k));
+            if (editLama && data.some(k => String(k.slug) === String(editLama))) {
+                edit.value = editLama;
+            }
+        }
+
+        if (filter) {
+            filter.innerHTML = '';
+            const semua = document.createElement('option');
+            semua.value = '';
+            semua.textContent = 'Semua Kategori';
+            filter.appendChild(semua);
+            data.forEach(k => buatOptionKategori(filter, k));
+            if (filterLama && data.some(k => String(k.slug) === String(filterLama))) {
+                filter.value = filterLama;
+            } else {
+                filter.value = '';
+            }
+        }
+    }
+
+    async function muatKategoriTerbaru(pilihUpload = null) {
+        const r = await sendData({action:'list_kategori_galeri'});
+        if (r.status !== 'success' || !Array.isArray(r.data)) {
+            showToast(r.message || 'Daftar kategori gagal dimuat ulang.', 'error');
+            return false;
+        }
+        sinkronkanSemuaDropdownKategori(r.data, pilihUpload);
+        return true;
+    }
+
+    function renderKelolaKategori() {
+        const list = document.getElementById('daftarKelolaKategori');
+        if (!list) return;
+        const kategori = ambilKategoriMasterDariDropdown();
+
+        if (kategori.length === 0) {
+            list.innerHTML = '<div class="category-manager-empty">Belum ada kategori yang dapat dikelola.</div>';
+            return;
+        }
+
+        list.innerHTML = kategori.map(k => {
+            const namaSafe = escapeHtmlKategori(k.nama);
+            const info = `${k.jumlah} media`;
+            const titleHapus = `Hapus kategori ${k.nama}`;
+
+            return `
+                <div class="category-manager-item">
+                    <div class="category-manager-info">
+                        <span class="category-manager-name">${namaSafe}</span>
+                        <span class="category-manager-separator">—</span>
+                        <span class="category-manager-count">${info}</span>
+                    </div>
+                    <button type="button" class="category-delete-icon"
+                        data-id="${k.id}" data-nama="${namaSafe}" data-jumlah="${k.jumlah}"
+                        title="${escapeHtmlKategori(titleHapus)}" aria-label="${escapeHtmlKategori(titleHapus)}"
+                        onclick="hapusKategoriDariTombol(this)">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6l-1 14H6L5 6"></path>
+                            <path d="M10 11v6"></path>
+                            <path d="M14 11v6"></path>
+                            <path d="M9 6V4h6v2"></path>
+                        </svg>
+                    </button>
+                </div>`;
+        }).join('');
+    }
+
+    async function bukaKelolaKategori() {
+        await muatKategoriTerbaru();
+        renderKelolaKategori();
+        bukaModal('modalKelolaKategori');
+    }
+
+
+    function ubahKategoriDariTombol(btn) {
+        ubahKategoriGaleri(Number(btn.dataset.id || 0), btn.dataset.nama || '');
+    }
+
+    function hapusKategoriDariTombol(btn) {
+        hapusKategoriGaleri(
+            Number(btn.dataset.id || 0),
+            btn.dataset.nama || '',
+            Number(btn.dataset.jumlah || 0)
+        );
+    }
+
+    async function simpanKategoriInline() {
+        const input = document.getElementById('nama_kategori_inline');
+        const nama = input.value.trim();
+        if (nama.length < 2) {
+            showToast('Nama kategori minimal 2 karakter.', 'error');
+            input.focus();
+            return;
+        }
+
+        const r = await sendData({action:'tambah_kategori_galeri', nama_kategori:nama});
+        if (r.status !== 'success') {
+            showToast(r.message || 'Gagal menambahkan kategori.', 'error');
+            return;
+        }
+
+        const slug = r.slug || '';
+        if (Array.isArray(r.kategori)) {
+            sinkronkanSemuaDropdownKategori(r.kategori, slug);
+        } else {
+            await muatKategoriTerbaru(slug);
+        }
+        input.value = '';
+        document.getElementById('inlineTambahKategori').classList.remove('show');
+        showToast(r.message || 'Kategori baru berhasil ditambahkan.');
+    }
+
+    async function ubahKategoriGaleri(id, namaLama) {
+        const namaBaru = prompt('Ubah nama kategori:', namaLama);
+        if (namaBaru === null) return;
+        const nama = namaBaru.trim();
+        if (nama.length < 2) {
+            showToast('Nama kategori minimal 2 karakter.', 'error');
+            return;
+        }
+        let r = await sendData({action:'edit_kategori_galeri', id_kategori:id, nama_kategori:nama});
+        if (r.status === 'success') {
+            await muatKategoriTerbaru();
+            renderKelolaKategori();
+            showToast(r.message || 'Kategori diperbarui.');
+        } else showToast(r.message || 'Gagal mengubah kategori.', 'error');
+    }
+
+    async function hapusKategoriGaleri(id, nama, jumlahMedia) {
+        if (Number(jumlahMedia) > 0) {
+            showToast(`Kategori "${nama}" masih memiliki ${jumlahMedia} media. Pindahkan media tersebut terlebih dahulu.`, 'error');
+            return;
+        }
+        if (!confirm(`Hapus kategori "${nama}"?\n\nKategori ini akan dihapus dari daftar kategori Galeri Gym.`)) return;
+        let r = await sendData({action:'hapus_kategori_galeri', id_kategori:id});
+        if (r.status === 'success') {
+            if (Array.isArray(r.kategori)) {
+                sinkronkanSemuaDropdownKategori(r.kategori);
+            } else {
+                await muatKategoriTerbaru();
+            }
+            // Modal tetap terbuka dan dirender ulang dari data database terbaru,
+            // sehingga hanya kategori yang dipilih yang menghilang.
+            renderKelolaKategori();
+            showToast(r.message || 'Kategori dihapus.');
+        } else showToast(r.message || 'Gagal menghapus kategori.', 'error');
+    }
+
     function sesuaikanInputFile() {
         const t = document.getElementById('tipe_media').value;
         const i = document.getElementById('file_media');
@@ -1599,26 +2418,32 @@ $harga_senam = $web['harga_senam'] ?? 25000;
         const btn = document.getElementById('btnUpload');
         btn.disabled = true; btn.innerText = 'Tunggu sebentar...';
         let r = await sendForm('formUploadGaleri');
-        if(r.status==='success') { showToast(r.message); location.reload(); }
+        if(r.status==='success') { showToast(r.message); setTimeout(reloadKeTabGaleri, 350); }
         else { showToast(r.message || 'Gagal Upload', 'error'); btn.disabled = false; btn.innerText = 'Upload Media Sekarang'; }
     }
 
     async function simpanEditGaleri(e) {
         e.preventDefault();
         let r = await sendForm('formEditGaleri');
-        if(r.status==='success') { showToast(r.message || 'Tersimpan'); location.reload(); }
+        if(r.status==='success') { showToast(r.message || 'Tersimpan'); setTimeout(reloadKeTabGaleri, 350); }
         else showToast(r.message || 'Gagal mengubah', 'error');
     }
 
     async function hapusGaleri(id) {
         if(!confirm('Yakin ingin menghapus media ini dari galeri publik?')) return;
         let r = await sendData({action:'hapus_galeri', id_media:id});
-        if(r.status==='success') { showToast('Media terhapus'); location.reload(); }
+        if(r.status==='success') { showToast('Media terhapus'); setTimeout(reloadKeTabGaleri, 350); }
     }
 
     // MEMBER KELOLA AKSI
     async function simpanTambahMember(e) {
         e.preventDefault();
+        const waInput = document.getElementById('tm_wa');
+        if (!validasiWAAdmin(waInput, 'tm_wa_error')) {
+            showToast('Periksa format nomor WhatsApp.', 'error');
+            waInput.focus();
+            return;
+        }
         let r = await sendForm('formTambahMember');
         if(r.status==='success') { showToast('Pendaftaran Berhasil'); location.reload(); }
         else showToast(r.message || 'Gagal memproses', 'error');
@@ -1626,6 +2451,12 @@ $harga_senam = $web['harga_senam'] ?? 25000;
 
     async function simpanEditMember(e) {
         e.preventDefault();
+        const waInput = document.getElementById('em_wa');
+        if (!validasiWAAdmin(waInput, 'em_wa_error')) {
+            showToast('Periksa format nomor WhatsApp.', 'error');
+            waInput.focus();
+            return;
+        }
         let r = await sendForm('formEditMember');
         if(r.status==='success') { showToast('Profil diperbarui'); location.reload(); }
         else showToast(r.message || 'Gagal update', 'error');
@@ -1649,7 +2480,7 @@ $harga_senam = $web['harga_senam'] ?? 25000;
                     div.onclick = () => {
                         document.getElementById('id_member_lama').value = m.id_user;
                         document.getElementById('tm_nama').value = m.nama_lengkap;
-                        document.getElementById('tm_wa').value = m.no_wa;
+                        document.getElementById('tm_wa').value = waKeLokal(m.no_wa);
                         document.getElementById('cari_lama').value = m.nama_lengkap;
                         box.style.display = 'none';
                         

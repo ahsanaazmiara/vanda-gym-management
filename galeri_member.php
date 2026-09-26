@@ -10,10 +10,32 @@ if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'member') {
 
 $id_user = str_pad($_SESSION['id_user'], 4, '0', STR_PAD_LEFT);
 
-// Cek status membership
+// Cek status pengajuan membership terbaru (untuk kebutuhan tampilan/status)
 $q_member = mysqli_query($koneksi, "SELECT status FROM membership WHERE id_user = {$_SESSION['id_user']} ORDER BY id_membership DESC LIMIT 1");
 $d_member = mysqli_fetch_assoc($q_member);
 $status_member = $d_member['status'] ?? 'belum_daftar';
+
+// =========================================================
+// HAK AKSES FITUR MEMBER
+// =========================================================
+// Jangan memakai status pengajuan terbaru sebagai patokan akses.
+// Contoh: member masih aktif sampai 30 Sep, lalu mengajukan perpanjangan
+// dan pengajuan terbaru menjadi 'pending'. Selama masa aktif lama belum
+// habis, Galeri/Chatbot tetap boleh digunakan.
+//
+// Fitur baru dikunci jika TIDAK ADA membership aktif yang tanggal
+// berakhirnya masih hari ini atau setelah hari ini.
+$q_akses_aktif = mysqli_query(
+    $koneksi,
+    "SELECT id_membership
+     FROM membership
+     WHERE id_user = {$_SESSION['id_user']}
+       AND status = 'aktif'
+       AND tgl_berakhir >= CURDATE()
+     ORDER BY tgl_berakhir DESC, id_membership DESC
+     LIMIT 1"
+);
+$punya_akses_aktif = ($q_akses_aktif && mysqli_num_rows($q_akses_aktif) > 0);
 
 // Cek peringatan perpanjangan untuk lonceng
 $q_membership_full = mysqli_query($koneksi, "SELECT tgl_berakhir, status FROM membership WHERE id_user = {$_SESSION['id_user']} AND status = 'aktif' ORDER BY id_membership DESC LIMIT 1");
@@ -32,12 +54,70 @@ if ($cek_pending && mysqli_num_rows($cek_pending) > 0) {
     $sedang_perpanjang = true;
 }
 
-// Ambil semua data galeri dari database
+// =========================================================
+// KATEGORI GALERI DINAMIS
+// =========================================================
+// Ambil kategori dari master yang dikelola admin. Kategori yang dihapus admin
+// otomatis tidak muncul lagi di halaman member. Kategori yang masih dipakai media
+// tetap dipertahankan sebagai fallback agar media lama tidak hilang.
+// Jika tabel master belum
+// tersedia (misalnya file admin baru belum pernah dijalankan), gunakan kategori
+// yang sudah ada pada galeri_gym sebagai fallback.
+$kategori_info = [];
+$kategori_media = [];
+
+// Cek dulu apakah tabel kategori_galeri sudah tersedia.
+// Jangan query tabel secara langsung sebelum dicek, karena pada hosting dengan
+// mysqli strict mode, query ke tabel yang belum ada dapat memicu HTTP 500.
+$tabel_kategori_tersedia = false;
+$q_cek_tabel_kategori = mysqli_query($koneksi, "SHOW TABLES LIKE 'kategori_galeri'");
+if ($q_cek_tabel_kategori && mysqli_num_rows($q_cek_tabel_kategori) > 0) {
+    $tabel_kategori_tersedia = true;
+}
+
+if ($tabel_kategori_tersedia) {
+    $q_master_kategori = mysqli_query(
+        $koneksi,
+        "SELECT slug, nama_kategori FROM kategori_galeri ORDER BY urutan ASC, nama_kategori ASC"
+    );
+
+    if ($q_master_kategori) {
+        while ($kat = mysqli_fetch_assoc($q_master_kategori)) {
+            $slug = trim((string)$kat['slug']);
+            if ($slug === '') continue;
+            $kategori_info[$slug] = $kat['nama_kategori'];
+            $kategori_media[$slug] = [];
+        }
+    }
+}
+
+// Fallback untuk instalasi lama / kategori yang belum tersinkron ke master.
+if (empty($kategori_info)) {
+    $q_kat_lama = mysqli_query($koneksi, "SELECT DISTINCT kategori FROM galeri_gym WHERE kategori IS NOT NULL AND kategori <> '' ORDER BY kategori ASC");
+    if ($q_kat_lama) {
+        while ($kat = mysqli_fetch_assoc($q_kat_lama)) {
+            $slug = trim((string)$kat['kategori']);
+            if ($slug === '') continue;
+            $labelDefault = [
+                'alat' => 'Fasilitas & Alat Gym',
+                'upper' => 'Tutorial Upper Body',
+                'lower' => 'Tutorial Lower Body'
+            ];
+            $kategori_info[$slug] = $labelDefault[$slug] ?? ucwords(str_replace(['-', '_'], ' ', $slug));
+            $kategori_media[$slug] = [];
+        }
+    }
+}
+
 $q_galeri = mysqli_query($koneksi, "SELECT * FROM galeri_gym ORDER BY id_media DESC");
-$kategori_media = ['alat' => [], 'upper' => [], 'lower' => []];
-while ($row = mysqli_fetch_assoc($q_galeri)) {
-    $kat = $row['kategori'];
-    if (array_key_exists($kat, $kategori_media)) {
+if ($q_galeri) {
+    while ($row = mysqli_fetch_assoc($q_galeri)) {
+        $kat = trim((string)$row['kategori']);
+        if ($kat === '') continue;
+        if (!array_key_exists($kat, $kategori_info)) {
+            $kategori_info[$kat] = ucwords(str_replace(['-', '_'], ' ', $kat));
+            $kategori_media[$kat] = [];
+        }
         $kategori_media[$kat][] = $row;
     }
 }
@@ -615,7 +695,7 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><path d="M21 15l-5-5L5 21"></path></svg>
                 Galeri Gym
             </a>
-            <a href="chatbot_member.php" class="menu-link <?= ($status_member !== 'aktif') ? 'locked-link' : '' ?>">
+            <a href="chatbot_member.php" class="menu-link <?= (!$punya_akses_aktif) ? 'locked-link' : '' ?>">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8.01" y2="16"></line><line x1="16" y1="16" x2="16.01" y2="16"></line></svg>
                 Chatbot AI
             </a>
@@ -655,43 +735,27 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
 
         <div class="category-filter">
             <button class="filter-btn active" onclick="pilihKategori('semua', this)">Semua Kategori</button>
-            <button class="filter-btn" onclick="pilihKategori('alat', this)">Alat Gym</button>
-            <button class="filter-btn" onclick="pilihKategori('upper', this)">Upper Body</button>
-            <button class="filter-btn" onclick="pilihKategori('lower', this)">Lower Body</button>
+            <?php foreach($kategori_info as $slugKategori => $namaKategori): ?>
+                <button class="filter-btn" onclick='pilihKategori(<?= json_encode($slugKategori, JSON_HEX_APOS|JSON_HEX_QUOT) ?>, this)'><?= htmlspecialchars($namaKategori) ?></button>
+            <?php endforeach; ?>
         </div>
 
-        <div class="category-section" id="sec-alat">
-            <h3 class="category-title">Fasilitas & Alat Gym</h3>
-            <?php if(empty($kategori_media['alat'])): ?>
-                <div class="empty-state" style="display:block;">Belum ada data alat.</div>
-            <?php else: ?>
-                <div class="horizontal-scroll">
-                    <?php foreach($kategori_media['alat'] as $m): renderGalleryItem($m); endforeach; ?>
+        <?php if(empty($kategori_info)): ?>
+            <div class="empty-state" style="display:block;">Belum ada kategori galeri.</div>
+        <?php else: ?>
+            <?php foreach($kategori_info as $slugKategori => $namaKategori): ?>
+                <div class="category-section" id="sec-<?= htmlspecialchars($slugKategori) ?>">
+                    <h3 class="category-title"><?= htmlspecialchars($namaKategori) ?></h3>
+                    <?php if(empty($kategori_media[$slugKategori])): ?>
+                        <div class="empty-state" style="display:block;">Belum ada media pada kategori ini.</div>
+                    <?php else: ?>
+                        <div class="horizontal-scroll">
+                            <?php foreach($kategori_media[$slugKategori] as $m): renderGalleryItem($m); endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
-        </div>
-
-        <div class="category-section" id="sec-upper">
-            <h3 class="category-title">Tutorial Upper Body</h3>
-            <?php if(empty($kategori_media['upper'])): ?>
-                <div class="empty-state" style="display:block;">Belum ada tutorial upper body.</div>
-            <?php else: ?>
-                <div class="horizontal-scroll">
-                    <?php foreach($kategori_media['upper'] as $m): renderGalleryItem($m); endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </div>
-
-        <div class="category-section" id="sec-lower">
-            <h3 class="category-title">Tutorial Lower Body</h3>
-            <?php if(empty($kategori_media['lower'])): ?>
-                <div class="empty-state" style="display:block;">Belum ada tutorial lower body.</div>
-            <?php else: ?>
-                <div class="horizontal-scroll">
-                    <?php foreach($kategori_media['lower'] as $m): renderGalleryItem($m); endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 
     <!-- ============ LIGHTBOX ============ -->
@@ -727,8 +791,8 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         </svg>
     </a>
 
-    <a href="chatbot_member.php" class="chatbot-btn <?= ($status_member !== 'aktif') ? 'locked' : '' ?>"
-       <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Fitur AI terkunci.\')"' : '' ?>
+    <a href="chatbot_member.php" class="chatbot-btn <?= (!$punya_akses_aktif) ? 'locked' : '' ?>"
+       <?= (!$punya_akses_aktif) ? 'onclick="event.preventDefault(); alert(\'Fitur AI terkunci karena masa aktif membership sudah berakhir.\')"' : '' ?>
        title="Chatbot Vanda AI"
        style="position: fixed; bottom: 20px; right: 20px; z-index: 9999; background-color: var(--primary-red); color: white; border: none; border-radius: 50%; width: 60px; height: 60px; display: flex; justify-content: center; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6); text-decoration: none;">
         <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -754,7 +818,7 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
             <span>Galeri</span>
         </a>
-        <a href="chatbot_member.php" class="nav-item <?= ($status_member !== 'aktif') ? 'locked-nav' : '' ?>" <?= ($status_member !== 'aktif') ? 'onclick="event.preventDefault(); alert(\'Terkunci!\')"' : '' ?>>
+        <a href="chatbot_member.php" class="nav-item <?= (!$punya_akses_aktif) ? 'locked-nav' : '' ?>" <?= (!$punya_akses_aktif) ? 'onclick="event.preventDefault(); alert(\'Chatbot terkunci karena masa aktif membership sudah berakhir.\')"' : '' ?>>
             <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path></svg>
             <span>AI Bot</span>
         </a>

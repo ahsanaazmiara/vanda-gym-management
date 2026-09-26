@@ -21,12 +21,197 @@ $harga_bulanan = (int)($pengaturan_harga['harga_bulanan'] ?? 175000);
 $harga_harian  = (int)($pengaturan_harga['harga_harian'] ?? 25000);
 $harga_senam   = (int)($pengaturan_harga['harga_senam'] ?? 25000);
 
+// =========================================================
+// FUNGSI BANTU: VALIDASI NOMOR WA & PENGIRIMAN KODE OTP EMAIL
+// =========================================================
+
+/**
+ * Normalisasi nomor WhatsApp ke bentuk lokal tanpa kode negara dan tanpa 0 depan.
+ * Contoh untuk Indonesia (+62):
+ * 081234567890   -> 81234567890
+ * 81234567890    -> 81234567890
+ * +6281234567890 -> 81234567890
+ * 6281234567890  -> 81234567890
+ */
+function normalisasiNomorWALokal($kodeNegara, $nomorInput) {
+    $kodeNegara = preg_replace('/\D/', '', (string) $kodeNegara);
+    $raw = trim((string) $nomorInput);
+    $digits = preg_replace('/\D/', '', $raw);
+
+    if ($kodeNegara === '' || $digits === '') {
+        return '';
+    }
+
+    // Format internasional yang jelas: +62..., 0062..., dst.
+    if (strpos($raw, '+') === 0 && strpos($digits, $kodeNegara) === 0) {
+        $digits = substr($digits, strlen($kodeNegara));
+    } elseif (strpos($raw, '00') === 0) {
+        $tanpa00 = substr($digits, 2);
+        if (strpos($tanpa00, $kodeNegara) === 0) {
+            $digits = substr($tanpa00, strlen($kodeNegara));
+        }
+    } elseif ($kodeNegara === '62' && strpos($digits, '62') === 0 && strlen($digits) >= 11) {
+        // Pengguna Indonesia sering menulis 62812... tanpa tanda +
+        $digits = substr($digits, 2);
+    }
+
+    // Hilangkan trunk prefix 0, mis. 0812... -> 812...
+    $digits = preg_replace('/^0+/', '', $digits);
+
+    return $digits;
+}
+
+/**
+ * Validasi nomor HP/WhatsApp berdasarkan kode negara yang dipilih.
+ * $kodeNegara: kode negara tanpa tanda plus, mis. "62", "1", "44".
+ * $nomorLokal harus sudah dinormalisasi oleh normalisasiNomorWALokal().
+ */
+function validasiNomorWA($kodeNegara, $nomorLokal) {
+    $kodeNegara = preg_replace('/\D/', '', (string) $kodeNegara);
+    $nomorLokal = preg_replace('/\D/', '', (string) $nomorLokal);
+
+    if ($kodeNegara === '' || $nomorLokal === '') {
+        return false;
+    }
+
+    if ($kodeNegara === '62') {
+        // Nomor seluler Indonesia: diawali 8, digit kedua 1-9, panjang wajar
+        if (!preg_match('/^8[1-9][0-9]{7,10}$/', $nomorLokal)) {
+            return false;
+        }
+    } else {
+        // Negara lain: panjang wajar (6-14 digit), tidak diawali 0
+        if (!preg_match('/^[1-9][0-9]{5,13}$/', $nomorLokal)) {
+            return false;
+        }
+    }
+
+    // Tolak pola asal-asalan: 8 digit terakhir sama semua (mis. ...11111111)
+    $delapanAkhir = substr($nomorLokal, -8);
+    if (strlen($delapanAkhir) === 8 && preg_match('/^(\d)\1{7}$/', $delapanAkhir)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Gabungkan kode negara + nomor lokal menjadi satu string nomor internasional
+ * tanpa tanda plus/spasi, mis. "6281234567890". Format ini yang paling
+ * kompatibel dipakai untuk link wa.me atau API WhatsApp lainnya.
+ */
+function gabungNomorWaLengkap($kodeNegara, $nomorLokal) {
+    $kodeNegara = preg_replace('/\D/', '', (string) $kodeNegara);
+    $nomorLokal = preg_replace('/\D/', '', (string) $nomorLokal);
+    return $kodeNegara . $nomorLokal;
+}
+
+/**
+ * Kirim kode OTP ke email menggunakan fungsi mail() bawaan PHP.
+ * CATATAN: mail() membutuhkan MTA/mail server aktif di server hosting.
+ * Ini biasanya bekerja di hosting produksi, tapi SERING TIDAK BEKERJA
+ * di localhost/XAMPP tanpa konfigurasi tambahan. Jika mail() tidak
+ * terkirim di lingkungan Anda, ganti isi fungsi ini dengan PHPMailer
+ * + SMTP (mis. Gmail, Mailtrap, dsb).
+ */
+function kirimEmailOtp($emailTujuan, $kodeOtp) {
+    $subjek  = 'Kode Verifikasi Pendaftaran - Vanda Gym';
+    $pesan   = "Kode verifikasi pendaftaran Anda di Vanda Gym adalah: $kodeOtp\n\n"
+             . "Kode ini berlaku selama 5 menit. Jangan berikan kode ini kepada siapa pun, "
+             . "termasuk pihak yang mengaku dari Vanda Gym.";
+    $headers = "From: no-reply@vandagym.com\r\n" .
+               "Content-Type: text/plain; charset=UTF-8\r\n";
+
+    return @mail($emailTujuan, $subjek, $pesan, $headers);
+}
+
+// =========================================================
+// AKSI: KIRIM KODE OTP KE EMAIL (verifikasi kepemilikan email)
+// =========================================================
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'kirim_otp') {
+    header('Content-Type: application/json');
+
+    $email = trim($_POST['email'] ?? '');
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['status' => 'error', 'message' => 'Format email tidak valid.']);
+        exit;
+    }
+
+    // Cegah spam kirim ulang kode (jeda 60 detik)
+    if (isset($_SESSION['otp_last_sent']) && (time() - $_SESSION['otp_last_sent']) < 60) {
+        $sisa = 60 - (time() - $_SESSION['otp_last_sent']);
+        echo json_encode(['status' => 'error', 'message' => "Tunggu $sisa detik sebelum meminta kode baru."]);
+        exit;
+    }
+
+    $kode_otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+    $_SESSION['otp_kode']      = $kode_otp;
+    $_SESSION['otp_email']     = $email;
+    $_SESSION['otp_exp']       = time() + (5 * 60); // berlaku 5 menit
+    $_SESSION['otp_last_sent'] = time();
+
+    if (kirimEmailOtp($email, $kode_otp)) {
+        echo json_encode(['status' => 'success', 'message' => 'Kode verifikasi telah dikirim ke email Anda.']);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Gagal mengirim email verifikasi. Periksa kembali alamat email Anda atau coba lagi.']);
+    }
+    exit;
+}
+
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['action'] == 'register') {
     header('Content-Type: application/json'); 
 
+    $email_raw      = trim($_POST['regEmail'] ?? '');
+    $kode_negara_raw = trim($_POST['regKodeNegara'] ?? '62');
+    $wa_lokal_raw   = trim($_POST['regHp'] ?? '');
+    $kode_otp_kirim = trim($_POST['kodeOtp'] ?? '');
+
+    // -----------------------------------------------------
+    // VALIDASI FORMAT EMAIL
+    // -----------------------------------------------------
+    if (!filter_var($email_raw, FILTER_VALIDATE_EMAIL)) {
+        echo json_encode(['status' => 'error', 'message' => 'Format email tidak valid.']);
+        exit;
+    }
+
+    // -----------------------------------------------------
+    // VERIFIKASI KODE OTP EMAIL (memastikan email benar milik pendaftar)
+    // -----------------------------------------------------
+    if (
+        $kode_otp_kirim === '' ||
+        !isset($_SESSION['otp_kode'], $_SESSION['otp_email'], $_SESSION['otp_exp']) ||
+        $_SESSION['otp_email'] !== $email_raw ||
+        time() > $_SESSION['otp_exp'] ||
+        $kode_otp_kirim !== $_SESSION['otp_kode']
+    ) {
+        echo json_encode(['status' => 'error', 'message' => 'Kode verifikasi email salah, sudah kedaluwarsa, atau belum diminta. Silakan minta kode baru.']);
+        exit;
+    }
+
+    // Kode OTP sudah valid dan hanya berlaku sekali pakai
+    unset($_SESSION['otp_kode'], $_SESSION['otp_email'], $_SESSION['otp_exp']);
+
+    // -----------------------------------------------------
+    // NORMALISASI + VALIDASI NOMOR WHATSAPP
+    // Pengguna boleh mengetik 0812..., 812..., +62812..., atau 62812...
+    // -----------------------------------------------------
+    $wa_lokal_normal = normalisasiNomorWALokal($kode_negara_raw, $wa_lokal_raw);
+
+    if (!validasiNomorWA($kode_negara_raw, $wa_lokal_normal)) {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Nomor WhatsApp tidak valid. Periksa kode negara dan nomor yang Anda masukkan.'
+        ]);
+        exit;
+    }
+
+    $wa_lengkap_raw = gabungNomorWaLengkap($kode_negara_raw, $wa_lokal_normal); // mis. "6281234567890"
+
     $nama      = mysqli_real_escape_string($koneksi, $_POST['regNama']);
-    $email     = mysqli_real_escape_string($koneksi, $_POST['regEmail']);
-    $wa        = mysqli_real_escape_string($koneksi, $_POST['regHp']);
+    $email     = mysqli_real_escape_string($koneksi, $email_raw);
+    $wa        = mysqli_real_escape_string($koneksi, $wa_lengkap_raw);
     $password  = password_hash($_POST['regPass'], PASSWORD_DEFAULT);
     $durasi    = (int) ($_POST['regPaket'] ?? 0);
     $tgl_mulai = $_POST['regTgl'] ?? '';
@@ -162,6 +347,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         select { cursor: pointer; }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .wa-input-group { display: flex; gap: 8px; align-items: stretch; }
+        .wa-input-group .wa-nomor-lokal { flex: 1; min-width: 0; }
+
+        /* Dropdown kode negara: tombol ringkas, daftar lengkap saat diklik */
+        .country-select { position: relative; flex: 0 0 108px; }
+        .country-select-button {
+            width: 100%; height: 100%; min-height: 40px; padding: 8px 9px;
+            background: var(--input-bg); border: 1px solid #333; border-radius: 4px;
+            color: white; cursor: pointer; display: flex; align-items: center;
+            justify-content: space-between; gap: 6px; font-size: 0.82rem;
+            transition: 0.3s; white-space: nowrap;
+        }
+        .country-select-button:hover,
+        .country-select.open .country-select-button { border-color: var(--accent-gold); }
+        .country-select-arrow { color: var(--accent-gold); font-size: 0.72rem; transition: transform 0.2s; }
+        .country-select.open .country-select-arrow { transform: rotate(180deg); }
+        .country-menu {
+            position: absolute; top: calc(100% + 6px); left: 0; z-index: 1200;
+            width: 265px; max-height: 280px; overflow-y: auto;
+            background: #111; border: 1px solid #444; border-radius: 6px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.75); padding: 5px; display: none;
+        }
+        .country-select.open .country-menu { display: block; }
+        .country-option {
+            width: 100%; border: 0; background: transparent; color: #ddd;
+            padding: 9px 10px; border-radius: 4px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            gap: 12px; text-align: left; font-size: 0.78rem;
+        }
+        .country-option:hover, .country-option.active { background: #1d1d1d; color: white; }
+        .country-option-name { font-weight: 600; }
+        .country-option-code { color: var(--accent-gold); font-size: 0.72rem; white-space: nowrap; }
+        .wa-helper { color: #777; font-size: 0.69rem; margin-top: 5px; line-height: 1.35; }
         
         /* Validasi Formulir Pendaftaran */
         .form-control.invalid-field { border-color: var(--primary-red) !important; background-color: #221111 !important; }
@@ -245,6 +464,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             
             /* Tinggi form disamakan 32px */
             .form-control { padding: 6px 10px !important; font-size: 0.75rem !important; min-height: 32px !important; border-radius: 4px !important; }
+
+            .wa-input-group { gap: 4px !important; }
+            .country-select { flex: 0 0 76px !important; }
+            .country-select-button { min-height: 32px !important; padding: 4px 6px !important; font-size: 0.66rem !important; }
+            .country-menu { width: 230px !important; max-height: 230px !important; }
+            .country-option { padding: 7px 8px !important; font-size: 0.68rem !important; }
+            .country-option-code { font-size: 0.62rem !important; }
+            .wa-helper { font-size: 0.58rem !important; margin-top: 3px !important; }
             
             /* Toggle Password */
             #togglePassword { min-height: 32px !important; min-width: 32px !important; right: 2px !important; }
@@ -310,8 +537,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             <div class="grid-2">
                 <div class="form-group">
                     <label>Nomor WhatsApp</label>
-                    <input type="text" id="regHp" name="regHp" class="form-control" oninput="validasiAngka(this)" placeholder="0812xxxx">
-                    <div id="errorHp" class="error-msg">Wajib angka saja.</div>
+                    <div class="wa-input-group">
+                        <!-- Nilai kode negara yang dikirim ke PHP -->
+                        <input type="hidden" id="regKodeNegara" name="regKodeNegara" value="62">
+
+                        <!-- Di form hanya tampil kode singkat, mis. ID +62 -->
+                        <div class="country-select" id="countrySelect">
+                            <button type="button" class="country-select-button" id="countrySelectButton"
+                                    onclick="toggleCountryMenu()" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="countrySelectedText">ID +62</span>
+                                <span class="country-select-arrow">▼</span>
+                            </button>
+
+                            <!-- Saat diklik, nama negara diperjelas -->
+                            <div class="country-menu" id="countryMenu" role="listbox">
+                                <button type="button" class="country-option active" data-code="62" onclick="pilihNegara('62','ID','Indonesia','82123456789')"><span class="country-option-name">Indonesia</span><span class="country-option-code">ID · +62</span></button>
+                                <button type="button" class="country-option" data-code="60" onclick="pilihNegara('60','MY','Malaysia','123456789')"><span class="country-option-name">Malaysia</span><span class="country-option-code">MY · +60</span></button>
+                                <button type="button" class="country-option" data-code="65" onclick="pilihNegara('65','SG','Singapore','81234567')"><span class="country-option-name">Singapore</span><span class="country-option-code">SG · +65</span></button>
+                                <button type="button" class="country-option" data-code="63" onclick="pilihNegara('63','PH','Philippines','9171234567')"><span class="country-option-name">Philippines</span><span class="country-option-code">PH · +63</span></button>
+                                <button type="button" class="country-option" data-code="66" onclick="pilihNegara('66','TH','Thailand','812345678')"><span class="country-option-name">Thailand</span><span class="country-option-code">TH · +66</span></button>
+                                <button type="button" class="country-option" data-code="84" onclick="pilihNegara('84','VN','Vietnam','912345678')"><span class="country-option-name">Vietnam</span><span class="country-option-code">VN · +84</span></button>
+                                <button type="button" class="country-option" data-code="91" onclick="pilihNegara('91','IN','India','9876543210')"><span class="country-option-name">India</span><span class="country-option-code">IN · +91</span></button>
+                                <button type="button" class="country-option" data-code="86" onclick="pilihNegara('86','CN','China','13800138000')"><span class="country-option-name">China</span><span class="country-option-code">CN · +86</span></button>
+                                <button type="button" class="country-option" data-code="81" onclick="pilihNegara('81','JP','Japan','9012345678')"><span class="country-option-name">Japan</span><span class="country-option-code">JP · +81</span></button>
+                                <button type="button" class="country-option" data-code="82" onclick="pilihNegara('82','KR','South Korea','1012345678')"><span class="country-option-name">South Korea</span><span class="country-option-code">KR · +82</span></button>
+                                <button type="button" class="country-option" data-code="61" onclick="pilihNegara('61','AU','Australia','412345678')"><span class="country-option-name">Australia</span><span class="country-option-code">AU · +61</span></button>
+                                <button type="button" class="country-option" data-code="1" onclick="pilihNegara('1','US','United States','2125550123')"><span class="country-option-name">United States</span><span class="country-option-code">US · +1</span></button>
+                                <button type="button" class="country-option" data-code="44" onclick="pilihNegara('44','UK','United Kingdom','7123456789')"><span class="country-option-name">United Kingdom</span><span class="country-option-code">UK · +44</span></button>
+                                <button type="button" class="country-option" data-code="971" onclick="pilihNegara('971','AE','United Arab Emirates','501234567')"><span class="country-option-name">United Arab Emirates</span><span class="country-option-code">AE · +971</span></button>
+                                <button type="button" class="country-option" data-code="966" onclick="pilihNegara('966','SA','Saudi Arabia','501234567')"><span class="country-option-name">Saudi Arabia</span><span class="country-option-code">SA · +966</span></button>
+                            </div>
+                        </div>
+
+                        <input type="tel" id="regHp" name="regHp" class="form-control wa-nomor-lokal"
+                               inputmode="tel" autocomplete="tel"
+                               oninput="formatInputWA(this)" onblur="cekFormatWA()"
+                               placeholder="82123456789">
+                    </div>
+                    <div id="waHelper" class="wa-helper">Contoh: 82123456789</div>
+                    <div id="errorHp" class="error-msg">Nomor hanya boleh berisi angka dan tanda pemisah umum.</div>
+                    <div id="errorFormatHp" class="error-msg">Nomor WhatsApp tidak valid untuk kode negara yang dipilih.</div>
                     <div id="err_regHp" class="field-error-text">Nomor WhatsApp tidak boleh kosong</div>
                 </div>
                 <div class="form-group">
@@ -456,17 +721,149 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 </a>
 
     <script>
-        function validasiAngka(input) {
+        // ====================================================
+        // KODE NEGARA + FORMAT NOMOR WHATSAPP
+        // ====================================================
+        function toggleCountryMenu() {
+            const wrapper = document.getElementById('countrySelect');
+            const btn = document.getElementById('countrySelectButton');
+            const isOpen = wrapper.classList.toggle('open');
+            btn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+
+        function tutupCountryMenu() {
+            const wrapper = document.getElementById('countrySelect');
+            const btn = document.getElementById('countrySelectButton');
+            if (!wrapper || !btn) return;
+            wrapper.classList.remove('open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+
+        function pilihNegara(kode, singkat, nama, contoh) {
+            document.getElementById('regKodeNegara').value = kode;
+            document.getElementById('countrySelectedText').innerText = `${singkat} +${kode}`;
+
+            const input = document.getElementById('regHp');
+            input.placeholder = contoh;
+
+            const helper = document.getElementById('waHelper');
+            helper.innerText = `Contoh: ${contoh}`;
+
+            document.querySelectorAll('.country-option').forEach(item => {
+                item.classList.toggle('active', item.dataset.code === kode);
+            });
+
+            tutupCountryMenu();
+            cekFormatWA();
+            input.focus();
+        }
+
+        // Biarkan pengguna mengetik format yang familiar: 0812..., +62..., spasi, -, (), dll.
+        function formatInputWA(input) {
             const error = document.getElementById('errorHp');
-            if (/\D/g.test(input.value)) {
+            const awal = input.value;
+
+            // Hapus karakter selain angka dan pemisah nomor yang umum.
+            let bersih = awal.replace(/[^0-9+()\s.-]/g, '');
+
+            // Tanda + hanya boleh satu kali dan hanya di paling depan.
+            if (bersih.includes('+')) {
+                bersih = (bersih.startsWith('+') ? '+' : '') + bersih.replace(/\+/g, '');
+            }
+
+            input.value = bersih;
+
+            if (awal !== bersih) {
                 error.style.display = 'block';
-                input.classList.add('invalid-field');
-                input.value = input.value.replace(/\D/g, ''); 
             } else {
                 error.style.display = 'none';
-                input.classList.remove('invalid-field');
             }
+
+            // Hilangkan status error format saat pengguna masih memperbaiki input.
+            document.getElementById('errorFormatHp').style.display = 'none';
+            input.classList.remove('invalid-field');
         }
+
+        function normalisasiNomorWALokal(kodeNegara, nomorInput) {
+            kodeNegara = (kodeNegara || '').replace(/\D/g, '');
+            const raw = (nomorInput || '').trim();
+            let digits = raw.replace(/\D/g, '');
+
+            if (!kodeNegara || !digits) return '';
+
+            if (raw.startsWith('+') && digits.startsWith(kodeNegara)) {
+                digits = digits.slice(kodeNegara.length);
+            } else if (raw.startsWith('00')) {
+                const tanpa00 = digits.slice(2);
+                if (tanpa00.startsWith(kodeNegara)) {
+                    digits = tanpa00.slice(kodeNegara.length);
+                }
+            } else if (kodeNegara === '62' && digits.startsWith('62') && digits.length >= 11) {
+                digits = digits.slice(2);
+            }
+
+            digits = digits.replace(/^0+/, '');
+            return digits;
+        }
+
+        function validasiNomorWA(kodeNegara, nomorInput) {
+            kodeNegara = (kodeNegara || '').replace(/\D/g, '');
+            const nomorLokal = normalisasiNomorWALokal(kodeNegara, nomorInput);
+
+            if (!kodeNegara || !nomorLokal) return false;
+
+            if (kodeNegara === '62') {
+                if (!/^8[1-9][0-9]{7,10}$/.test(nomorLokal)) return false;
+            } else {
+                if (!/^[1-9][0-9]{5,13}$/.test(nomorLokal)) return false;
+            }
+
+            const delapanAkhir = nomorLokal.slice(-8);
+            if (delapanAkhir.length === 8 && /^(\d)\1{7}$/.test(delapanAkhir)) return false;
+
+            return true;
+        }
+
+        function formatNomorInternasional(kodeNegara, nomorInput) {
+            const lokal = normalisasiNomorWALokal(kodeNegara, nomorInput);
+            if (!lokal) return `+${kodeNegara}`;
+
+            // Hanya untuk tampilan ringkas di modal konfirmasi.
+            if (kodeNegara === '62' && lokal.length >= 7) {
+                const awal = lokal.slice(0, 3);
+                const tengah = lokal.slice(3, 7);
+                const akhir = lokal.slice(7);
+                return `+62 ${awal} ${tengah}${akhir ? ' ' + akhir : ''}`;
+            }
+
+            return `+${kodeNegara} ${lokal.replace(/(\d{3})(?=\d)/g, '$1 ').trim()}`;
+        }
+
+        function cekFormatWA() {
+            const kodeNegara = document.getElementById('regKodeNegara').value;
+            const input = document.getElementById('regHp');
+            const errorFormat = document.getElementById('errorFormatHp');
+
+            if (input.value.trim().length > 0 && !validasiNomorWA(kodeNegara, input.value)) {
+                errorFormat.style.display = 'block';
+                input.classList.add('invalid-field');
+                return false;
+            }
+
+            errorFormat.style.display = 'none';
+            input.classList.remove('invalid-field');
+            return true;
+        }
+
+        // Tutup dropdown jika pengguna klik di luar atau menekan Escape.
+        document.addEventListener('click', function(e) {
+            const wrapper = document.getElementById('countrySelect');
+            if (wrapper && !wrapper.contains(e.target)) tutupCountryMenu();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') tutupCountryMenu();
+        });
 
         function cekPassword(input) {
             const error = document.getElementById('errorPass');
@@ -547,6 +944,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                 }
             });
 
+            // Nomor WA sudah diisi, tapi cek juga formatnya benar-benar valid untuk kode negara yang dipilih
+            const elHp = document.getElementById('regHp');
+            const kodeNegaraDipilih = document.getElementById('regKodeNegara').value;
+            if (elHp.value.trim() !== "" && !validasiNomorWA(kodeNegaraDipilih, elHp.value)) {
+                elHp.classList.add('invalid-field');
+                document.getElementById('errorFormatHp').style.display = 'block';
+                isValid = false;
+            }
+
             const metode = document.querySelector('input[name="metodeBayar"]:checked').value;
             if (metode === 'qris') {
                 const bukti = document.getElementById('regBukti');
@@ -565,8 +971,66 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             return isValid;
         }
 
-        function toggleTombolBayar(checkbox) {
-            document.getElementById('btnFinalBayar').disabled = !checkbox.checked;
+        let otpCooldownTimer = null;
+
+        // Cek apakah checkbox persetujuan dicentang DAN kode OTP sudah diisi 6 digit
+        function cekSyaratFinal() {
+            const chk = document.getElementById('chkYakin');
+            const otp = document.getElementById('inputOtp');
+            const btn = document.getElementById('btnFinalBayar');
+            if (!chk || !otp || !btn) return;
+            btn.disabled = !(chk.checked && otp.value.trim().length === 6);
+        }
+
+        function mulaiCooldownOtp(btn, detik) {
+            let sisa = detik;
+            btn.innerText = `Kirim Ulang (${sisa}s)`;
+            clearInterval(otpCooldownTimer);
+            otpCooldownTimer = setInterval(() => {
+                sisa--;
+                if (sisa <= 0) {
+                    clearInterval(otpCooldownTimer);
+                    btn.innerText = 'Kirim Ulang Kode';
+                    btn.disabled = false;
+                } else {
+                    btn.innerText = `Kirim Ulang (${sisa}s)`;
+                }
+            }, 1000);
+        }
+
+        function kirimOtpEmail(email) {
+            const btn = document.getElementById('btnKirimOtp');
+            const statusEl = document.getElementById('otpStatusMsg');
+            if (!btn || !statusEl) return;
+
+            btn.disabled = true;
+            statusEl.style.color = '#888';
+            statusEl.innerText = 'Mengirim kode...';
+
+            fetch('daftar.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'action=kirim_otp&email=' + encodeURIComponent(email)
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusEl.style.color = 'var(--success-green)';
+                    statusEl.innerText = data.message;
+                    const wrapper = document.getElementById('otpInputWrapper');
+                    if (wrapper) wrapper.style.display = 'block';
+                    mulaiCooldownOtp(btn, 60);
+                } else {
+                    statusEl.style.color = 'var(--primary-red)';
+                    statusEl.innerText = data.message;
+                    btn.disabled = false;
+                }
+            })
+            .catch(() => {
+                statusEl.style.color = 'var(--primary-red)';
+                statusEl.innerText = 'Gagal terhubung ke server.';
+                btn.disabled = false;
+            });
         }
 
         function validasiDanBukaDraf(e) {
@@ -578,6 +1042,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
 
             const namaLengkap = document.getElementById('regNama').value;
             const noHp = document.getElementById('regHp').value;
+            const kodeNegara = document.getElementById('regKodeNegara').value;
+            const nomorTampil = formatNomorInternasional(kodeNegara, noHp);
             const email = document.getElementById('regEmail').value;
             const pass = document.getElementById('regPass').value;
             const tglMulai = document.getElementById('regTgl').value;
@@ -604,7 +1070,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                 <h3 style="color:var(--text-light); text-transform:uppercase; text-align:center; font-size:1.1rem; letter-spacing:1px; margin-bottom:5px;">Konfirmasi Data</h3>
                 <div style="margin:20px 0; font-size: 0.85rem; color:#ccc;">
                     <div class="draf-item"><span style="color:#888;">Nama:</span> <span style="text-align:right; color:white;">${namaLengkap}</span></div>
-                    <div class="draf-item"><span style="color:#888;">Kontak:</span> <span style="text-align:right; color:white;">${noHp} <br> ${email}</span></div>
+                    <div class="draf-item"><span style="color:#888;">Kontak:</span> <span style="text-align:right; color:white;">${nomorTampil} <br> ${email}</span></div>
                     <div class="draf-item"><span style="color:#888;">Paket Latihan:</span> <span style="text-align:right; color:white;">${namaPaket} <br> Mulai: ${tglMulai}</span></div>
                     <div class="draf-item"><span style="color:#888;">Metode:</span> <span style="text-align:right; color:white; text-transform: uppercase;">${metode}</span></div>
                     <div class="draf-item" style="border-top:1px dashed #333; margin-top:10px; padding-top:15px;">
@@ -613,8 +1079,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
                     </div>
                 </div>
                 
+                <div class="form-group" style="margin-top:20px;">
+                    <label>Verifikasi Email</label>
+                    <p style="font-size:0.75rem; color:#888; margin-bottom:8px;">Kami akan mengirim kode 6 digit ke <strong style="color:var(--accent-gold);">${email}</strong> untuk memastikan email ini benar-benar milik Anda.</p>
+                    <button type="button" id="btnKirimOtp" class="btn-action" style="background:#1a1a1a; border:1px solid var(--accent-gold); color:var(--accent-gold);" onclick="kirimOtpEmail('${email}')">Kirim Kode ke Email</button>
+                    <div id="otpStatusMsg" style="font-size:0.75rem; margin-top:6px;"></div>
+                    <div id="otpInputWrapper" style="display:none; margin-top:10px;">
+                        <input type="text" id="inputOtp" class="form-control" maxlength="6" inputmode="numeric" placeholder="Masukkan 6 digit kode" oninput="cekSyaratFinal()">
+                    </div>
+                </div>
+
                 <div class="checkbox-container">
-                    <input type="checkbox" id="chkYakin" onchange="toggleTombolBayar(this)">
+                    <input type="checkbox" id="chkYakin" onchange="cekSyaratFinal()">
                     <label for="chkYakin">Saya yakin data dan bukti pembayaran yang saya masukkan sudah benar dan sesuai.</label>
                 </div>
                 
@@ -627,11 +1103,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
         function kirimFinal(metode, email) {
             const content = document.getElementById('modalContent');
             const form = document.getElementById('formPendaftaran');
-            
+
+            // Ambil kode OTP dari modal SEBELUM isi modal diganti
+            const otpEl = document.getElementById('inputOtp');
+            const kodeOtp = otpEl ? otpEl.value.trim() : '';
+
             content.innerHTML = `<div style="text-align:center;"><p style="font-weight:bold; font-size:0.9rem; color:var(--accent-gold);">Menyimpan data...</p><p style="color:#888; font-size:0.8rem; margin-top:10px;">Mohon tunggu sebentar.</p></div>`;
 
             const formData = new FormData(form);
             formData.append('action', 'register');
+            formData.append('kodeOtp', kodeOtp);
 
             fetch('daftar.php', { method: 'POST', body: formData })
             .then(response => {

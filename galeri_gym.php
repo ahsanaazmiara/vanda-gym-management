@@ -8,19 +8,83 @@ $web_data = mysqli_fetch_assoc($q_pengaturan);
 $wa_db = $web_data['wa_cs'] ?? '082148556601';
 $wa_link = "62" . substr(preg_replace('/[^0-9]/', '', $wa_db), 1);
 
-// Ambil semua data galeri dari database
+// =========================================================
+// KATEGORI GALERI DINAMIS
+// =========================================================
+// Kategori mengikuti master kategori yang dikelola admin pada dashboard.
+// Jadi ketika admin menambah kategori baru, kategori tersebut otomatis
+// muncul juga di halaman Galeri Gym ini tanpa perlu mengubah kode lagi.
+$kategori_info  = [];
+$kategori_media = [];
+
+// Ambil kategori master sesuai urutan yang ditentukan sistem/admin.
+// Tabel dicek lebih dulu agar halaman publik tidak error 500 pada instalasi lama.
+$tabel_kategori_tersedia = false;
+$q_cek_tabel_kategori = mysqli_query($koneksi, "SHOW TABLES LIKE 'kategori_galeri'");
+if ($q_cek_tabel_kategori && mysqli_num_rows($q_cek_tabel_kategori) > 0) {
+    $tabel_kategori_tersedia = true;
+}
+
+if ($tabel_kategori_tersedia) {
+    $q_master_kategori = mysqli_query(
+        $koneksi,
+        "SELECT slug, nama_kategori
+         FROM kategori_galeri
+         ORDER BY urutan ASC, nama_kategori ASC"
+    );
+
+    if ($q_master_kategori) {
+        while ($kat = mysqli_fetch_assoc($q_master_kategori)) {
+            $slug = trim((string)($kat['slug'] ?? ''));
+            if ($slug === '') continue;
+
+            $kategori_info[$slug] = $kat['nama_kategori'];
+            $kategori_media[$slug] = [];
+        }
+    }
+}
+
+// Fallback untuk instalasi lama jika master belum tersedia / masih kosong.
+if (empty($kategori_info)) {
+    $q_kategori_lama = mysqli_query(
+        $koneksi,
+        "SELECT DISTINCT kategori
+         FROM galeri_gym
+         WHERE kategori IS NOT NULL AND kategori <> ''
+         ORDER BY kategori ASC"
+    );
+
+    $label_default = [
+        'alat'  => 'Fasilitas & Alat Gym',
+        'upper' => 'Tutorial Upper Body',
+        'lower' => 'Tutorial Lower Body'
+    ];
+
+    if ($q_kategori_lama) {
+        while ($kat = mysqli_fetch_assoc($q_kategori_lama)) {
+            $slug = trim((string)($kat['kategori'] ?? ''));
+            if ($slug === '') continue;
+
+            $kategori_info[$slug] = $label_default[$slug]
+                ?? ucwords(str_replace(['-', '_'], ' ', $slug));
+            $kategori_media[$slug] = [];
+        }
+    }
+}
+
+// Ambil semua media dan kelompokkan berdasarkan slug kategori.
 $q_galeri = mysqli_query($koneksi, "SELECT * FROM galeri_gym ORDER BY id_media DESC");
+if ($q_galeri) {
+    while ($row = mysqli_fetch_assoc($q_galeri)) {
+        $kat = trim((string)($row['kategori'] ?? ''));
+        if ($kat === '') continue;
 
-// Kelompokkan data berdasarkan kategori
-$kategori_media = [
-    'alat' => [],
-    'upper' => [],
-    'lower' => []
-];
+        // Jika ada media lama yang belum masuk master kategori, tetap tampilkan.
+        if (!array_key_exists($kat, $kategori_info)) {
+            $kategori_info[$kat] = ucwords(str_replace(['-', '_'], ' ', $kat));
+            $kategori_media[$kat] = [];
+        }
 
-while ($row = mysqli_fetch_assoc($q_galeri)) {
-    $kat = $row['kategori'];
-    if (array_key_exists($kat, $kategori_media)) {
         $kategori_media[$kat][] = $row;
     }
 }
@@ -581,44 +645,44 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         </div>
 
         <div class="category-filter">
-            <button class="filter-btn active" onclick="pilihKategori('semua', this)">Semua Kategori</button>
-            <button class="filter-btn" onclick="pilihKategori('alat', this)">Alat Gym</button>
-            <button class="filter-btn" onclick="pilihKategori('upper', this)">Upper Body</button>
-            <button class="filter-btn" onclick="pilihKategori('lower', this)">Lower Body</button>
+            <button class="filter-btn active" data-kategori="semua" onclick="pilihKategori(this.dataset.kategori, this)">Semua Kategori</button>
+            <?php foreach($kategori_info as $slugKategori => $namaKategori): ?>
+                <button
+                    class="filter-btn"
+                    data-kategori="<?= htmlspecialchars($slugKategori, ENT_QUOTES, 'UTF-8') ?>"
+                    onclick="pilihKategori(this.dataset.kategori, this)">
+                    <?= htmlspecialchars($namaKategori, ENT_QUOTES, 'UTF-8') ?>
+                </button>
+            <?php endforeach; ?>
         </div>
 
-        <div class="category-section" id="sec-alat">
-            <h3 class="category-title">Fasilitas & Alat Gym</h3>
-            <?php if(empty($kategori_media['alat'])): ?>
-                <div class="empty-state" style="display:block;">Belum ada data alat.</div>
-            <?php else: ?>
-                <div class="horizontal-scroll">
-                    <?php foreach($kategori_media['alat'] as $m): renderGalleryItem($m); endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </div>
+        <?php if (empty($kategori_info)): ?>
+            <div class="empty-state" style="display:block;">
+                Belum ada kategori atau media galeri yang tersedia.
+            </div>
+        <?php else: ?>
+            <?php foreach($kategori_info as $slugKategori => $namaKategori): ?>
+                <div
+                    class="category-section"
+                    id="sec-<?= htmlspecialchars($slugKategori, ENT_QUOTES, 'UTF-8') ?>"
+                    data-kategori="<?= htmlspecialchars($slugKategori, ENT_QUOTES, 'UTF-8') ?>">
 
-        <div class="category-section" id="sec-upper">
-            <h3 class="category-title">Tutorial Upper Body</h3>
-            <?php if(empty($kategori_media['upper'])): ?>
-                <div class="empty-state" style="display:block;">Belum ada tutorial upper body.</div>
-            <?php else: ?>
-                <div class="horizontal-scroll">
-                    <?php foreach($kategori_media['upper'] as $m): renderGalleryItem($m); endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </div>
+                    <h3 class="category-title">
+                        <?= htmlspecialchars($namaKategori, ENT_QUOTES, 'UTF-8') ?>
+                    </h3>
 
-        <div class="category-section" id="sec-lower">
-            <h3 class="category-title">Tutorial Lower Body</h3>
-            <?php if(empty($kategori_media['lower'])): ?>
-                <div class="empty-state" style="display:block;">Belum ada tutorial lower body.</div>
-            <?php else: ?>
-                <div class="horizontal-scroll">
-                    <?php foreach($kategori_media['lower'] as $m): renderGalleryItem($m); endforeach; ?>
+                    <?php if(empty($kategori_media[$slugKategori])): ?>
+                        <div class="empty-state" style="display:block;">
+                            Belum ada media pada kategori ini.
+                        </div>
+                    <?php else: ?>
+                        <div class="horizontal-scroll">
+                            <?php foreach($kategori_media[$slugKategori] as $m): renderGalleryItem($m); endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
-        </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
 
     </div>
 
@@ -685,9 +749,9 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
         </div>
         <div class="chat-footer-menu">
             <div class="quick-replies">
-                <button class="btn-qr" onclick="kirimFaq('Bagaimana cara pakai alat gym?', 'Gampang banget! Kamu bisa cari alat yang pengen kamu pakai di kotak pencarian atas, atau klik tombol filter kategori <b>Alat Gym</b>.<br><br>Klik foto/videonya untuk melihat detail dan fungsinya ya! 🏋️‍♂️')">🏋️ Cara Pakai Alat</button>
+                <button class="btn-qr" onclick="kirimFaq('Bagaimana cara pakai alat gym?', 'Gampang banget! Gunakan kotak pencarian di bagian atas atau pilih salah satu tombol kategori yang tersedia.<br><br>Klik foto atau videonya untuk melihat informasi lebih lengkap ya! 🏋️‍♂️')">🏋️ Cara Pakai Alat</button>
                 
-                <button class="btn-qr" onclick="kirimFaq('Apa bedanya Upper & Lower Body?', 'Biar jadwal latihanmu terstruktur, tutorialnya kita bagi dua nih:<br><br>🔹 <b>Upper Body:</b> Untuk melatih otot atas (Dada, Punggung, Bahu, Tangan).<br>🔹 <b>Lower Body:</b> Untuk melatih kaki (Paha, Betis, Bokong).<br><br>Sesuaikan sama jadwal harianmu ya! 🔥')">🦾 Upper vs Lower Body</button>
+                <button class="btn-qr" onclick="kirimFaq('Bagaimana melihat kategori galeri?', 'Kategori galeri dapat berubah sesuai konten yang dikelola admin. Kamu bisa melihat semua kategori yang tersedia melalui tombol filter di bagian atas halaman. Pilih kategorinya untuk menampilkan media yang sesuai. 🔥')">📂 Lihat Kategori</button>
                 
                 <button class="btn-qr" onclick="kirimFaq('Keterangan target otot di mana?', 'Coba deh kamu klik salah satu video tutorial di layar! Nanti videonya akan membesar, nah keterangan target otot dan cara ambil nafas yang benar ada di bagian teks sebelah kanannya. 💡')">🎯 Keterangan Target Otot</button>
                 
@@ -829,8 +893,8 @@ while ($row = mysqli_fetch_assoc($q_galeri)) {
             const isSearching = searchText.trim() !== '';
             
             sections.forEach(section => {
-                const sectionId = section.id;
-                const isMatchCategory = (filterKategoriSaatIni === 'semua' || sectionId === 'sec-' + filterKategoriSaatIni);
+                const kategoriSection = section.dataset.kategori || '';
+                const isMatchCategory = (filterKategoriSaatIni === 'semua' || kategoriSection === filterKategoriSaatIni);
                 
                 if (!isMatchCategory) {
                     section.style.display = 'none';
