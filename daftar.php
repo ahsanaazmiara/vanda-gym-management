@@ -115,14 +115,23 @@ function gabungNomorWaLengkap($kodeNegara, $nomorLokal) {
  * + SMTP (mis. Gmail, Mailtrap, dsb).
  */
 function kirimEmailOtp($emailTujuan, $kodeOtp) {
-    $subjek  = 'Kode Verifikasi Pendaftaran - Vanda Gym';
-    $pesan   = "Kode verifikasi pendaftaran Anda di Vanda Gym adalah: $kodeOtp\n\n"
-             . "Kode ini berlaku selama 5 menit. Jangan berikan kode ini kepada siapa pun, "
-             . "termasuk pihak yang mengaku dari Vanda Gym.";
-    $headers = "From: Vanda Gym Classic <no-reply@vandagym.com>" .
-               "Content-Type: text/plain; charset=UTF-8\r\n";
+    $subjek = 'Kode Verifikasi Pendaftaran - Vanda Gym';
+    $pesan  = "Kode verifikasi pendaftaran Anda di Vanda Gym adalah: $kodeOtp\n\n"
+            . "Kode ini berlaku selama 5 menit. Jangan berikan kode ini kepada siapa pun, "
+            . "termasuk pihak yang mengaku dari Vanda Gym.";
 
-    return @mail($emailTujuan, $subjek, $pesan, $headers);
+    $headers  = "From: Vanda Gym Classic <no-reply@vandagym.my.id>\r\n";
+    $headers .= "Reply-To: no-reply@vandagym.my.id\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+    $hasil = @mail($emailTujuan, $subjek, $pesan, $headers);
+
+    if (!$hasil) {
+        error_log('Gagal mengirim OTP pendaftaran ke: ' . $emailTujuan);
+    }
+
+    return $hasil;
 }
 
 // =========================================================

@@ -84,11 +84,18 @@ function kirimOtpPerubahanEmail($emailTujuan, $kodeOtp) {
             . "Kode berlaku selama 5 menit dan hanya dapat digunakan satu kali.\n"
             . "Jangan berikan kode ini kepada siapa pun.";
 
-    $headers = "From: no-reply@vandagym.my.id\r\n";
+    $headers  = "From: Vanda Gym Classic <no-reply@vandagym.my.id>\r\n";
     $headers .= "Reply-To: no-reply@vandagym.my.id\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
     $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
 
-    return @mail($emailTujuan, $subjek, $pesan, $headers);
+    $hasil = @mail($emailTujuan, $subjek, $pesan, $headers);
+
+    if (!$hasil) {
+        error_log('Gagal mengirim OTP perubahan email ke: ' . $emailTujuan);
+    }
+
+    return $hasil;
 }
 
 
